@@ -1,7 +1,6 @@
 .idea
 **/**/yu
-**/**/cairo_db
-**/**/verse_db
+**/**/reddio_db
 
 data
 reddio
