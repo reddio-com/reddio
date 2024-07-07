@@ -129,19 +129,23 @@ func (e *EthAPIBackend) HeaderByNumberOrHash(ctx context.Context, blockNrOrHash 
 
 func (e *EthAPIBackend) CurrentHeader() *types.Header {
 	yuBlock, err := e.chain.Chain.GetEndBlock()
+
 	if err != nil {
 		logrus.Error("EthAPIBackend.CurrentBlock() failed: ", err)
 		return new(types.Header)
 	}
+
 	return yuHeader2EthHeader(yuBlock.Header)
 }
 
 func (e *EthAPIBackend) CurrentBlock() *types.Header {
 	yuBlock, err := e.chain.Chain.GetEndBlock()
+
 	if err != nil {
 		logrus.Error("EthAPIBackend.CurrentBlock() failed: ", err)
 		return new(types.Header)
 	}
+
 	return yuHeader2EthHeader(yuBlock.Header)
 }
 
@@ -388,4 +392,32 @@ func yuHeader2EthHeader(yuHeader *yutypes.Header) *types.Header {
 		Nonce:       types.BlockNonce{},
 		BaseFee:     nil,
 	}
+}
+
+func compactBlock2EthBlock(yuBlock *yutypes.CompactBlock) *types.Block {
+	// Init default values for Eth.Block.Transactions.TxData:
+	var data []byte
+	var ethTxs []*types.Transaction
+
+	nonce := uint64(0)
+	to := common.HexToAddress("")
+	gasLimit := yuBlock.Header.LeiLimit
+	gasPrice := big.NewInt(0)
+
+	// Create Eth.Block.Transactions from yu.CompactBlock.Hashes:
+	for _, yuTxHash := range yuBlock.TxnsHashes {
+		tx := types.NewTxFromYuTx(&types.LegacyTx{
+			Nonce:    nonce,
+			GasPrice: gasPrice,
+			Gas:      gasLimit,
+			To:       &to,
+			Value:    big.NewInt(0),
+			Data:     data,
+		}, common.Hash(yuTxHash))
+
+		ethTxs = append(ethTxs, tx)
+	}
+
+	// Create new Eth.Block using yu.Header & yu.Hashes:
+	return types.NewBlock(yuHeader2EthHeader(yuBlock.Header), ethTxs, nil, nil, nil)
 }
