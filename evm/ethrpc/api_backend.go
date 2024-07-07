@@ -123,8 +123,15 @@ func (e *EthAPIBackend) HeaderByHash(ctx context.Context, hash common.Hash) (*ty
 }
 
 func (e *EthAPIBackend) HeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Header, error) {
-	//TODO implement me
-	panic("implement me")
+	if blockNr, ok := blockNrOrHash.Number(); ok {
+		return e.HeaderByNumber(ctx, blockNr)
+	}
+
+	if blockHash, ok := blockNrOrHash.Hash(); ok {
+		return e.HeaderByHash(ctx, blockHash)
+	}
+
+	return nil, errors.New("invalid arguments; neither block number nor hash specified")
 }
 
 func (e *EthAPIBackend) CurrentHeader() *types.Header {
@@ -146,18 +153,27 @@ func (e *EthAPIBackend) CurrentBlock() *types.Header {
 }
 
 func (e *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Block, error) {
-	//TODO implement me
-	panic("implement me")
+	yuBlock, err := e.chain.Chain.GetBlockByHeight(yucommon.BlockNum(number))
+
+	return compactBlock2EthBlock(yuBlock), err
 }
 
 func (e *EthAPIBackend) BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error) {
-	//TODO implement me
-	panic("implement me")
+	yuBlock, err := e.chain.Chain.GetBlock(yucommon.Hash(hash))
+
+	return compactBlock2EthBlock(yuBlock), err
 }
 
 func (e *EthAPIBackend) BlockByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Block, error) {
-	//TODO implement me
-	panic("implement me")
+	if blockNr, ok := blockNrOrHash.Number(); ok {
+		return e.BlockByNumber(ctx, blockNr)
+	}
+
+	if blockHash, ok := blockNrOrHash.Hash(); ok {
+		return e.BlockByHash(ctx, blockHash)
+	}
+
+	return nil, errors.New("invalid arguments; neither block number nor hash specified")
 }
 
 func (e *EthAPIBackend) StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*state.StateDB, *types.Header, error) {
