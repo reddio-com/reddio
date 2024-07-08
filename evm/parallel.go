@@ -1,25 +1,19 @@
-package parallel
+package evm
 
 import (
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/reddio-com/reddio/evm"
 	yucommon "github.com/yu-org/yu/common"
-	"github.com/yu-org/yu/core/kernel"
 	yutypes "github.com/yu-org/yu/core/types"
 )
 
-type ParallelExecutor struct {
-	*kernel.Kernel
-}
-
-func (p *ParallelExecutor) SimpleParallelExecute(block *yutypes.Block) error {
+func (s *Solidity) SimpleParallelExecute(block *yutypes.Block) error {
 	receipts := make(map[yucommon.Hash]*yutypes.Receipt)
 
 	// key: sender address
 	parallelTxns := make(map[common.Address][]*yutypes.SignedTxn)
 
 	for _, stxn := range block.Txns {
-		txReq := new(evm.TxRequest)
+		txReq := new(TxRequest)
 		err := stxn.BindJson(txReq)
 		if err != nil {
 			return err
@@ -35,5 +29,5 @@ func (p *ParallelExecutor) SimpleParallelExecute(block *yutypes.Block) error {
 
 	// TODO: solve the conflicts
 
-	return p.PostExecute(block, receipts)
+	return s.PostExecute(block, receipts)
 }
