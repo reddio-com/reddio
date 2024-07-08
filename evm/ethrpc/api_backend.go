@@ -157,15 +157,19 @@ func (e *EthAPIBackend) CurrentBlock() *types.Header {
 }
 
 func (e *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Block, error) {
-	yuBlock, err := e.chain.Chain.GetBlockByHeight(yucommon.BlockNum(number))
-
-	return compactBlock2EthBlock(yuBlock), err
+	//TODO implement me
+	panic("implement me")
+	//yuBlock, err := e.chain.Chain.GetBlockByHeight(yucommon.BlockNum(number))
+	//
+	//return compactBlock2EthBlock(yuBlock), err
 }
 
 func (e *EthAPIBackend) BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error) {
-	yuBlock, err := e.chain.Chain.GetBlock(yucommon.Hash(hash))
-
-	return compactBlock2EthBlock(yuBlock), err
+	//TODO implement me
+	panic("implement me")
+	//yuBlock, err := e.chain.Chain.GetBlock(yucommon.Hash(hash))
+	//
+	//return compactBlock2EthBlock(yuBlock), err
 }
 
 func (e *EthAPIBackend) BlockByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Block, error) {
@@ -410,30 +414,30 @@ func yuHeader2EthHeader(yuHeader *yutypes.Header) *types.Header {
 	}
 }
 
-func compactBlock2EthBlock(yuBlock *yutypes.CompactBlock) *types.Block {
-	// Init default values for Eth.Block.Transactions.TxData:
-	var data []byte
-	var ethTxs []*types.Transaction
-
-	nonce := uint64(0)
-	to := common.HexToAddress("")
-	gasLimit := yuBlock.Header.LeiLimit
-	gasPrice := big.NewInt(0)
-
-	// Create Eth.Block.Transactions from yu.CompactBlock.Hashes:
-	for _, yuTxHash := range yuBlock.TxnsHashes {
-		tx := types.NewTxFromYuTx(&types.LegacyTx{
-			Nonce:    nonce,
-			GasPrice: gasPrice,
-			Gas:      gasLimit,
-			To:       &to,
-			Value:    big.NewInt(0),
-			Data:     data,
-		}, common.Hash(yuTxHash))
-
-		ethTxs = append(ethTxs, tx)
-	}
-
-	// Create new Eth.Block using yu.Header & yu.Hashes:
-	return types.NewBlock(yuHeader2EthHeader(yuBlock.Header), ethTxs, nil, nil, nil)
-}
+//func compactBlock2EthBlock(yuBlock *yutypes.Block) *types.Block {
+//	// Init default values for Eth.Block.Transactions.TxData:
+//	var data []byte
+//	var ethTxs []*types.Transaction
+//
+//	nonce := uint64(0)
+//	to := common.HexToAddress("")
+//	gasLimit := yuBlock.Header.LeiLimit
+//	gasPrice := big.NewInt(0)
+//
+//	// Create Eth.Block.Transactions from yu.CompactBlock.Hashes:
+//	for _, yuSignedTxn := range yuBlock.Txns {
+//		tx := types.NewTxFromYuTx(&types.LegacyTx{
+//			Nonce:    nonce,
+//			GasPrice: gasPrice,
+//			Gas:      gasLimit,
+//			To:       &to,
+//			Value:    big.NewInt(0),
+//			Data:     data,
+//		}, common.Hash(yuSignedTxn.TxnHash))
+//
+//		ethTxs = append(ethTxs, tx)
+//	}
+//
+//	// Create new Eth.Block using yu.Header & yu.Hashes:
+//	return types.NewBlock(yuHeader2EthHeader(yuBlock.Header), ethTxs, nil, nil, nil)
+//}
