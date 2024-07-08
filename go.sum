@@ -746,6 +746,12 @@ github.com/yu-org/yu v0.0.0-20240508071445-65e90bf5b444 h1:l5/hR5HEuSEozANFfaEZ5
 github.com/yu-org/yu v0.0.0-20240508071445-65e90bf5b444/go.mod h1:MebubG2I3xLVRp9dMQNIUh5uS/nh1LSNw4p6INCu//8=
 github.com/yu-org/yu v0.0.0-20240703082155-5f5fd92598b8 h1:xafopWzJu4aO6ivDrj941fwPzYCkA82IpwGQ0SIyc90=
 github.com/yu-org/yu v0.0.0-20240703082155-5f5fd92598b8/go.mod h1:MebubG2I3xLVRp9dMQNIUh5uS/nh1LSNw4p6INCu//8=
+github.com/yu-org/yu v0.0.0-20240708075535-6b1d5973b8de h1:NRgjaBEWATQcDcFKth4nvta+gPWegA/R3yYjog4x7dA=
+github.com/yu-org/yu v0.0.0-20240708075535-6b1d5973b8de/go.mod h1:MebubG2I3xLVRp9dMQNIUh5uS/nh1LSNw4p6INCu//8=
+github.com/yu-org/yu v0.0.0-20240708101232-f5899d08b4e6 h1:jzTgfefV4wAL0QSDe3wOhm/Iuq1mCMgceAktrsd/CR4=
+github.com/yu-org/yu v0.0.0-20240708101232-f5899d08b4e6/go.mod h1:MebubG2I3xLVRp9dMQNIUh5uS/nh1LSNw4p6INCu//8=
+github.com/yu-org/yu v0.0.0-20240708102318-159366969804 h1:lZb9c1tWyKcnxJfjH9XOCJw8kIfAQ6TjMdQ/wLwyxMc=
+github.com/yu-org/yu v0.0.0-20240708102318-159366969804/go.mod h1:MebubG2I3xLVRp9dMQNIUh5uS/nh1LSNw4p6INCu//8=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.3.5/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1Zlc8k=

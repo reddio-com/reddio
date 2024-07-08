@@ -93,7 +93,7 @@ func (e *EthAPIBackend) SetHead(number uint64) {
 
 func (e *EthAPIBackend) HeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Header, error) {
 	var (
-		yuBlock *yutypes.CompactBlock
+		yuBlock *yutypes.Block
 		err     error
 	)
 	switch number {
