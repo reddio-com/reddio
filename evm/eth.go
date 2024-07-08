@@ -297,9 +297,10 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) error {
 	cfg.GasLimit = gasLimit
 	cfg.GasPrice = gasPrice
 	cfg.Value = value
+	cfg.State = ethstate.stateDB
 
 	vmenv := newEVM(cfg)
-	vmenv.StateDB = s.ethState.stateDB
+	// vmenv.StateDB = s.ethState.stateDB
 
 	logrus.Println("ExecuteTxn vmenv: ", vmenv)
 

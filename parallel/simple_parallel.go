@@ -29,7 +29,7 @@ func (p *ParallelExecutor) SimpleParallelExecute(block *yutypes.Block) error {
 
 	for _, txns := range parallelTxns {
 		go func(txns []*yutypes.SignedTxn) {
-			// execute txn
+			// TODO: execute txn
 		}(txns)
 	}
 
