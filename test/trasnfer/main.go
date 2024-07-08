@@ -6,8 +6,8 @@ import (
 	"log"
 	"time"
 
-	"itachi/evm"
-	"itachi/test/trasnfer/pkg"
+	"github.com/reddio-com/reddio/evm"
+	"github.com/reddio-com/reddio/test/trasnfer/pkg"
 )
 
 var (

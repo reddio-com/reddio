@@ -14,7 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
 
-	"itachi/evm"
+	"github.com/reddio-com/reddio/evm"
 )
 
 const (
