@@ -27,5 +27,6 @@ func InitReddio(poaCfg *poa.PoaConfig, evmCfg *evm.GethConfig) *kernel.Kernel {
 	chain := startup.InitDefaultKernel(
 		poaTri, solidityTri,
 	)
+	// chain.WithExecuteFn(solidityTri.SimpleParallelExecute)
 	return chain
 }
