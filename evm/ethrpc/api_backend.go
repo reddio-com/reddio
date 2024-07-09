@@ -360,8 +360,7 @@ func (e *EthAPIBackend) ChainConfig() *params.ChainConfig {
 }
 
 func (e *EthAPIBackend) Engine() consensus.Engine {
-	//TODO implement me
-	panic("implement me")
+	return FakeEngine{}
 }
 
 func (e *EthAPIBackend) GetBody(ctx context.Context, hash common.Hash, number rpc.BlockNumber) (*types.Body, error) {
@@ -440,3 +439,69 @@ func compactBlock2EthBlock(yuBlock *yutypes.Block) *types.Block {
 	//return types.NewBlock(yuHeader2EthHeader(yuBlock.Header), ethTxs, nil, nil, nil)
 	return types.NewBlock(yuHeader2EthHeader(yuBlock.Header), nil, nil, nil, nil)
 }
+
+// region ---- Fake Consensus Engine ----
+
+type FakeEngine struct{}
+
+// Author retrieves the Ethereum address of the account that minted the given block.
+func (f FakeEngine) Author(header *types.Header) (common.Address, error) {
+	return header.Coinbase, nil
+}
+
+// VerifyHeader checks whether a header conforms to the consensus rules.
+func (f FakeEngine) VerifyHeader(chain consensus.ChainHeaderReader, header *types.Header) error {
+	panic("Unimplemented fake engine method VerifyHeader")
+}
+
+// VerifyHeaders checks whether a batch of headers conforms to the consensus rules.
+func (f FakeEngine) VerifyHeaders(chain consensus.ChainHeaderReader, headers []*types.Header) (chan<- struct{}, <-chan error) {
+	panic("Unimplemented fake engine method VerifyHeaders")
+}
+
+// VerifyUncles verifies that the given block's uncles conform to the consensus rules.
+func (f FakeEngine) VerifyUncles(chain consensus.ChainReader, block *types.Block) error {
+	panic("Unimplemented fake engine method VerifyUncles")
+}
+
+// Prepare initializes the consensus fields of a block header.
+func (f FakeEngine) Prepare(chain consensus.ChainHeaderReader, header *types.Header) error {
+	panic("Unimplemented fake engine method Prepare")
+}
+
+// Finalize runs any post-transaction state modifications.
+func (f FakeEngine) Finalize(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, body *types.Body) {
+	panic("Unimplemented fake engine method Finalize")
+}
+
+// FinalizeAndAssemble runs any post-transaction state modifications and assembles the final block.
+func (f FakeEngine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, body *types.Body, receipts []*types.Receipt) (*types.Block, error) {
+	panic("Unimplemented fake engine method FinalizeAndAssemble")
+}
+
+// Seal generates a new sealing request for the given input block.
+func (f FakeEngine) Seal(chain consensus.ChainHeaderReader, block *types.Block, results chan<- *types.Block, stop <-chan struct{}) error {
+	panic("Unimplemented fake engine method Seal")
+}
+
+// SealHash returns the hash of a block prior to it being sealed.
+func (f FakeEngine) SealHash(header *types.Header) common.Hash {
+	panic("Unimplemented fake engine method SealHash")
+}
+
+// CalcDifficulty is the difficulty adjustment algorithm.
+func (f FakeEngine) CalcDifficulty(chain consensus.ChainHeaderReader, time uint64, parent *types.Header) *big.Int {
+	panic("Unimplemented fake engine method CalcDifficulty")
+}
+
+// APIs returns the RPC APIs this consensus engine provides.
+func (f FakeEngine) APIs(chain consensus.ChainHeaderReader) []rpc.API {
+	panic("Unimplemented fake engine method APIs")
+}
+
+// Close terminates any background threads maintained by the consensus engine.
+func (f FakeEngine) Close() error {
+	panic("Unimplemented fake engine method Close")
+}
+
+// endregion  ---- Fake Consensus Engine ----
