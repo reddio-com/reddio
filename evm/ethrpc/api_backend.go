@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"math/big"
+	"time"
+
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
@@ -11,21 +14,21 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/bloombits"
-	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
+
 	"github.com/reddio-com/reddio/evm"
+	state2 "github.com/reddio-com/reddio/evm/state"
+
 	"github.com/sirupsen/logrus"
 	yucommon "github.com/yu-org/yu/common"
 	yucore "github.com/yu-org/yu/core"
 	"github.com/yu-org/yu/core/kernel"
 	yutypes "github.com/yu-org/yu/core/types"
-	"math/big"
-	"time"
 )
 
 type EthAPIBackend struct {
@@ -162,7 +165,7 @@ func (e *EthAPIBackend) BlockByNumberOrHash(ctx context.Context, blockNrOrHash r
 	panic("implement me")
 }
 
-func (e *EthAPIBackend) StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*state.StateDB, *types.Header, error) {
+func (e *EthAPIBackend) StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*state2.StateDBWrapper, *types.Header, error) {
 	header, err := e.HeaderByNumber(ctx, number)
 	if err != nil {
 		return nil, nil, err
@@ -179,7 +182,7 @@ func (e *EthAPIBackend) StateAndHeaderByNumber(ctx context.Context, number rpc.B
 	return stateDB, header, nil
 }
 
-func (e *EthAPIBackend) StateAndHeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*state.StateDB, *types.Header, error) {
+func (e *EthAPIBackend) StateAndHeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*state2.StateDBWrapper, *types.Header, error) {
 	if blockNr, ok := blockNrOrHash.Number(); ok {
 		return e.StateAndHeaderByNumber(ctx, blockNr)
 	}
@@ -199,7 +202,7 @@ func (e *EthAPIBackend) StateAndHeaderByNumberOrHash(ctx context.Context, blockN
 	return nil, nil, errors.New("invalid arguments; neither block nor hash specified")
 }
 
-func (e *EthAPIBackend) Pending() (*types.Block, types.Receipts, *state.StateDB) {
+func (e *EthAPIBackend) Pending() (*types.Block, types.Receipts, *state2.StateDBWrapper) {
 	//TODO implement me
 	panic("implement me")
 }
@@ -214,7 +217,7 @@ func (e *EthAPIBackend) GetTd(ctx context.Context, hash common.Hash) *big.Int {
 	panic("implement me")
 }
 
-func (e *EthAPIBackend) GetEVM(ctx context.Context, msg *core.Message, state *state.StateDB, header *types.Header, vmConfig *vm.Config, blockCtx *vm.BlockContext) *vm.EVM {
+func (e *EthAPIBackend) GetEVM(ctx context.Context, msg *core.Message, state *state2.StateDBWrapper, header *types.Header, vmConfig *vm.Config, blockCtx *vm.BlockContext) *vm.EVM {
 	//TODO implement me
 	panic("implement me")
 }

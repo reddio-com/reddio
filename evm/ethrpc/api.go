@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/holiman/uint256"
 	"github.com/tyler-smith/go-bip39"
 
@@ -22,7 +23,6 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/misc/eip1559"
 	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/tracing"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -35,6 +35,8 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/ethereum/go-ethereum/trie"
+
+	state2 "github.com/reddio-com/reddio/evm/state"
 )
 
 // estimateGasErrorRatio is the amount of overestimation eth_estimateGas is
@@ -713,7 +715,7 @@ func (s *BlockChainAPI) GetProof(ctx context.Context, address common.Address, st
 		var storageTrie state.Trie
 		if storageRoot != types.EmptyRootHash && storageRoot != (common.Hash{}) {
 			id := trie.StorageTrieID(header.Root, crypto.Keccak256Hash(address.Bytes()), storageRoot)
-			st, err := trie.NewStateTrie(id, statedb.Database().TrieDB())
+			st, err := trie.NewStateTrie(id, statedb.TrieDB())
 			if err != nil {
 				return nil, err
 			}
@@ -744,7 +746,7 @@ func (s *BlockChainAPI) GetProof(ctx context.Context, address common.Address, st
 		}
 	}
 	// Create the accountProof.
-	tr, err := trie.NewStateTrie(trie.StateTrieID(header.Root), statedb.Database().TrieDB())
+	tr, err := trie.NewStateTrie(trie.StateTrieID(header.Root), statedb.TrieDB())
 	if err != nil {
 		return nil, err
 	}
@@ -964,7 +966,7 @@ type OverrideAccount struct {
 type StateOverride map[common.Address]OverrideAccount
 
 // Apply overrides the fields of specified accounts into the given state.
-func (diff *StateOverride) Apply(statedb *state.StateDB) error {
+func (diff *StateOverride) Apply(statedb *state2.StateDBWrapper) error {
 	if diff == nil {
 		return nil
 	}
@@ -1078,7 +1080,7 @@ func (context *ChainContext) GetHeader(hash common.Hash, number uint64) *types.H
 	return header
 }
 
-func doCall(ctx context.Context, b Backend, args TransactionArgs, state *state.StateDB, header *types.Header, overrides *StateOverride, blockOverrides *BlockOverrides, timeout time.Duration, globalGasCap uint64) (*core.ExecutionResult, error) {
+func doCall(ctx context.Context, b Backend, args TransactionArgs, state *state2.StateDBWrapper, header *types.Header, overrides *StateOverride, blockOverrides *BlockOverrides, timeout time.Duration, globalGasCap uint64) (*core.ExecutionResult, error) {
 	if err := overrides.Apply(state); err != nil {
 		return nil, err
 	}
@@ -1168,7 +1170,7 @@ func DoEstimateGas(ctx context.Context, b Backend, args TransactionArgs, blockNr
 		Config:     b.ChainConfig(),
 		Chain:      NewChainContext(ctx, b),
 		Header:     header,
-		State:      state,
+		State:      state.Internal(),
 		ErrorRatio: estimateGasErrorRatio,
 	}
 	if err := args.CallDefaults(gasCap, header.BaseFee, b.ChainConfig().ChainID); err != nil {

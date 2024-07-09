@@ -3,6 +3,8 @@ package evm
 import (
 	"encoding/json"
 	"fmt"
+	"path/filepath"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/rawdb"
@@ -17,14 +19,15 @@ import (
 	"github.com/ethereum/go-ethereum/triedb"
 	"github.com/ethereum/go-ethereum/triedb/hashdb"
 	"github.com/ethereum/go-ethereum/triedb/pathdb"
-	"github.com/reddio-com/reddio/evm/config"
 	"github.com/sirupsen/logrus"
-	"path/filepath"
+
+	"github.com/reddio-com/reddio/evm/config"
+	state2 "github.com/reddio-com/reddio/evm/state"
 )
 
 type EthState struct {
 	cfg        *config.Config
-	stateDB    *state.StateDB
+	stateDB    *state2.StateDBWrapper
 	stateCache state.Database
 	trieDB     *triedb.Database
 	ethDB      ethdb.Database
@@ -78,7 +81,7 @@ func NewEthState(cfg *config.Config, currentStateRoot common.Hash) (*EthState, e
 
 	ethState := &EthState{
 		cfg:        cfg,
-		stateDB:    stateDB,
+		stateDB:    state2.NewStateDB(stateDB),
 		stateCache: stateCache,
 		trieDB:     trieDB,
 		ethDB:      db,
@@ -89,8 +92,12 @@ func NewEthState(cfg *config.Config, currentStateRoot common.Hash) (*EthState, e
 	return ethState, err
 }
 
-func (s *EthState) StateAt(root common.Hash) (*state.StateDB, error) {
-	return state.New(root, s.stateCache, s.snaps)
+func (s *EthState) StateAt(root common.Hash) (*state2.StateDBWrapper, error) {
+	sdb, err := state.New(root, s.stateCache, s.snaps)
+	if err != nil {
+		return nil, err
+	}
+	return state2.NewStateDB(sdb), nil
 }
 
 func (s *EthState) GenesisCommit() (common.Hash, error) {
@@ -135,7 +142,7 @@ func (s *EthState) newStateForNextBlock(currentStateRoot common.Hash) error {
 	newsStateDB.SetLogger(s.logger)
 	// Enable prefetching to pull in trie node paths while processing transactions
 	newsStateDB.StartPrefetcher("chain")
-	s.stateDB = newsStateDB
+	s.stateDB = state2.NewStateDB(newsStateDB)
 	return nil
 }
 

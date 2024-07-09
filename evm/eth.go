@@ -4,12 +4,16 @@ import (
 	// "github.com/yu-org/yu/common/yerror"
 
 	"encoding/hex"
-	"github.com/BurntSushi/toml"
-	"github.com/reddio-com/reddio/evm/config"
-	"github.com/yu-org/yu/common/yerror"
 	"math"
 	"math/big"
 	"net/http"
+	"time"
+
+	"github.com/BurntSushi/toml"
+	"github.com/yu-org/yu/common/yerror"
+
+	"github.com/reddio-com/reddio/evm/config"
+	"github.com/reddio-com/reddio/evm/state"
 
 	"github.com/sirupsen/logrus"
 	yu_common "github.com/yu-org/yu/common"
@@ -19,14 +23,12 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
 
 	"github.com/holiman/uint256"
-	"time"
 )
 
 type Solidity struct {
@@ -78,7 +80,7 @@ type GethConfig struct {
 	BlobFeeCap  *big.Int
 	Random      *common.Hash
 
-	State     *state.StateDB
+	State     *state.StateDBWrapper
 	GetHashFn func(n uint64) common.Hash
 
 	EnableEthRPC bool   `toml:"enable_eth_rpc"`
@@ -441,6 +443,6 @@ func executeContractCall(txReq *TxRequest, ethState *EthState, cfg *GethConfig, 
 	return nil
 }
 
-func (s *Solidity) StateAt(root common.Hash) (*state.StateDB, error) {
+func (s *Solidity) StateAt(root common.Hash) (*state.StateDBWrapper, error) {
 	return s.ethState.StateAt(root)
 }

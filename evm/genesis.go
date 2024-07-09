@@ -40,6 +40,8 @@ import (
 	"github.com/ethereum/go-ethereum/triedb"
 	"github.com/ethereum/go-ethereum/triedb/pathdb"
 	"github.com/holiman/uint256"
+
+	state2 "github.com/reddio-com/reddio/evm/state"
 )
 
 //go:generate go run github.com/fjl/gencodec -type Genesis -field-override genesisSpecMarshaling -out gen_genesis.go
@@ -148,7 +150,7 @@ func hashAlloc(ga *types.GenesisAlloc, isVerkle bool) (common.Hash, error) {
 // flushAlloc is very similar with hash, but the main difference is all the generated
 // states will be persisted into the given database. Also, the genesis state
 // specification will be flushed as well.
-func flushAlloc(statedb *state.StateDB, ga *types.GenesisAlloc, db ethdb.Database, triedb *triedb.Database, blockhash common.Hash) error {
+func flushAlloc(statedb *state2.StateDBWrapper, ga *types.GenesisAlloc, db ethdb.Database, triedb *triedb.Database, blockhash common.Hash) error {
 	//statedb, err := state.New(types.EmptyRootHash, state.NewDatabaseWithNodeDB(db, triedb), nil)
 	//if err != nil {
 	//	return err
