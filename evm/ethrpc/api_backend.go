@@ -401,6 +401,7 @@ func yuHeader2EthHeader(yuHeader *yutypes.Header) *types.Header {
 		Root:        common.Hash(yuHeader.StateRoot),
 		TxHash:      common.Hash(yuHeader.TxnRoot),
 		ReceiptHash: common.Hash(yuHeader.ReceiptRoot),
+		Difficulty:  new(big.Int).SetUint64(yuHeader.Difficulty),
 		Number:      new(big.Int).SetUint64(uint64(yuHeader.Height)),
 		GasLimit:    yuHeader.LeiLimit,
 		GasUsed:     yuHeader.LeiUsed,
