@@ -11,9 +11,11 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
+	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/yu-org/yu/common/yerror"
 
 	"github.com/reddio-com/reddio/evm/config"
+
 	"github.com/reddio-com/reddio/evm/pending_state"
 
 	"github.com/sirupsen/logrus"
@@ -464,4 +466,8 @@ func executeContractCall(txReq *TxRequest, ethState *pending_state.PendingState,
 
 func (s *Solidity) StateAt(root common.Hash) (*state.StateDB, error) {
 	return s.ethState.StateAt(root)
+}
+
+func (s *Solidity) GetEthDB() ethdb.Database {
+	return s.ethState.ethDB
 }

@@ -56,11 +56,6 @@ func (e *EthAPIBackend) BlobBaseFee(ctx context.Context) *big.Int {
 	panic("implement me")
 }
 
-func (e *EthAPIBackend) ChainDb() ethdb.Database {
-	//TODO implement me
-	panic("implement me")
-}
-
 func (e *EthAPIBackend) AccountManager() *accounts.Manager {
 	//TODO implement me
 	return nil
@@ -68,8 +63,7 @@ func (e *EthAPIBackend) AccountManager() *accounts.Manager {
 }
 
 func (e *EthAPIBackend) ExtRPCEnabled() bool {
-	//TODO implement me
-	panic("implement me")
+	return true
 }
 
 func (e *EthAPIBackend) RPCGasCap() uint64 {
@@ -215,6 +209,13 @@ func (e *EthAPIBackend) StateAndHeaderByNumberOrHash(ctx context.Context, blockN
 		return stateDB, yuHeader2EthHeader(yuBlock.Header), nil
 	}
 	return nil, nil, errors.New("invalid arguments; neither block nor hash specified")
+}
+
+func (e *EthAPIBackend) ChainDb() ethdb.Database {
+	tri := e.chain.GetTripodInstance(SolidityTripod)
+	solidityTri := tri.(*evm.Solidity)
+	ethDB := solidityTri.GetEthDB()
+	return ethDB
 }
 
 func (e *EthAPIBackend) Pending() (*types.Block, types.Receipts, *state.StateDB) {
