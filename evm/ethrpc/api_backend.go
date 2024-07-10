@@ -126,7 +126,7 @@ func (e *EthAPIBackend) CurrentHeader() *types.Header {
 }
 
 func (e *EthAPIBackend) CurrentBlock() *types.Header {
-	yuBlock, err := e.chain.Chain.GetEndBlock()
+	yuBlock, err := e.chain.Chain.GetEndCompactBlock()
 	if err != nil {
 		logrus.Error("EthAPIBackend.CurrentBlock() failed: ", err)
 		return new(types.Header)
