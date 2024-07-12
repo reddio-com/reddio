@@ -2,7 +2,6 @@ module github.com/reddio-com/reddio
 
 go 1.21.4
 
-
 require (
 	github.com/BurntSushi/toml v1.2.1
 	github.com/NethermindEth/starknet.go v0.7.0
@@ -14,7 +13,7 @@ require (
 	github.com/sirupsen/logrus v1.9.0
 	github.com/sourcegraph/conc v0.2.0
 	github.com/stretchr/testify v1.8.4
-	github.com/yu-org/yu v0.0.0-20240703082155-5f5fd92598b8
+	github.com/yu-org/yu v0.0.0-20240709100653-03905fa91836
 )
 
 require (
