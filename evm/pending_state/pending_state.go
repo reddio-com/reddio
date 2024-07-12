@@ -209,3 +209,11 @@ func (s *PendingState) Internal() *state.StateDB {
 func (s *PendingState) Copy() *PendingState {
 	return NewPendingState(s.state.Copy())
 }
+
+func (s *PendingState) AllLogs() []*types.Log {
+	return s.state.Logs()
+}
+
+func (s *PendingState) AllPreimages() map[common.Hash][]byte {
+	return s.state.Preimages()
+}
