@@ -99,13 +99,13 @@ func (e *EthAPIBackend) HeaderByNumber(ctx context.Context, number rpc.BlockNumb
 	switch number {
 	case rpc.PendingBlockNumber:
 		// FIXME
-		yuBlock, err = e.chain.Chain.GetEndBlock()
+		yuBlock, err = e.chain.Chain.GetEndCompactBlock()
 	case rpc.LatestBlockNumber:
-		yuBlock, err = e.chain.Chain.GetEndBlock()
+		yuBlock, err = e.chain.Chain.GetEndCompactBlock()
 	case rpc.FinalizedBlockNumber, rpc.SafeBlockNumber:
-		yuBlock, err = e.chain.Chain.LastFinalized()
+		yuBlock, err = e.chain.Chain.LastFinalizedCompact()
 	default:
-		yuBlock, err = e.chain.Chain.GetBlockByHeight(yucommon.BlockNum(number))
+		yuBlock, err = e.chain.Chain.GetCompactBlockByHeight(yucommon.BlockNum(number))
 	}
 	return yuHeader2EthHeader(yuBlock.Header), err
 }
@@ -126,7 +126,7 @@ func (e *EthAPIBackend) CurrentHeader() *types.Header {
 }
 
 func (e *EthAPIBackend) CurrentBlock() *types.Header {
-	yuBlock, err := e.chain.Chain.GetEndBlock()
+	yuBlock, err := e.chain.Chain.GetEndCompactBlock()
 	if err != nil {
 		logrus.Error("EthAPIBackend.CurrentBlock() failed: ", err)
 		return new(types.Header)
