@@ -23,6 +23,7 @@ func NewPendingState(db *state.StateDB) *PendingState {
 }
 
 func (s *PendingState) CreateAccount(address common.Address) {
+	s.sCtx.WriteAccount(address)
 	s.state.CreateAccount(address)
 }
 
