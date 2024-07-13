@@ -49,20 +49,20 @@ func (k *Kernel) Execute(block *types.Block) error {
 		}
 		txnCtxList = append(txnCtxList, stxnCtx)
 	}
-	//got := k.SplitTxnCtxList(txnCtxList)
-	//for index, subList := range got {
-	//	k.executeTxnCtxList(subList)
-	//	got[index] = subList
-	//}
-	//for _, subList := range got {
-	//	for _, c := range subList {
-	//		receipts[c.txn.TxnHash] = c.r
-	//	}
-	//}
-	got := k.executeTxnCtxList(txnCtxList)
-	for _, c := range got {
-		receipts[c.txn.TxnHash] = c.r
+	got := k.SplitTxnCtxList(txnCtxList)
+	for index, subList := range got {
+		k.executeTxnCtxList(subList)
+		got[index] = subList
 	}
+	for _, subList := range got {
+		for _, c := range subList {
+			receipts[c.txn.TxnHash] = c.r
+		}
+	}
+	//got := k.executeTxnCtxList(txnCtxList)
+	//for _, c := range got {
+	//	receipts[c.txn.TxnHash] = c.r
+	//}
 	return k.kernel.PostExecute(block, receipts)
 }
 
