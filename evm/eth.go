@@ -39,6 +39,14 @@ type Solidity struct {
 	stateConfig *config.Config
 }
 
+func (s *Solidity) StateDB() *state.StateDB {
+	return s.ethState.StateDB()
+}
+
+func (s *Solidity) SetStateDB(d *state.StateDB) {
+	s.ethState.SetStateDB(d)
+}
+
 func newEVM(cfg *GethConfig) *vm.EVM {
 	txContext := vm.TxContext{
 		Origin:     cfg.Origin,
@@ -278,9 +286,9 @@ func NewSolidity(gethConfig *GethConfig) *Solidity {
 //
 // Execute sets up an in-memory, temporary, environment for the execution of
 // the given code. It makes sure that it's restored to its original state afterwards.
-func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) error {
+func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 	txReq := new(TxRequest)
-	err := ctx.BindJson(txReq)
+	err = ctx.BindJson(txReq)
 	logrus.Printf("ExecuteTxn: %+v\n", txReq)
 	if err != nil {
 		return err

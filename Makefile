@@ -6,7 +6,11 @@ build:
 	go build -v -o $(PROJECT) ./cmd/node/main.go ./cmd/node/testrequest.go
 
 reset:
-	@rm -r yu
+	@rm -r yu reddio_db
+	@rm $(PROJECT)
+
+transfer:
+	go build -v -o transfer_test ./test/trasnfer/main.go
 
 clean:
 	rm -f $(PROJECT)
