@@ -7,9 +7,8 @@ build:
 
 reset:
 	@rm -r yu reddio_db
-	@rm $(PROJECT)
 
-transfer:
+transfer_test:
 	go build -v -o transfer_test ./test/trasnfer/main.go
 
 clean:
