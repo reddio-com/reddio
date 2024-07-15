@@ -10,10 +10,9 @@ type StateContext struct {
 	Read  *VisitedAddress
 	Write *VisitedAddress
 
-	addSlotToAddress    []slotToAddress
-	addAddressToList    []common.Address
-	prepareParams       *prepareParams
-	HasRevertToSnapshot bool
+	addSlotToAddress []slotToAddress
+	addAddressToList []common.Address
+	prepareParams    *prepareParams
 }
 
 func NewStateContext() *StateContext {

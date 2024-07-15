@@ -159,7 +159,6 @@ func (s *PendingState) Prepare(rules params.Rules, sender, coinbase common.Addre
 }
 
 func (s *PendingState) RevertToSnapshot(i int) {
-	s.sCtx.HasRevertToSnapshot = true
 	s.state.RevertToSnapshot(i)
 }
 
