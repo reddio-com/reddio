@@ -15,6 +15,8 @@ require (
 	github.com/tendermint/tendermint v0.34.24
 	github.com/yu-org/yu v0.0.0-20240802034751-7f4b29db96ee
 	gopkg.in/yaml.v3 v3.0.1
+	github.com/stretchr/testify v1.8.4
+	github.com/yu-org/yu v0.0.0-20240712105037-edee6e10d44d
 )
 
 require (

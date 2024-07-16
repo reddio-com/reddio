@@ -46,10 +46,8 @@ func (e *EthAPIBackend) SuggestGasTipCap(ctx context.Context) (*big.Int, error) 
 	panic("implement me")
 }
 
-func (e *EthAPIBackend) FeeHistory(ctx context.Context, blockCount uint64, lastBlock rpc.BlockNumber, rewardPercentiles []float64) (*big.Int, [][]*big.Int, []*big.Int, []float64, []*big.Int, []float64, error) {
-	//TODO implement me
-	panic("implement me")
-}
+// Move to ethrpc/gasprice.go
+//func (e *EthAPIBackend) FeeHistory(ctx context.Context, blockCount uint64, lastBlock rpc.BlockNumber, rewardPercentiles []float64) (*big.Int, [][]*big.Int, []*big.Int, []float64, []*big.Int, []float64, error) {}
 
 func (e *EthAPIBackend) BlobBaseFee(ctx context.Context) *big.Int {
 	//TODO implement me
@@ -145,8 +143,24 @@ func (e *EthAPIBackend) CurrentBlock() *types.Header {
 }
 
 func (e *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Block, error) {
-	yuBlock, err := e.chain.Chain.GetBlockByHeight(yucommon.BlockNum(number))
-
+	var (
+		yuBlock *yutypes.Block
+		err     error
+	)
+	switch number {
+	case rpc.PendingBlockNumber:
+		// FIXME
+		yuBlock, err = e.chain.Chain.GetEndBlock()
+	case rpc.LatestBlockNumber:
+		yuBlock, err = e.chain.Chain.GetEndBlock()
+	case rpc.FinalizedBlockNumber, rpc.SafeBlockNumber:
+		yuBlock, err = e.chain.Chain.LastFinalized()
+	default:
+		yuBlock, err = e.chain.Chain.GetBlockByHeight(yucommon.BlockNum(number))
+	}
+	if err != nil {
+		return nil, err
+	}
 	return compactBlock2EthBlock(yuBlock), err
 }
 
@@ -214,7 +228,7 @@ func (e *EthAPIBackend) ChainDb() ethdb.Database {
 
 func (e *EthAPIBackend) AccountManager() *accounts.Manager {
 	//TODO implement me
-	panic("implement me")
+	return nil
 }
 
 func (e *EthAPIBackend) Pending() (*types.Block, types.Receipts, *state.StateDB) {
@@ -233,8 +247,21 @@ func (e *EthAPIBackend) GetTd(ctx context.Context, hash common.Hash) *big.Int {
 }
 
 func (e *EthAPIBackend) GetEVM(ctx context.Context, msg *core.Message, state *state.StateDB, header *types.Header, vmConfig *vm.Config, blockCtx *vm.BlockContext) *vm.EVM {
-	//TODO implement me
-	panic("implement me")
+	if vmConfig == nil {
+		//vmConfig = e.chain.Chain.GetVMConfig()
+		vmConfig = &vm.Config{
+			EnablePreimageRecording: false, // TODO: replace with ctx.Bool()
+		}
+	}
+	txContext := core.NewEVMTxContext(msg)
+	var context vm.BlockContext
+	if blockCtx != nil {
+		context = *blockCtx
+	} else {
+		var b Backend
+		context = core.NewEVMBlockContext(header, NewChainContext(ctx, b), nil)
+	}
+	return vm.NewEVM(context, txContext, state, e.ChainConfig(), *vmConfig)
 }
 
 func (e *EthAPIBackend) SubscribeChainEvent(ch chan<- core.ChainEvent) event.Subscription {
@@ -317,11 +344,27 @@ func (e *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction)
 func (e *EthAPIBackend) GetTransaction(ctx context.Context, txHash common.Hash) (bool, *types.Transaction, common.Hash, uint64, uint64, error) {
 	//TODO implement me
 	panic("implement me")
+
+	//stxn, err := e.chain.ChainEnv.Pool.GetTxn(yucommon.Hash(txHash)) // will not return error here
+	//if err != nil || stxn == nil {
+	//	return false, nil, common.Hash{}, 0, 0, err
+	//}
+	//return true, tx, lookup.BlockHash, lookup.BlockIndex, lookup.Index, nil
 }
 
 func (e *EthAPIBackend) GetPoolTransactions() (types.Transactions, error) {
-	//TODO implement me
-	panic("implement me")
+	stxn, _ := e.chain.ChainEnv.Pool.GetAllTxns() // will not return error here
+
+	// Init default values for Eth.Block.Transactions.TxData:
+	var ethTxns []*types.Transaction
+
+	// Create Eth.Block.Transactions from yu.CompactBlock.Hashes:
+	for _, yuSignedTxn := range stxn {
+		ethTxn := yuTxn2EthTxn(yuSignedTxn)
+		ethTxns = append(ethTxns, ethTxn)
+	}
+
+	return ethTxns, nil
 }
 
 func (e *EthAPIBackend) GetPoolTransaction(txHash common.Hash) *types.Transaction {
@@ -408,6 +451,27 @@ func yuHeader2EthHeader(yuHeader *yutypes.Header) *types.Header {
 		Nonce:       types.BlockNonce{},
 		BaseFee:     nil,
 	}
+}
+
+func yuTxn2EthTxn(yuSignedTxn *yutypes.SignedTxn) *types.Transaction {
+	// Init default values for Eth.Block.Transactions.TxData:
+	var data []byte
+
+	nonce := yuSignedTxn.Raw.Nonce
+	to := common.HexToAddress("")
+	gasLimit := yuSignedTxn.Raw.WrCall.LeiPrice // TODO - what should the limit be?
+	gasPrice := new(big.Int).SetUint64(yuSignedTxn.Raw.WrCall.LeiPrice)
+
+	tx := types.NewTx(&types.LegacyTx{
+		Nonce:    nonce,
+		GasPrice: gasPrice,
+		Gas:      gasLimit,
+		To:       &to,
+		Value:    big.NewInt(0),
+		Data:     data,
+	})
+
+	return tx
 }
 
 func compactBlock2EthBlock(yuBlock *yutypes.Block) *types.Block {
