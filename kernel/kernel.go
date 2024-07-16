@@ -8,6 +8,7 @@ import (
 	"github.com/yu-org/yu/core/types"
 
 	"github.com/reddio-com/reddio/evm"
+	"github.com/reddio-com/reddio/evm/pending_state"
 )
 
 type Kernel struct {
@@ -113,18 +114,26 @@ func checkAddressConflict(curTxn *txnCtx, curList []*txnCtx) bool {
 }
 
 func (k *Kernel) executeTxnCtxList(list []*txnCtx) []*txnCtx {
-	for i, c := range list {
-		index := i
-		tctx := c
-		k.Solidity.SetStateDB(k.Solidity.StateDB().Copy())
+	originStateDB := k.Solidity.StateDB()
+	for index, tctx := range list {
+		k.Solidity.SetStateDB(originStateDB.Copy())
 		err := tctx.writing(tctx.ctx)
 		if err != nil {
+			tctx.err = err
 			tctx.r = k.kernel.HandleError(err, tctx.ctx, tctx.ctx.Block, tctx.txn)
 		} else {
 			tctx.r = k.kernel.HandleEvent(tctx.ctx, tctx.ctx.Block, tctx.txn)
+			tctx.ps = tctx.ctx.ExtraInterface.(*pending_state.PendingState)
 		}
 		list[index] = tctx
 	}
+	for _, tctx := range list {
+		if tctx.err != nil {
+			continue
+		}
+		tctx.ps.MergeInto(originStateDB)
+	}
+	k.Solidity.SetStateDB(originStateDB)
 	return list
 }
 
@@ -134,4 +143,6 @@ type txnCtx struct {
 	r       *types.Receipt
 	writing dev.Writing
 	req     *evm.TxRequest
+	err     error
+	ps      *pending_state.PendingState
 }

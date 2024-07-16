@@ -66,12 +66,12 @@ func (sctx *StateContext) ReadCode(addr common.Address) {
 	sctx.Read.VisitCode(addr)
 }
 
-func (sctx *StateContext) WriteState(addr common.Address) {
-	sctx.Write.VisitState(addr)
+func (sctx *StateContext) WriteState(addr common.Address, key common.Hash) {
+	sctx.Write.VisitState(addr, key)
 }
 
-func (sctx *StateContext) ReadState(addr common.Address) {
-	sctx.Read.VisitState(addr)
+func (sctx *StateContext) ReadState(addr common.Address, key common.Hash) {
+	sctx.Read.VisitState(addr, key)
 }
 
 type VisitedAddress struct {
@@ -79,7 +79,7 @@ type VisitedAddress struct {
 	Destruct map[common.Address]struct{}
 	Balance  map[common.Address]struct{}
 	Code     map[common.Address]struct{}
-	State    map[common.Address]struct{}
+	State    map[common.Address]map[common.Hash]struct{}
 }
 
 func NewVisitedAddress() *VisitedAddress {
@@ -88,7 +88,7 @@ func NewVisitedAddress() *VisitedAddress {
 		Destruct: make(map[common.Address]struct{}),
 		Balance:  make(map[common.Address]struct{}),
 		Code:     make(map[common.Address]struct{}),
-		State:    make(map[common.Address]struct{}),
+		State:    make(map[common.Address]map[common.Hash]struct{}),
 	}
 }
 
@@ -104,8 +104,13 @@ func (v *VisitedAddress) VisitCode(addr common.Address) {
 	v.Code[addr] = struct{}{}
 }
 
-func (v *VisitedAddress) VisitState(addr common.Address) {
-	v.State[addr] = struct{}{}
+func (v *VisitedAddress) VisitState(addr common.Address, key common.Hash) {
+	v1, ok := v.State[addr]
+	if !ok {
+		v1 = make(map[common.Hash]struct{})
+	}
+	v1[key] = struct{}{}
+	v.State[addr] = v1
 }
 
 func (v *VisitedAddress) VisitDestruct(addr common.Address) {

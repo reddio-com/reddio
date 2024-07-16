@@ -310,7 +310,8 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 	cfg.Value = value
 
 	vmenv := newEVM(cfg)
-	vmenv.StateDB = pending_state.NewPendingState(s.ethState.stateDB)
+	pd := pending_state.NewPendingState(s.ethState.stateDB)
+	vmenv.StateDB = pd
 
 	logrus.Println("ExecuteTxn vmenv: ", vmenv)
 
@@ -318,10 +319,15 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 	rules := cfg.ChainConfig.Rules(vmenv.Context.BlockNumber, vmenv.Context.Random != nil, vmenv.Context.Time)
 
 	if txReq.Address == zeroAddress {
-		return executeContractCreation(txReq, ethstate, cfg, vmenv, sender, rules)
+		err = executeContractCreation(txReq, ethstate, cfg, vmenv, sender, rules)
 	} else {
-		return executeContractCall(txReq, ethstate, cfg, vmenv, sender, rules)
+		err = executeContractCall(txReq, ethstate, cfg, vmenv, sender, rules)
 	}
+	if err != nil {
+		return err
+	}
+	ctx.ExtraInterface = pd
+	return nil
 }
 
 // Call executes the code given by the contract's address. It will return the
