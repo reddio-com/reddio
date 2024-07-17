@@ -52,6 +52,8 @@ type GenesisAccount = types.Account
 // Deprecated: use types.GenesisAlloc instead.
 type GenesisAlloc = types.GenesisAlloc
 
+var ether = new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)
+
 // Genesis specifies the header fields, state of a genesis block. It also defines hard
 // fork switch-over blocks through the chain configuration.
 type Genesis struct {
@@ -630,7 +632,7 @@ func decodePrealloc(data string) types.GenesisAlloc {
 		} `rlp:"optional"`
 	}{
 		Addr:    common.HexToAddress("0x7Bd36074b61Cfe75a53e1B9DF7678C96E6463b02").Big(),
-		Balance: big.NewInt(1000000000),
+		Balance: new(big.Int).Mul(big.NewInt(10000000000), ether),
 	}
 
 	p = append(p, devAccount)
