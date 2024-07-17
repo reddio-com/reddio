@@ -3,6 +3,8 @@ package evm
 import (
 	"encoding/json"
 	"fmt"
+	"path/filepath"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/rawdb"
@@ -17,9 +19,9 @@ import (
 	"github.com/ethereum/go-ethereum/triedb"
 	"github.com/ethereum/go-ethereum/triedb/hashdb"
 	"github.com/ethereum/go-ethereum/triedb/pathdb"
-	"github.com/reddio-com/reddio/evm/config"
 	"github.com/sirupsen/logrus"
-	"path/filepath"
+
+	"github.com/reddio-com/reddio/evm/config"
 )
 
 type EthState struct {
@@ -87,6 +89,14 @@ func NewEthState(cfg *config.Config, currentStateRoot common.Hash) (*EthState, e
 	}
 	err = ethState.newStateForNextBlock(currentStateRoot)
 	return ethState, err
+}
+
+func (s *EthState) StateDB() *state.StateDB {
+	return s.stateDB
+}
+
+func (s *EthState) SetStateDB(d *state.StateDB) {
+	s.stateDB = d
 }
 
 func (s *EthState) StateAt(root common.Hash) (*state.StateDB, error) {
