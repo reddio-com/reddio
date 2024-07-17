@@ -70,7 +70,7 @@ func assertWithRetry(tc *pkg.TransferCase, walletsManager *pkg.WalletManager, wa
 		if success {
 			return true, nil
 		} else {
-			time.Sleep(5 * time.Second)
+			time.Sleep(4 * time.Second)
 			continue
 		}
 	}

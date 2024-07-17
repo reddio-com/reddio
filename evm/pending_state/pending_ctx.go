@@ -23,6 +23,55 @@ func NewStateContext() *StateContext {
 	return sctx
 }
 
+func (sctx *StateContext) IsConflict(tar *StateContext) bool {
+	if len(sctx.GetWriteState()) < 1 && len(sctx.GetWriteAddress()) < 1 &&
+		len(sctx.GetReadState()) < 1 && len(sctx.GetReadAddress()) < 1 {
+		return false
+	}
+	// write/write conflict
+	if IsAddressConflict(sctx.GetWriteAddress(), tar.GetWriteAddress()) {
+		return true
+	}
+	// read/write conflict
+	if IsAddressConflict(sctx.GetReadAddress(), tar.GetWriteAddress()) {
+		return true
+	}
+	// read/write conflict
+	if IsAddressConflict(sctx.GetWriteAddress(), tar.GetReadAddress()) {
+		return true
+	}
+	if IsStateConflict(sctx.GetWriteState(), tar.GetWriteState()) {
+		return true
+	}
+	if IsStateConflict(sctx.GetReadState(), tar.GetWriteState()) {
+		return true
+	}
+	if IsStateConflict(sctx.GetWriteState(), tar.GetReadState()) {
+		return true
+	}
+	return false
+}
+
+func (sctx *StateContext) GetReadState() map[common.Address]map[common.Hash]struct{} {
+	return sctx.Read.State
+}
+
+func (sctx *StateContext) GetWriteState() map[common.Address]map[common.Hash]struct{} {
+	return sctx.Write.State
+}
+
+func (sctx *StateContext) ReadAddress() map[common.Address]struct{} {
+	return sctx.Read.Address
+}
+
+func (sctx *StateContext) GetWriteAddress() map[common.Address]struct{} {
+	return sctx.Write.Address
+}
+
+func (sctx *StateContext) GetReadAddress() map[common.Address]struct{} {
+	return sctx.Read.Address
+}
+
 func (sctx *StateContext) AddSlot2Address(slot slotToAddress) {
 	sctx.addSlotToAddress = append(sctx.addSlotToAddress, slot)
 }
@@ -75,6 +124,7 @@ func (sctx *StateContext) ReadState(addr common.Address, key common.Hash) {
 }
 
 type VisitedAddress struct {
+	Address  map[common.Address]struct{}
 	Account  map[common.Address]struct{}
 	Destruct map[common.Address]struct{}
 	Balance  map[common.Address]struct{}
@@ -84,6 +134,7 @@ type VisitedAddress struct {
 
 func NewVisitedAddress() *VisitedAddress {
 	return &VisitedAddress{
+		Address:  make(map[common.Address]struct{}),
 		Account:  make(map[common.Address]struct{}),
 		Destruct: make(map[common.Address]struct{}),
 		Balance:  make(map[common.Address]struct{}),
@@ -93,14 +144,17 @@ func NewVisitedAddress() *VisitedAddress {
 }
 
 func (v *VisitedAddress) VisitAccount(addr common.Address) {
+	v.Address[addr] = struct{}{}
 	v.Account[addr] = struct{}{}
 }
 
 func (v *VisitedAddress) VisitBalance(addr common.Address) {
+	v.Address[addr] = struct{}{}
 	v.Balance[addr] = struct{}{}
 }
 
 func (v *VisitedAddress) VisitCode(addr common.Address) {
+	v.Address[addr] = struct{}{}
 	v.Code[addr] = struct{}{}
 }
 
@@ -114,6 +168,7 @@ func (v *VisitedAddress) VisitState(addr common.Address, key common.Hash) {
 }
 
 func (v *VisitedAddress) VisitDestruct(addr common.Address) {
+	v.Address[addr] = struct{}{}
 	v.Destruct[addr] = struct{}{}
 }
 
@@ -126,12 +181,51 @@ type prepareParams struct {
 	txAccesses  types.AccessList
 }
 
-type preImage struct {
-	hash common.Hash
-	b    []byte
-}
-
 type slotToAddress struct {
 	addr common.Address
 	slot common.Hash
+}
+
+func IsAddressConflict(a1, a2 map[common.Address]struct{}) bool {
+	for k := range a1 {
+		_, ok := a2[k]
+		if ok {
+			return true
+		}
+	}
+	for k := range a2 {
+		_, ok := a1[k]
+		if ok {
+			return true
+		}
+	}
+	return false
+}
+
+func IsStateConflict(a1, a2 map[common.Address]map[common.Hash]struct{}) bool {
+	for addr, v1 := range a1 {
+		v2, ok := a2[addr]
+		if !ok {
+			continue
+		}
+		for k := range v1 {
+			_, ok := v2[k]
+			if ok {
+				return true
+			}
+		}
+	}
+	for addr, v2 := range a2 {
+		v1, ok := a1[addr]
+		if !ok {
+			continue
+		}
+		for k := range v2 {
+			_, ok := v1[k]
+			if ok {
+				return true
+			}
+		}
+	}
+	return false
 }

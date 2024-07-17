@@ -1,6 +1,9 @@
 package kernel
 
 import (
+	"sync"
+
+	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/yu-org/yu/common"
 	"github.com/yu-org/yu/core/context"
 	"github.com/yu-org/yu/core/kernel"
@@ -60,10 +63,6 @@ func (k *Kernel) Execute(block *types.Block) error {
 			receipts[c.txn.TxnHash] = c.r
 		}
 	}
-	//got := k.executeTxnCtxList(txnCtxList)
-	//for _, c := range got {
-	//	receipts[c.txn.TxnHash] = c.r
-	//}
 	return k.kernel.PostExecute(block, receipts)
 }
 
@@ -92,6 +91,10 @@ func (k *Kernel) SplitTxnCtxList(list []*txnCtx) [][]*txnCtx {
 	if len(curList) > 0 {
 		got = append(got, curList)
 	}
+	if len(list) > 1 {
+
+	}
+
 	return got
 }
 
@@ -114,9 +117,16 @@ func checkAddressConflict(curTxn *txnCtx, curList []*txnCtx) bool {
 }
 
 func (k *Kernel) executeTxnCtxList(list []*txnCtx) []*txnCtx {
-	originStateDB := k.Solidity.StateDB()
+	return k.executeTxnCtxListInConcurrency(k.Solidity.StateDB(), list)
+}
+
+func (k *Kernel) reExecuteTxnCtxListInOrder(originStateDB *state.StateDB, list []*txnCtx) []*txnCtx {
+	k.Solidity.SetStateDB(originStateDB)
 	for index, tctx := range list {
-		k.Solidity.SetStateDB(originStateDB.Copy())
+		if tctx.err != nil {
+			list[index] = tctx
+			continue
+		}
 		err := tctx.writing(tctx.ctx)
 		if err != nil {
 			tctx.err = err
@@ -126,6 +136,44 @@ func (k *Kernel) executeTxnCtxList(list []*txnCtx) []*txnCtx {
 			tctx.ps = tctx.ctx.ExtraInterface.(*pending_state.PendingState)
 		}
 		list[index] = tctx
+	}
+	return list
+}
+
+func (k *Kernel) executeTxnCtxListInConcurrency(originStateDB *state.StateDB, list []*txnCtx) []*txnCtx {
+	wg := sync.WaitGroup{}
+	for i, c := range list {
+		wg.Add(1)
+		go func(index int, tctx *txnCtx) {
+			defer func() {
+				wg.Done()
+			}()
+			k.Solidity.SetStateDB(originStateDB.Copy())
+			err := tctx.writing(tctx.ctx)
+			if err != nil {
+				tctx.err = err
+				tctx.r = k.kernel.HandleError(err, tctx.ctx, tctx.ctx.Block, tctx.txn)
+			} else {
+				tctx.r = k.kernel.HandleEvent(tctx.ctx, tctx.ctx.Block, tctx.txn)
+				tctx.ps = tctx.ctx.ExtraInterface.(*pending_state.PendingState)
+			}
+			list[index] = tctx
+		}(i, c)
+	}
+	wg.Wait()
+	curtCtx := pending_state.NewStateContext()
+	conflict := false
+	for _, tctx := range list {
+		if tctx.err != nil {
+			continue
+		}
+		if curtCtx.IsConflict(tctx.ps.GetCtx()) {
+			conflict = true
+			break
+		}
+	}
+	if conflict {
+		return k.reExecuteTxnCtxListInOrder(originStateDB, list)
 	}
 	for _, tctx := range list {
 		if tctx.err != nil {

@@ -7,7 +7,6 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -62,7 +61,6 @@ func (m *WalletManager) createEthWallet(initialEthCount uint64) (*EthWallet, err
 	if err := m.transferEth(GenesisPrivateKey, address, initialEthCount); err != nil {
 		return nil, err
 	}
-	time.Sleep(3 * time.Second)
 	log.Println(fmt.Sprintf("create wallet %v", address))
 	return &EthWallet{PK: privateKey, Address: address}, nil
 }
