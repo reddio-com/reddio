@@ -226,7 +226,7 @@ func (e *EthAPIBackend) FeeHistory(ctx context.Context, blockCount uint64, lastB
 		fees := &blockFees{blockNumber: blockNumber.Uint64()}
 
 		if len(rewardPercentiles) > 0 {
-			fees.block, fees.err = e.BlockByNumber(ctx, rpc.LatestBlockNumber)
+			fees.block, fees.err = e.BlockByNumber(ctx, rpc.BlockNumber(blockNumber.Int64()))
 			if fees.block != nil && fees.err != nil {
 				fees.receipts, fees.err = e.GetReceipts(ctx, fees.block.Hash())
 				fees.header = fees.block.Header()

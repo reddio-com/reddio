@@ -341,24 +341,48 @@ func (e *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction)
 	return e.chain.HandleTxn(signedWrCall)
 }
 
-func (e *EthAPIBackend) GetTransaction(ctx context.Context, txHash common.Hash) (bool, *types.Transaction, common.Hash, uint64, uint64, error) {
-	//TODO implement me
-	panic("implement me")
+func yuTxn2EthTxn(yuSignedTxn *yutypes.SignedTxn) *types.Transaction {
+	// Un-serialize wrCall.params to retrive datas:
+	wrCallParams := yuSignedTxn.Raw.WrCall.Params
+	var txReq = &evm.TxRequest{}
+	json.Unmarshal([]byte(wrCallParams), txReq)
 
-	//stxn, err := e.chain.ChainEnv.Pool.GetTxn(yucommon.Hash(txHash)) // will not return error here
-	//if err != nil || stxn == nil {
-	//	return false, nil, common.Hash{}, 0, 0, err
-	//}
-	//return true, tx, lookup.BlockHash, lookup.BlockIndex, lookup.Index, nil
+	// if nonce is assigned to signedTx.Raw.Nonce, then this is ok; otherwise it's nil:
+	nonce := yuSignedTxn.Raw.Nonce
+
+	tx := types.NewTx(&types.LegacyTx{
+		Nonce:    nonce,
+		GasPrice: txReq.GasPrice,
+		Gas:      txReq.GasLimit, // gasLimit: should be obtained from Block & Settings
+		To:       &txReq.Address,
+		Value:    txReq.Value,
+		Data:     txReq.Input,
+	})
+
+	return tx
+}
+func (e *EthAPIBackend) GetTransaction(ctx context.Context, txHash common.Hash) (bool, *types.Transaction, common.Hash, uint64, uint64, error) {
+	// Used to get txn from either txdb & txpool:
+	stxn, err := e.chain.GetTxn(yucommon.Hash(txHash))
+	if err != nil || stxn == nil {
+		return false, nil, common.Hash{}, 0, 0, err
+	}
+	ethTxn := yuTxn2EthTxn(stxn)
+
+	// Fixme: should return lookup.BlockHash, lookup.BlockIndex, lookup.Index
+	blockHash := txHash
+	blockIndex := uint64(0)
+	index := uint64(0)
+
+	return true, ethTxn, blockHash, blockIndex, index, nil
 }
 
 func (e *EthAPIBackend) GetPoolTransactions() (types.Transactions, error) {
-	stxn, _ := e.chain.ChainEnv.Pool.GetAllTxns() // will not return error here
+	// Similar to: e.chain.ChainEnv.Pool.GetTxn - ChainEnv can be ignored b/c txpool has index based on hxHash, therefore it's unique
+	stxn, _ := e.chain.Pool.GetAllTxns() // will not return error here
 
-	// Init default values for Eth.Block.Transactions.TxData:
 	var ethTxns []*types.Transaction
 
-	// Create Eth.Block.Transactions from yu.CompactBlock.Hashes:
 	for _, yuSignedTxn := range stxn {
 		ethTxn := yuTxn2EthTxn(yuSignedTxn)
 		ethTxns = append(ethTxns, ethTxn)
@@ -367,14 +391,26 @@ func (e *EthAPIBackend) GetPoolTransactions() (types.Transactions, error) {
 	return ethTxns, nil
 }
 
+// Similar to GetTransaction():
 func (e *EthAPIBackend) GetPoolTransaction(txHash common.Hash) *types.Transaction {
-	//TODO implement me
-	panic("implement me")
+	stxn, err := e.chain.Pool.GetTxn(yucommon.Hash(txHash)) // will not return error here
+	if err != nil || stxn == nil {
+		return nil
+	}
+	return yuTxn2EthTxn(stxn)
 }
 
 func (e *EthAPIBackend) GetPoolNonce(ctx context.Context, addr common.Address) (uint64, error) {
-	//TODO implement me
-	panic("implement me")
+	// Loop through all transactions to find matching Account Address, and return it's nonce (if have)
+	allEthTxns, _ := e.GetPoolTransactions()
+
+	for _, ethTxn := range allEthTxns {
+		if *ethTxn.To() == addr {
+			return ethTxn.Nonce(), nil
+		}
+	}
+
+	return 0, nil
 }
 
 func (e *EthAPIBackend) Stats() (pending int, queued int) {
@@ -451,27 +487,6 @@ func yuHeader2EthHeader(yuHeader *yutypes.Header) *types.Header {
 		Nonce:       types.BlockNonce{},
 		BaseFee:     nil,
 	}
-}
-
-func yuTxn2EthTxn(yuSignedTxn *yutypes.SignedTxn) *types.Transaction {
-	// Init default values for Eth.Block.Transactions.TxData:
-	var data []byte
-
-	nonce := yuSignedTxn.Raw.Nonce
-	to := common.HexToAddress("")
-	gasLimit := yuSignedTxn.Raw.WrCall.LeiPrice // TODO - what should the limit be?
-	gasPrice := new(big.Int).SetUint64(yuSignedTxn.Raw.WrCall.LeiPrice)
-
-	tx := types.NewTx(&types.LegacyTx{
-		Nonce:    nonce,
-		GasPrice: gasPrice,
-		Gas:      gasLimit,
-		To:       &to,
-		Value:    big.NewInt(0),
-		Data:     data,
-	})
-
-	return tx
 }
 
 func compactBlock2EthBlock(yuBlock *yutypes.Block) *types.Block {
