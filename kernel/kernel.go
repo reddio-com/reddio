@@ -121,12 +121,12 @@ func (k *Kernel) executeTxnCtxList(list []*txnCtx) []*txnCtx {
 }
 
 func (k *Kernel) reExecuteTxnCtxListInOrder(originStateDB *state.StateDB, list []*txnCtx) []*txnCtx {
-	k.Solidity.SetStateDB(originStateDB)
 	for index, tctx := range list {
 		if tctx.err != nil {
 			list[index] = tctx
 			continue
 		}
+		tctx.ctx.ExtraInterface = originStateDB
 		err := tctx.writing(tctx.ctx)
 		if err != nil {
 			tctx.err = err
@@ -148,7 +148,7 @@ func (k *Kernel) executeTxnCtxListInConcurrency(originStateDB *state.StateDB, li
 			defer func() {
 				wg.Done()
 			}()
-			k.Solidity.SetStateDB(originStateDB.Copy())
+			tctx.ctx.ExtraInterface = originStateDB.Copy()
 			err := tctx.writing(tctx.ctx)
 			if err != nil {
 				tctx.err = err

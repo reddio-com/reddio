@@ -310,7 +310,7 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 	cfg.Value = value
 
 	vmenv := newEVM(cfg)
-	pd := pending_state.NewPendingState(s.ethState.stateDB)
+	pd := pending_state.NewPendingState(ctx.ExtraInterface.(*state.StateDB))
 	vmenv.StateDB = pd
 
 	logrus.Println("ExecuteTxn vmenv: ", vmenv)
