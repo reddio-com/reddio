@@ -241,9 +241,9 @@ func (e *EthAPIBackend) GetReceipts(ctx context.Context, hash common.Hash) (type
 	panic("implement me")
 }
 
+// Eth has changed to POS, Td(total difficulty) is for POW
 func (e *EthAPIBackend) GetTd(ctx context.Context, hash common.Hash) *big.Int {
-	//TODO implement me
-	panic("implement me")
+	return nil
 }
 
 func (e *EthAPIBackend) GetEVM(ctx context.Context, msg *core.Message, state *state.StateDB, header *types.Header, vmConfig *vm.Config, blockCtx *vm.BlockContext) *vm.EVM {
