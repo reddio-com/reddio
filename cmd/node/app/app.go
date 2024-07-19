@@ -11,6 +11,13 @@ import (
 	reddioKernel "github.com/reddio-com/reddio/kernel"
 )
 
+func Start(path string) {
+	startup.InitDefaultKernelConfig()
+	poaCfg := poa.DefaultCfg(0)
+	gethCfg := evm.LoadEvmConfig(path)
+	StartUpChain(poaCfg, gethCfg)
+}
+
 func StartUpChain(poaCfg *poa.PoaConfig, evmCfg *evm.GethConfig) {
 	figure.NewColorFigure("Reddio", "big", "green", false).Print()
 
