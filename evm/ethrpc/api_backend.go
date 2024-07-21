@@ -322,6 +322,7 @@ func (e *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction)
 		GasLimit: signedTx.Gas(),
 		GasPrice: signedTx.GasPrice(),
 		Value:    signedTx.Value(),
+		Hash:     signedTx.Hash(),
 	}
 	if signedTx.To() != nil {
 		txReq.Address = *signedTx.To()
