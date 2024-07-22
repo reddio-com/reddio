@@ -317,6 +317,7 @@ func (e *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction)
 	if err != nil {
 		return err
 	}
+	v, r, s := signedTx.RawSignatureValues()
 	txReq := &evm.TxRequest{
 		Input:    signedTx.Data(),
 		Origin:   sender,
@@ -324,6 +325,9 @@ func (e *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction)
 		GasPrice: signedTx.GasPrice(),
 		Value:    signedTx.Value(),
 		Hash:     signedTx.Hash(),
+		V:        v,
+		R:        r,
+		S:        s,
 	}
 	if signedTx.To() != nil {
 		txReq.Address = *signedTx.To()
@@ -359,6 +363,9 @@ func yuTxn2EthTxn(yuSignedTxn *yutypes.SignedTxn) *types.Transaction {
 		To:       &txReq.Address,
 		Value:    txReq.Value,
 		Data:     txReq.Input,
+		V:        txReq.V,
+		R:        txReq.R,
+		S:        txReq.S,
 	})
 
 	return tx
