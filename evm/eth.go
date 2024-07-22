@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"math"
 	"math/big"
 	"net/http"
@@ -14,6 +13,7 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
+	"github.com/NethermindEth/juno/encoder"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/yu-org/yu/common/yerror"
 
@@ -278,16 +278,18 @@ func NewSolidity(gethConfig *GethConfig) *Solidity {
 
 	solidity.SetWritings(solidity.ExecuteTxn)
 	solidity.SetReadings(
-		solidity.Call,
+		solidity.Call, solidity.GetReceipt,
 		// solidity.GetClass, solidity.GetClassAt,
 		// 	solidity.GetClassHashAt, solidity.GetNonce, solidity.GetStorage,
-		// 	solidity.GetTransaction, solidity.GetTransactionStatus, solidity.GetReceipt,
+		// 	solidity.GetTransaction, solidity.GetTransactionStatus,
 		// 	solidity.SimulateTransactions,
 		// 	solidity.GetBlockWithTxs, solidity.GetBlockWithTxHashes,
 	)
 
 	return solidity
 }
+
+// region ---- Tripod Api ----
 
 func (s *Solidity) CheckTxn(txn *yu_types.SignedTxn) error {
 	var txReq TxRequest
@@ -297,13 +299,11 @@ func (s *Solidity) CheckTxn(txn *yu_types.SignedTxn) error {
 		return err
 	}
 
-	var txnHash [yu_common.HashLen]byte
-	if len(txReq.Hash.Bytes()) == yu_common.HashLen {
-		copy(txnHash[:], txReq.Hash.Bytes())
-		txn.TxnHash = txnHash
-	} else {
-		return errors.New(fmt.Sprintf("Expected hash to be 32 bytes long, but got %d bytes", len(txReq.Hash.Bytes())))
+	yuHash, err := ConvertHashToYuHash(txReq.Hash)
+	if err != nil {
+		return err
 	}
+	txn.TxnHash = yuHash
 
 	return nil
 }
@@ -493,3 +493,48 @@ func (s *Solidity) StateAt(root common.Hash) (*state.StateDB, error) {
 func (s *Solidity) GetEthDB() ethdb.Database {
 	return s.ethState.ethDB
 }
+
+type ReceiptRequest struct {
+	Hash common.Hash `json:"hash"`
+}
+
+type ReceiptResponse struct {
+	Receipt *types.Receipt `json:"receipt"`
+	Err     error          `json:"err"`
+}
+
+func (s *Solidity) GetReceipt(ctx *context.ReadContext) {
+	var rq ReceiptRequest
+	err := ctx.BindJson(&rq)
+	if err != nil {
+		ctx.Json(http.StatusBadRequest, &ReceiptResponse{Err: err})
+		return
+	}
+
+	receipt, err := s.getReceipt(rq.Hash)
+	if err != nil {
+		ctx.Json(http.StatusInternalServerError, &ReceiptResponse{Err: err})
+		return
+	}
+
+	ctx.JsonOk(&ReceiptResponse{Receipt: receipt})
+}
+
+func (s *Solidity) getReceipt(hash common.Hash) (*types.Receipt, error) {
+	yuHash, err := ConvertHashToYuHash(hash)
+	if err != nil {
+		return nil, err
+	}
+	yuReceipt, err := s.TxDB.GetReceipt(yuHash)
+	if err != nil {
+		return nil, err
+	}
+	if yuReceipt == nil {
+		return nil, errors.New("no receipt found")
+	}
+	receipt := new(types.Receipt)
+	err = encoder.Unmarshal(yuReceipt.Extra, receipt)
+	return receipt, err
+}
+
+// endregion ---- Tripod Api ----

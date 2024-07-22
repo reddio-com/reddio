@@ -24,6 +24,7 @@ import (
 	"github.com/sirupsen/logrus"
 	yucommon "github.com/yu-org/yu/common"
 	yucore "github.com/yu-org/yu/core"
+	yucontext "github.com/yu-org/yu/core/context"
 	"github.com/yu-org/yu/core/kernel"
 	yutypes "github.com/yu-org/yu/core/types"
 
@@ -370,12 +371,22 @@ func (e *EthAPIBackend) GetTransaction(ctx context.Context, txHash common.Hash) 
 	}
 	ethTxn := yuTxn2EthTxn(stxn)
 
-	// Fixme: should return lookup.BlockHash, lookup.BlockIndex, lookup.Index
-	blockHash := txHash
-	blockIndex := uint64(0)
-	index := uint64(0)
+	rcptReq := &evm.ReceiptRequest{Hash: txHash}
+	resp, err := e.adaptChainRead(rcptReq, "GetReceipt")
+	if err != nil {
+		return false, nil, common.Hash{}, 0, 0, err
+	}
+	receiptResponse := resp.DataInterface.(*evm.ReceiptResponse)
+	if receiptResponse.Err != nil {
+		return false, nil, common.Hash{}, 0, 0, err
+	}
+	receipt := receiptResponse.Receipt
 
-	return true, ethTxn, blockHash, blockIndex, index, nil
+	blockHash := receipt.BlockHash
+	blockNumber := receipt.BlockNumber.Uint64()
+	index := receipt.TransactionIndex
+
+	return true, ethTxn, blockHash, blockNumber, uint64(index), nil
 }
 
 func (e *EthAPIBackend) GetPoolTransactions() (types.Transactions, error) {
@@ -517,6 +528,25 @@ func compactBlock2EthBlock(yuBlock *yutypes.Block) *types.Block {
 	//// Create new Eth.Block using yu.Header & yu.Hashes:
 	//return types.NewBlock(yuHeader2EthHeader(yuBlock.Header), ethTxs, nil, nil, nil)
 	return types.NewBlock(yuHeader2EthHeader(yuBlock.Header), nil, nil, nil, nil)
+}
+
+func (e *EthAPIBackend) adaptChainRead(req any, funcName string) (*yucontext.ResponseData, error) {
+	byt, err := json.Marshal(req)
+	if err != nil {
+		return nil, err
+	}
+
+	rdCall := &yucommon.RdCall{
+		TripodName: SolidityTripod,
+		FuncName:   funcName,
+		Params:     string(byt),
+	}
+
+	resp, err := e.chain.HandleRead(rdCall)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
 }
 
 // region ---- Fake Consensus Engine ----
