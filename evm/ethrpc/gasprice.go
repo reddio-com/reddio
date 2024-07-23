@@ -53,6 +53,7 @@ type EthGasPrice struct {
 // necessary to add the basefee to the returned number to fall back to the legacy
 // behavior.
 func (e *EthAPIBackend) SuggestGasTipCap(ctx context.Context) (*big.Int, error) {
+	return big.NewInt(1), nil
 
 	head, _ := e.HeaderByNumber(ctx, rpc.LatestBlockNumber)
 	headHash := head.Hash()
