@@ -9,17 +9,22 @@ import (
 	"github.com/reddio-com/reddio/test/pkg"
 )
 
-type TestCase struct {
-	Name         string
+type TestCase interface {
+	Run(m *pkg.WalletManager) error
+	Name() string
+}
+
+type RandomTransferTestCase struct {
+	CaseName     string
 	walletCount  int
 	initialCount uint64
 	steps        int
 	tm           *pkg.TransferManager
 }
 
-func NewTestcase(name string, count int, initial uint64, steps int) *TestCase {
-	return &TestCase{
-		Name:         name,
+func NewRandomTest(name string, count int, initial uint64, steps int) *RandomTransferTestCase {
+	return &RandomTransferTestCase{
+		CaseName:     name,
 		walletCount:  count,
 		initialCount: initial,
 		steps:        steps,
@@ -27,7 +32,11 @@ func NewTestcase(name string, count int, initial uint64, steps int) *TestCase {
 	}
 }
 
-func (tc *TestCase) Run(m *pkg.WalletManager) error {
+func (tc *RandomTransferTestCase) Name() string {
+	return tc.CaseName
+}
+
+func (tc *RandomTransferTestCase) Run(m *pkg.WalletManager) error {
 	wallets, err := m.GenerateRandomWallet(tc.walletCount, tc.initialCount)
 	if err != nil {
 		return err
@@ -47,7 +56,7 @@ func (tc *TestCase) Run(m *pkg.WalletManager) error {
 	return nil
 }
 
-func (tc *TestCase) assert(transferCase *pkg.TransferCase, walletsManager *pkg.WalletManager, wallets []*pkg.EthWallet) (bool, error) {
+func (tc *RandomTransferTestCase) assert(transferCase *pkg.TransferCase, walletsManager *pkg.WalletManager, wallets []*pkg.EthWallet) (bool, error) {
 	var got map[string]*pkg.CaseEthWallet
 	var success bool
 	var err error
