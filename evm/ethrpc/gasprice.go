@@ -22,7 +22,7 @@ const sampleNumber = 3 // Number of transactions sampled in a block
 // Oracle recommends gas prices based on the content of recent
 // blocks. Suitable for both light and full clients.
 type EthGasPrice struct {
-	//backend     OracleBackend
+	backend     Backend
 	lastHead    common.Hash
 	lastPrice   *big.Int
 	maxPrice    *big.Int
@@ -36,15 +36,17 @@ type EthGasPrice struct {
 	//historyCache *lru.Cache[cacheKey, processedFees]
 }
 
-// OracleBackend includes all necessary background APIs for oracle.
-//type OracleBackend interface {
-//	HeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Header, error)
-//	BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Block, error)
-//	GetReceipts(ctx context.Context, hash common.Hash) (types.Receipts, error)
-//	Pending() (*types.Block, types.Receipts, *state.StateDB)
-//	ChainConfig() *params.ChainConfig
-//	//SubscribeChainHeadEvent(ch chan<- core.ChainHeadEvent) event.Subscription
-//}
+func NewEthGasPrice(backend Backend) *EthGasPrice {
+	// default value from geth->config.go->FullNodeGPO
+	return &EthGasPrice{
+		backend:     backend,
+		checkBlocks: 20,
+		percentile:  60,
+		maxPrice:    big.NewInt(500 * params.GWei),
+		ignorePrice: big.NewInt(2 * params.Wei),
+		lastPrice:   big.NewInt(params.GWei), // lastPrice default value from geth->miner.go->DefaultConfig
+	}
+}
 
 // SuggestTipCap returns a tip cap so that newly created transaction can have a
 // very high chance to be included in the following blocks.
@@ -53,16 +55,13 @@ type EthGasPrice struct {
 // necessary to add the basefee to the returned number to fall back to the legacy
 // behavior.
 func (e *EthAPIBackend) SuggestGasTipCap(ctx context.Context) (*big.Int, error) {
-	return big.NewInt(1), nil
-
 	head, _ := e.HeaderByNumber(ctx, rpc.LatestBlockNumber)
 	headHash := head.Hash()
 
-	var ethGasPrice *EthGasPrice
-
+	// TODO: need add cache lock
 	// If the latest gasprice is still available, return it.
 	//e.cacheLock.RLock()
-	lastHead, lastPrice := ethGasPrice.lastHead, ethGasPrice.lastPrice
+	lastHead, lastPrice := e.gasPriceCache.lastHead, e.gasPriceCache.lastPrice
 	//oracle.cacheLock.RUnlock()
 	if headHash == lastHead {
 		return new(big.Int).Set(lastPrice), nil
@@ -80,12 +79,12 @@ func (e *EthAPIBackend) SuggestGasTipCap(ctx context.Context) (*big.Int, error) 
 	var (
 		sent, exp int
 		number    = head.Number.Uint64()
-		result    = make(chan results, ethGasPrice.checkBlocks)
+		result    = make(chan results, e.gasPriceCache.checkBlocks)
 		quit      = make(chan struct{})
 		results   []*big.Int
 	)
-	for sent < ethGasPrice.checkBlocks && number > 0 {
-		go e.getBlockValues(ctx, number, sampleNumber, ethGasPrice.ignorePrice, result, quit)
+	for sent < e.gasPriceCache.checkBlocks && number > 0 {
+		go e.getBlockValues(ctx, number, sampleNumber, e.gasPriceCache.ignorePrice, result, quit)
 		sent++
 		exp++
 		number--
@@ -107,8 +106,8 @@ func (e *EthAPIBackend) SuggestGasTipCap(ctx context.Context) (*big.Int, error) 
 		// Besides, in order to collect enough data for sampling, if nothing
 		// meaningful returned, try to query more blocks. But the maximum
 		// is 2*checkBlocks.
-		if len(res.values) == 1 && len(results)+1+exp < ethGasPrice.checkBlocks*2 && number > 0 {
-			go e.getBlockValues(ctx, number, sampleNumber, ethGasPrice.ignorePrice, result, quit)
+		if len(res.values) == 1 && len(results)+1+exp < e.gasPriceCache.checkBlocks*2 && number > 0 {
+			go e.getBlockValues(ctx, number, sampleNumber, e.gasPriceCache.ignorePrice, result, quit)
 			sent++
 			exp++
 			number--
@@ -118,14 +117,14 @@ func (e *EthAPIBackend) SuggestGasTipCap(ctx context.Context) (*big.Int, error) 
 	price := lastPrice
 	if len(results) > 0 {
 		slices.SortFunc(results, func(a, b *big.Int) int { return a.Cmp(b) })
-		price = results[(len(results)-1)*ethGasPrice.percentile/100]
+		price = results[(len(results)-1)*e.gasPriceCache.percentile/100]
 	}
-	if price.Cmp(ethGasPrice.maxPrice) > 0 {
-		price = new(big.Int).Set(ethGasPrice.maxPrice)
+	if price.Cmp(e.gasPriceCache.maxPrice) > 0 {
+		price = new(big.Int).Set(e.gasPriceCache.maxPrice)
 	}
 	//oracle.cacheLock.Lock()
-	ethGasPrice.lastHead = headHash
-	ethGasPrice.lastPrice = price
+	e.gasPriceCache.lastHead = headHash
+	e.gasPriceCache.lastPrice = price
 	//oracle.cacheLock.Unlock()
 
 	return new(big.Int).Set(price), nil

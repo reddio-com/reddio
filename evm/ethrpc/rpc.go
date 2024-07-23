@@ -52,6 +52,8 @@ func NewEthRPC(chain *kernel.Kernel, cfg *evm.GethConfig) (*EthRPC, error) {
 		chain:               chain,
 		ethChainCfg:         cfg.ChainConfig,
 	}
+	backend.gasPriceCache = NewEthGasPrice(backend)
+
 	apis := GetAPIs(backend)
 	for _, api := range apis {
 		err := s.rpcServer.RegisterName(api.Namespace, api.Service)
