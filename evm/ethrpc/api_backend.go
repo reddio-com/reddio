@@ -167,7 +167,9 @@ func (e *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumbe
 
 func (e *EthAPIBackend) BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error) {
 	yuBlock, err := e.chain.Chain.GetBlock(yucommon.Hash(hash))
-
+	if err != nil {
+		return nil, err
+	}
 	return compactBlock2EthBlock(yuBlock), err
 }
 
