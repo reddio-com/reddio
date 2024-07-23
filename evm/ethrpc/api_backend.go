@@ -239,11 +239,6 @@ func (e *EthAPIBackend) Pending() (*types.Block, types.Receipts, *state.StateDB)
 	panic("implement me")
 }
 
-func (e *EthAPIBackend) GetReceipts(ctx context.Context, hash common.Hash) (types.Receipts, error) {
-	//TODO implement me
-	panic("implement me")
-}
-
 // Eth has changed to POS, Td(total difficulty) is for POW
 func (e *EthAPIBackend) GetTd(ctx context.Context, hash common.Hash) *big.Int {
 	return nil
@@ -399,6 +394,30 @@ func (e *EthAPIBackend) GetTransaction(ctx context.Context, txHash common.Hash) 
 	index := receipt.TransactionIndex
 
 	return true, ethTxn, blockHash, blockNumber, uint64(index), nil
+}
+
+func (e *EthAPIBackend) GetReceipts(ctx context.Context, hash common.Hash) (types.Receipts, error) {
+	compactBlock, err := e.chain.Chain.GetCompactBlock(yucommon.Hash(hash))
+	if err != nil {
+		return nil, err
+	}
+
+	var receipts []*types.Receipt
+
+	for _, txHash := range compactBlock.TxnsHashes {
+		rcptReq := &evm.ReceiptRequest{Hash: common.Hash(txHash)}
+		resp, err := e.adaptChainRead(rcptReq, "GetReceipt")
+		if err != nil {
+			continue
+		}
+		receiptResponse := resp.DataInterface.(*evm.ReceiptResponse)
+		if receiptResponse.Err != nil {
+			continue
+		}
+		receipts = append(receipts, receiptResponse.Receipt)
+	}
+
+	return receipts, nil
 }
 
 func (e *EthAPIBackend) GetPoolTransactions() (types.Transactions, error) {
