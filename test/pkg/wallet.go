@@ -148,7 +148,6 @@ func (m *WalletManager) transferEth(privateKeyHex string, toAddress string, amou
 		"method": "eth_sendRawTransaction",
 		"params": ["0x%x"] 
 	}`, rawTxBytes)
-	got, err := sendRequest(m.hostAddress, requestBody)
-	fmt.Println(string(got))
+	_, err = sendRequest(m.hostAddress, requestBody)
 	return err
 }

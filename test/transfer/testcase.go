@@ -42,11 +42,15 @@ func (tc *RandomTransferTestCase) Run(m *pkg.WalletManager) error {
 		return err
 	}
 	log.Println("create wallets finish")
-	transferCase := tc.tm.GenerateTransferSteps(tc.steps, pkg.GenerateCaseWallets(tc.initialCount, wallets))
+	transferCase := tc.tm.GenerateRandomTransferSteps(tc.steps, pkg.GenerateCaseWallets(tc.initialCount, wallets))
+	return runAndAssert(transferCase, m, wallets)
+}
+
+func runAndAssert(transferCase *pkg.TransferCase, m *pkg.WalletManager, wallets []*pkg.EthWallet) error {
 	if err := transferCase.Run(m); err != nil {
 		return err
 	}
-	success, err := tc.assert(transferCase, m, wallets)
+	success, err := assert(transferCase, m, wallets)
 	if err != nil {
 		return err
 	}
@@ -56,7 +60,7 @@ func (tc *RandomTransferTestCase) Run(m *pkg.WalletManager) error {
 	return nil
 }
 
-func (tc *RandomTransferTestCase) assert(transferCase *pkg.TransferCase, walletsManager *pkg.WalletManager, wallets []*pkg.EthWallet) (bool, error) {
+func assert(transferCase *pkg.TransferCase, walletsManager *pkg.WalletManager, wallets []*pkg.EthWallet) (bool, error) {
 	var got map[string]*pkg.CaseEthWallet
 	var success bool
 	var err error

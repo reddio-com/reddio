@@ -24,6 +24,7 @@ func (m *EthManager) Configure(cfg *conf.EthCaseConf, evmCfg *evm.GethConfig) {
 	m.testcases = []TestCase{
 		NewRandomTest("[2 account, 1 transfer]", 2, cfg.InitialEthCount, 1),
 		NewRandomTest("[20 account, 100 transfer]", 20, cfg.InitialEthCount, 100),
+		NewConflictTest("[20 account, 50 transfer]", 20, cfg.InitialEthCount, 50),
 	}
 }
 
