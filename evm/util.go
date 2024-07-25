@@ -1,6 +1,7 @@
 package evm
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/ethereum/go-ethereum/common"
@@ -15,4 +16,13 @@ func ConvertHashToYuHash(hash common.Hash) (yu_common.Hash, error) {
 	} else {
 		return yu_common.Hash{}, errors.New(fmt.Sprintf("Expected hash to be 32 bytes long, but got %d bytes", len(hash.Bytes())))
 	}
+}
+
+func ObjToJson(obj interface{}) string {
+	byt, err := json.Marshal(obj)
+	if err != nil {
+		fmt.Printf("Error marshalling obj to json: %v\n", err)
+		return ""
+	}
+	return string(byt)
 }
