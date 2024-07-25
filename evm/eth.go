@@ -277,7 +277,7 @@ func NewSolidity(gethConfig *GethConfig) *Solidity {
 
 	solidity.SetWritings(solidity.ExecuteTxn)
 	solidity.SetReadings(
-		solidity.Call, solidity.GetReceipt,
+		solidity.Call, solidity.GetReceipt, solidity.GetReceipts,
 		// solidity.GetClass, solidity.GetClassAt,
 		// 	solidity.GetClassHashAt, solidity.GetNonce, solidity.GetStorage,
 		// 	solidity.GetTransaction, solidity.GetTransactionStatus,
@@ -552,6 +552,15 @@ type ReceiptResponse struct {
 	Err     error          `json:"err"`
 }
 
+type ReceiptsRequest struct {
+	Hashes []common.Hash `json:"hashes"`
+}
+
+type ReceiptsResponse struct {
+	Receipts []*types.Receipt `json:"receipts"`
+	Err      error            `json:"err"`
+}
+
 func (s *Solidity) GetReceipt(ctx *context.ReadContext) {
 	var rq ReceiptRequest
 	err := ctx.BindJson(&rq)
@@ -584,6 +593,28 @@ func (s *Solidity) getReceipt(hash common.Hash) (*types.Receipt, error) {
 	receipt := new(types.Receipt)
 	err = json.Unmarshal(yuReceipt.Extra, receipt)
 	return receipt, err
+}
+
+func (s *Solidity) GetReceipts(ctx *context.ReadContext) {
+	var rq ReceiptsRequest
+	err := ctx.BindJson(&rq)
+	if err != nil {
+		ctx.Json(http.StatusBadRequest, &ReceiptsResponse{Err: err})
+		return
+	}
+
+	receipts := make([]*types.Receipt, 0, len(rq.Hashes))
+	for _, hash := range rq.Hashes {
+		receipt, err := s.getReceipt(hash)
+		if err != nil {
+			ctx.Json(http.StatusInternalServerError, &ReceiptsResponse{Err: err})
+			return
+		}
+
+		receipts = append(receipts, receipt)
+	}
+
+	ctx.JsonOk(&ReceiptsResponse{Receipts: receipts})
 }
 
 // endregion ---- Tripod Api ----
