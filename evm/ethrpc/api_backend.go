@@ -81,7 +81,7 @@ func (e *EthAPIBackend) SetHead(number uint64) {
 	panic("implement me")
 }
 
-func (e *EthAPIBackend) HeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Header, error) {
+func (e *EthAPIBackend) HeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Header, *yutypes.Header, error) {
 	var (
 		yuBlock *yutypes.CompactBlock
 		err     error
@@ -97,20 +97,20 @@ func (e *EthAPIBackend) HeaderByNumber(ctx context.Context, number rpc.BlockNumb
 	default:
 		yuBlock, err = e.chain.Chain.GetCompactBlockByHeight(yucommon.BlockNum(number))
 	}
-	return yuHeader2EthHeader(yuBlock.Header), err
+	return yuHeader2EthHeader(yuBlock.Header), yuBlock.Header, err
 }
 
-func (e *EthAPIBackend) HeaderByHash(ctx context.Context, hash common.Hash) (*types.Header, error) {
+func (e *EthAPIBackend) HeaderByHash(ctx context.Context, hash common.Hash) (*types.Header, *yutypes.Header, error) {
 	yuBlock, err := e.chain.Chain.GetCompactBlock(yucommon.Hash(hash))
 	if err != nil {
 		logrus.Error("ethrpc.api_backend.HeaderByHash() failed: ", err)
-		return new(types.Header), err
+		return new(types.Header), new(yutypes.Header), err
 	}
 
-	return yuHeader2EthHeader(yuBlock.Header), err
+	return yuHeader2EthHeader(yuBlock.Header), yuBlock.Header, err
 }
 
-func (e *EthAPIBackend) HeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Header, error) {
+func (e *EthAPIBackend) HeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Header, *yutypes.Header, error) {
 	if blockNr, ok := blockNrOrHash.Number(); ok {
 		return e.HeaderByNumber(ctx, blockNr)
 	}
@@ -119,7 +119,7 @@ func (e *EthAPIBackend) HeaderByNumberOrHash(ctx context.Context, blockNrOrHash 
 		return e.HeaderByHash(ctx, blockHash)
 	}
 
-	return nil, errors.New("invalid arguments; neither block number nor hash specified")
+	return nil, nil, errors.New("invalid arguments; neither block number nor hash specified")
 }
 
 func (e *EthAPIBackend) CurrentHeader() *types.Header {
@@ -144,7 +144,7 @@ func (e *EthAPIBackend) CurrentBlock() *types.Header {
 	return yuHeader2EthHeader(yuBlock.Header)
 }
 
-func (e *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Block, error) {
+func (e *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Block, *yutypes.Block, error) {
 	var (
 		yuBlock *yutypes.Block
 		err     error
@@ -161,20 +161,20 @@ func (e *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumbe
 		yuBlock, err = e.chain.Chain.GetBlockByHeight(yucommon.BlockNum(number))
 	}
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return compactBlock2EthBlock(yuBlock), err
+	return compactBlock2EthBlock(yuBlock), yuBlock, err
 }
 
-func (e *EthAPIBackend) BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error) {
+func (e *EthAPIBackend) BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, *yutypes.Block, error) {
 	yuBlock, err := e.chain.Chain.GetBlock(yucommon.Hash(hash))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return compactBlock2EthBlock(yuBlock), err
+	return compactBlock2EthBlock(yuBlock), yuBlock, err
 }
 
-func (e *EthAPIBackend) BlockByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Block, error) {
+func (e *EthAPIBackend) BlockByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Block, *yutypes.Block, error) {
 	if blockNr, ok := blockNrOrHash.Number(); ok {
 		return e.BlockByNumber(ctx, blockNr)
 	}
@@ -183,11 +183,11 @@ func (e *EthAPIBackend) BlockByNumberOrHash(ctx context.Context, blockNrOrHash r
 		return e.BlockByHash(ctx, blockHash)
 	}
 
-	return nil, errors.New("invalid arguments; neither block number nor hash specified")
+	return nil, nil, errors.New("invalid arguments; neither block number nor hash specified")
 }
 
 func (e *EthAPIBackend) StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*state.StateDB, *types.Header, error) {
-	header, err := e.HeaderByNumber(ctx, number)
+	header, _, err := e.HeaderByNumber(ctx, number)
 	if err != nil {
 		return nil, nil, err
 	}

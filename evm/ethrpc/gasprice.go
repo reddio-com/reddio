@@ -55,7 +55,7 @@ func NewEthGasPrice(backend Backend) *EthGasPrice {
 // necessary to add the basefee to the returned number to fall back to the legacy
 // behavior.
 func (e *EthAPIBackend) SuggestGasTipCap(ctx context.Context) (*big.Int, error) {
-	head, _ := e.HeaderByNumber(ctx, rpc.LatestBlockNumber)
+	head, _, _ := e.HeaderByNumber(ctx, rpc.LatestBlockNumber)
 	headHash := head.Hash()
 
 	// TODO: need add cache lock
@@ -140,7 +140,7 @@ type results struct {
 // are sent by the miner itself(it doesn't make any sense to include this kind of
 // transaction prices for sampling), nil gasprice is returned.
 func (e *EthAPIBackend) getBlockValues(ctx context.Context, blockNum uint64, limit int, ignoreUnder *big.Int, result chan results, quit chan struct{}) {
-	block, err := e.BlockByNumber(ctx, rpc.BlockNumber(blockNum))
+	block, _, err := e.BlockByNumber(ctx, rpc.BlockNumber(blockNum))
 	if block == nil {
 		select {
 		case result <- results{nil, err}:
@@ -199,13 +199,13 @@ func (e *EthAPIBackend) FeeHistory(ctx context.Context, blockCount uint64, lastB
 			// Retrieved above.
 			resolvedLastBlock = currentHeader
 		case rpc.SafeBlockNumber:
-			header, _ := e.HeaderByNumber(ctx, rpc.SafeBlockNumber)
+			header, _, _ := e.HeaderByNumber(ctx, rpc.SafeBlockNumber)
 			resolvedLastBlock = header.Number.Uint64()
 		case rpc.FinalizedBlockNumber:
-			header, _ := e.HeaderByNumber(ctx, rpc.FinalizedBlockNumber)
+			header, _, _ := e.HeaderByNumber(ctx, rpc.FinalizedBlockNumber)
 			resolvedLastBlock = header.Number.Uint64()
 		case rpc.EarliestBlockNumber:
-			header, _ := e.HeaderByNumber(ctx, rpc.EarliestBlockNumber)
+			header, _, _ := e.HeaderByNumber(ctx, rpc.EarliestBlockNumber)
 			resolvedLastBlock = header.Number.Uint64()
 		}
 	} else {
@@ -226,13 +226,13 @@ func (e *EthAPIBackend) FeeHistory(ctx context.Context, blockCount uint64, lastB
 		fees := &blockFees{blockNumber: blockNumber.Uint64()}
 
 		if len(rewardPercentiles) > 0 {
-			fees.block, fees.err = e.BlockByNumber(ctx, rpc.BlockNumber(blockNumber.Int64()))
+			fees.block, _, fees.err = e.BlockByNumber(ctx, rpc.BlockNumber(blockNumber.Int64()))
 			if fees.block != nil && fees.err != nil {
 				fees.receipts, fees.err = e.GetReceipts(ctx, fees.block.Hash())
 				fees.header = fees.block.Header()
 			}
 		} else {
-			fees.header, fees.err = e.HeaderByNumber(ctx, rpc.BlockNumber(blockNumber.Int64()))
+			fees.header, _, fees.err = e.HeaderByNumber(ctx, rpc.BlockNumber(blockNumber.Int64()))
 		}
 
 		if fees.header != nil && fees.err == nil {
@@ -321,7 +321,7 @@ func (e *EthAPIBackend) resolveBlockRange(ctx context.Context, reqEnd rpc.BlockN
 	)
 
 	// Get the chain's current head.
-	if headBlock, err = e.HeaderByNumber(ctx, rpc.LatestBlockNumber); err != nil {
+	if headBlock, _, err = e.HeaderByNumber(ctx, rpc.LatestBlockNumber); err != nil {
 		return nil, nil, 0, 0, err
 	}
 	head := rpc.BlockNumber(headBlock.Number.Uint64())
@@ -350,11 +350,11 @@ func (e *EthAPIBackend) resolveBlockRange(ctx context.Context, reqEnd rpc.BlockN
 			// Retrieved above.
 			resolved = headBlock
 		case rpc.SafeBlockNumber:
-			resolved, err = e.HeaderByNumber(ctx, rpc.SafeBlockNumber)
+			resolved, _, err = e.HeaderByNumber(ctx, rpc.SafeBlockNumber)
 		case rpc.FinalizedBlockNumber:
-			resolved, err = e.HeaderByNumber(ctx, rpc.FinalizedBlockNumber)
+			resolved, _, err = e.HeaderByNumber(ctx, rpc.FinalizedBlockNumber)
 		case rpc.EarliestBlockNumber:
-			resolved, err = e.HeaderByNumber(ctx, rpc.EarliestBlockNumber)
+			resolved, _, err = e.HeaderByNumber(ctx, rpc.EarliestBlockNumber)
 		}
 		if resolved == nil || err != nil {
 			return nil, nil, 0, 0, err
