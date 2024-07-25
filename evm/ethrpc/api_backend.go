@@ -104,7 +104,7 @@ func (e *EthAPIBackend) HeaderByHash(ctx context.Context, hash common.Hash) (*ty
 	yuBlock, err := e.chain.Chain.GetCompactBlock(yucommon.Hash(hash))
 	if err != nil {
 		logrus.Error("ethrpc.api_backend.HeaderByHash() failed: ", err)
-		return new(types.Header), new(yutypes.Header), err
+		return nil, nil, err
 	}
 
 	return yuHeader2EthHeader(yuBlock.Header), yuBlock.Header, err
@@ -127,7 +127,7 @@ func (e *EthAPIBackend) CurrentHeader() *types.Header {
 
 	if err != nil {
 		logrus.Error("EthAPIBackend.CurrentBlock() failed: ", err)
-		return new(types.Header)
+		return nil
 	}
 
 	return yuHeader2EthHeader(yuBlock.Header)
@@ -138,7 +138,7 @@ func (e *EthAPIBackend) CurrentBlock() *types.Header {
 
 	if err != nil {
 		logrus.Error("EthAPIBackend.CurrentBlock() failed: ", err)
-		return new(types.Header)
+		return nil
 	}
 
 	return yuHeader2EthHeader(yuBlock.Header)
