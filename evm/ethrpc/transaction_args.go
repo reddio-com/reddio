@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -15,7 +16,6 @@ import (
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto/kzg4844"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/holiman/uint256"
@@ -154,7 +154,7 @@ func (args *TransactionArgs) setDefaults(ctx context.Context, b Backend, skipGas
 				return err
 			}
 			args.Gas = &estimated
-			log.Trace("Estimate gas usage automatically", "gas", args.Gas)
+			logrus.Trace("Estimate gas usage automatically", "gas", args.Gas)
 		}
 	}
 
@@ -375,7 +375,7 @@ func (args *TransactionArgs) CallDefaults(globalGasCap uint64, baseFee *big.Int,
 		args.Gas = (*hexutil.Uint64)(&gas)
 	} else {
 		if globalGasCap > 0 && globalGasCap < uint64(*args.Gas) {
-			log.Warn("Caller gas above allowance, capping", "requested", args.Gas, "cap", globalGasCap)
+			logrus.Warn("Caller gas above allowance, capping", "requested", args.Gas, "cap", globalGasCap)
 			args.Gas = (*hexutil.Uint64)(&globalGasCap)
 		}
 	}

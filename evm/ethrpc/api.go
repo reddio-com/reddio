@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/sirupsen/logrus"
 	yutypes "github.com/yu-org/yu/core/types"
 	"math/big"
 	"strings"
@@ -28,7 +29,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/eth/gasestimator"
 	"github.com/ethereum/go-ethereum/eth/tracers/logger"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -399,7 +399,7 @@ func (s *BlockChainAPI) GetUncleByBlockNumberAndIndex(ctx context.Context, block
 	if block != nil {
 		uncles := block.Uncles()
 		if index >= hexutil.Uint(len(uncles)) {
-			log.Debug("Requested uncle not found", "number", blockNr, "hash", block.Hash(), "index", index)
+			logrus.Debug("Requested uncle not found", "number", blockNr, "hash", block.Hash(), "index", index)
 			return nil, nil
 		}
 		block = types.NewBlockWithHeader(uncles[index])
@@ -414,7 +414,7 @@ func (s *BlockChainAPI) GetUncleByBlockHashAndIndex(ctx context.Context, blockHa
 	if block != nil {
 		uncles := block.Uncles()
 		if index >= hexutil.Uint(len(uncles)) {
-			log.Debug("Requested uncle not found", "number", block.Number(), "hash", blockHash, "index", index)
+			logrus.Debug("Requested uncle not found", "number", block.Number(), "hash", blockHash, "index", index)
 			return nil, nil
 		}
 		block = types.NewBlockWithHeader(uncles[index])
@@ -679,7 +679,7 @@ func doCall(ctx context.Context, b Backend, args TransactionArgs, state *state.S
 }
 
 func DoCall(ctx context.Context, b Backend, args TransactionArgs, blockNrOrHash rpc.BlockNumberOrHash, overrides *StateOverride, blockOverrides *BlockOverrides, timeout time.Duration, globalGasCap uint64) (*core.ExecutionResult, error) {
-	defer func(start time.Time) { log.Debug("Executing EVM call finished", "runtime", time.Since(start)) }(time.Now())
+	defer func(start time.Time) { logrus.Debug("Executing EVM call finished", "runtime", time.Since(start)) }(time.Now())
 
 	state, header, err := b.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
 	if state == nil || err != nil {
@@ -1053,7 +1053,7 @@ func AccessList(ctx context.Context, b Backend, blockNrOrHash rpc.BlockNumberOrH
 		}
 		// Retrieve the current access list to expand
 		accessList := prevTracer.AccessList()
-		log.Trace("Creating access list", "input", accessList)
+		logrus.Trace("Creating access list", "input", accessList)
 
 		// Copy the original db so we don't modify it
 		statedb := db.Copy()
@@ -1170,10 +1170,15 @@ func (s *TransactionAPI) GetTransactionByHash(ctx context.Context, hash common.H
 		if tx := s.b.GetPoolTransaction(hash); tx != nil {
 			return NewRPCPendingTransaction(tx, s.b.CurrentHeader(), s.b.ChainConfig()), nil
 		}
-		if err == nil {
-			return nil, nil
+
+		if err != nil {
+			logrus.Warnf("[GetTransactionByHash] Failed to get tx %s, err: %v", hash.String(), err)
 		}
-		return nil, NewTxIndexingError()
+		return nil, nil
+		// Only when err==nil should it return nil, and when err!=nil, it should return NewTxIndexingError.
+		// However, this would cause errors with packages such as Hardhat. In order to handle compatibility,
+		// it currently returns nil directly.
+		// return nil, NewTxIndexingError()
 	}
 	header, yuHeader, err := s.b.HeaderByHash(ctx, blockHash)
 	if err != nil {
@@ -1190,10 +1195,14 @@ func (s *TransactionAPI) GetRawTransactionByHash(ctx context.Context, hash commo
 		if tx = s.b.GetPoolTransaction(hash); tx != nil {
 			return tx.MarshalBinary()
 		}
-		if err == nil {
-			return nil, nil
+		if err != nil {
+			logrus.Warnf("[GetRawTransactionByHash] Failed to get tx %s, err: %v", hash.String(), err)
 		}
-		return nil, NewTxIndexingError()
+		// Only when err==nil should it return nil, and when err!=nil, it should return NewTxIndexingError.
+		// However, this would cause errors with packages such as Hardhat. In order to handle compatibility,
+		// it currently returns nil directly.
+		return nil, nil
+		// return nil, NewTxIndexingError()
 	}
 	return tx.MarshalBinary()
 }
@@ -1201,8 +1210,13 @@ func (s *TransactionAPI) GetRawTransactionByHash(ctx context.Context, hash commo
 // GetTransactionReceipt returns the transaction receipt for the given transaction hash.
 func (s *TransactionAPI) GetTransactionReceipt(ctx context.Context, hash common.Hash) (map[string]interface{}, error) {
 	found, tx, blockHash, blockNumber, index, err := s.b.GetTransaction(ctx, hash)
+
 	if err != nil {
-		return nil, NewTxIndexingError() // transaction is not fully indexed
+		// Only when err==nil should it return nil, and when err!=nil, it should return NewTxIndexingError.
+		// However, this would cause errors with packages such as Hardhat. In order to handle compatibility,
+		// it currently returns nil directly.
+		logrus.Warnf("[GetTransactionReceipt] Failed to get tx %s, err: %v", hash.String(), err)
+		//return nil, NewTxIndexingError() // transaction is not fully indexed
 	}
 	if !found {
 		return nil, nil // transaction is not existent or reachable
@@ -1304,9 +1318,9 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction) (c
 
 	if tx.To() == nil {
 		addr := crypto.CreateAddress(from, tx.Nonce())
-		log.Info("Submitted contract creation", "hash", tx.Hash().Hex(), "from", from, "nonce", tx.Nonce(), "contract", addr.Hex(), "value", tx.Value())
+		logrus.Info("Submitted contract creation", "hash", tx.Hash().Hex(), "from", from, "nonce", tx.Nonce(), "contract", addr.Hex(), "value", tx.Value())
 	} else {
-		log.Info("Submitted transaction", "hash", tx.Hash().Hex(), "from", from, "nonce", tx.Nonce(), "recipient", tx.To(), "value", tx.Value())
+		logrus.Info("Submitted transaction", "hash", tx.Hash().Hex(), "from", from, "nonce", tx.Nonce(), "recipient", tx.To(), "value", tx.Value())
 	}
 	return tx.Hash(), nil
 }
@@ -1610,10 +1624,14 @@ func (s *DebugAPI) GetRawTransaction(ctx context.Context, hash common.Hash) (hex
 		if tx = s.b.GetPoolTransaction(hash); tx != nil {
 			return tx.MarshalBinary()
 		}
-		if err == nil {
-			return nil, nil
+		if err != nil {
+			logrus.Warnf("[GetRawTransaction] Failed to get tx %s, err: %v", hash.String(), err)
 		}
-		return nil, NewTxIndexingError()
+		return nil, nil
+		// Only when err==nil should it return nil, and when err!=nil, it should return NewTxIndexingError.
+		// However, this would cause errors with packages such as Hardhat. In order to handle compatibility,
+		// it currently returns nil directly.
+		// return nil, NewTxIndexingError()
 	}
 	return tx.MarshalBinary()
 }
@@ -1644,9 +1662,9 @@ func (api *DebugAPI) ChaindbCompact() error {
 		if b == 255 {
 			end = nil
 		}
-		log.Info("Compacting database", "range", fmt.Sprintf("%#X-%#X", start, end), "elapsed", common.PrettyDuration(time.Since(cstart)))
+		logrus.Info("Compacting database", "range", fmt.Sprintf("%#X-%#X", start, end), "elapsed", common.PrettyDuration(time.Since(cstart)))
 		if err := api.b.ChainDb().Compact(start, end); err != nil {
-			log.Error("Database compaction failed", "err", err)
+			logrus.Error("Database compaction failed", "err", err)
 			return err
 		}
 	}
