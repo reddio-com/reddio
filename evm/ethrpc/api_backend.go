@@ -288,12 +288,14 @@ func (e *EthAPIBackend) Call(ctx context.Context, args TransactionArgs, blockNrO
 
 	// byt, _ := json.Marshal(args)
 	callRequest := evm.CallRequest{
-		Origin:   *args.From,
 		Address:  *args.To,
 		Input:    *args.Data,
 		Value:    args.Value.ToInt(),
 		GasLimit: uint64(*args.Gas),
 		GasPrice: args.GasPrice.ToInt(),
+	}
+	if args.From != nil {
+		callRequest.Origin = *args.From
 	}
 
 	requestByt, _ := json.Marshal(callRequest)
@@ -331,7 +333,6 @@ func (e *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction)
 		S:        s,
 	}
 	byt, err := json.Marshal(txReq)
-	logrus.Printf("SendTx, Request=%+v\n", string(byt))
 	if err != nil {
 		return err
 	}
