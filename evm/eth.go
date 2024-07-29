@@ -484,7 +484,6 @@ func makeEvmReceipt(vmenv *vm.EVM, code []byte, block *yu_types.Block, address c
 
 	return types.Receipt{
 		Type:              0,
-		PostState:         code,
 		Status:            1,
 		CumulativeGasUsed: leftOverGas,
 		Bloom:             bloom,
