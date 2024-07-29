@@ -29,6 +29,7 @@ type TxRequest struct {
 	GasPrice *big.Int        `json:"gasPrice"`
 	Value    *big.Int        `json:"value"`
 	Hash     common.Hash     `json:"hash"`
+	Nonce    uint64          `json:"nonce"`
 	V        *big.Int        `json:"v"`
 	R        *big.Int        `json:"r"`
 	S        *big.Int        `json:"s"`
