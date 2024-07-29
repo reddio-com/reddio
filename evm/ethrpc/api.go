@@ -1144,19 +1144,20 @@ func (s *TransactionAPI) GetRawTransactionByBlockHashAndIndex(ctx context.Contex
 // GetTransactionCount returns the number of transactions the given address has sent for the given block number
 func (s *TransactionAPI) GetTransactionCount(ctx context.Context, address common.Address, blockNrOrHash rpc.BlockNumberOrHash) (*hexutil.Uint64, error) {
 	// Ask transaction pool for the nonce which includes pending transactions
+	nonce := uint64(0)
 	if blockNr, ok := blockNrOrHash.Number(); ok && blockNr == rpc.PendingBlockNumber {
-		nonce, err := s.b.GetPoolNonce(ctx, address)
+		poolNonce, err := s.b.GetPoolNonce(ctx, address)
 		if err != nil {
 			return nil, err
 		}
-		return (*hexutil.Uint64)(&nonce), nil
+		nonce += poolNonce
 	}
 	// Resolve block number and use its state to ask for the nonce
 	state, _, err := s.b.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
 	if state == nil || err != nil {
 		return nil, err
 	}
-	nonce := state.GetNonce(address)
+	nonce += state.GetNonce(address)
 	return (*hexutil.Uint64)(&nonce), state.Error()
 }
 
@@ -1318,10 +1319,11 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction) (c
 
 	if tx.To() == nil {
 		addr := crypto.CreateAddress(from, tx.Nonce())
-		logrus.Info("Submitted contract creation", "hash", tx.Hash().Hex(), "from", from, "nonce", tx.Nonce(), "contract", addr.Hex(), "value", tx.Value())
+		logrus.Infof("Submitted contract creation: Hash=%s, From=%s, Nonce=%v, ContractAdd=%v, Value=%v", tx.Hash().Hex(), from, tx.Nonce(), addr.Hex(), tx.Value())
 	} else {
-		logrus.Info("Submitted transaction", "hash", tx.Hash().Hex(), "from", from, "nonce", tx.Nonce(), "recipient", tx.To(), "value", tx.Value())
+		logrus.Infof("Submitted transaction: Hash=%s, From=%s, Nonce=%v, To=%v, Value=%v", tx.Hash().Hex(), from, tx.Nonce(), tx.To(), tx.Value())
 	}
+
 	return tx.Hash(), nil
 }
 
