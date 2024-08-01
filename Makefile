@@ -20,3 +20,7 @@ transfer_test: reset
 
 clean:
 	rm -f $(PROJECT)
+
+tidy:
+	@echo "go mod tidy"
+	go mod tidy && git diff go.mod go.sum
