@@ -41,7 +41,7 @@ func (tc *RandomTransferTestCase) Run(m *pkg.WalletManager) error {
 	if err != nil {
 		return err
 	}
-	log.Println("create wallets finish")
+	log.Println(fmt.Sprintf("%s create wallets finish", tc.CaseName))
 	transferCase := tc.tm.GenerateRandomTransferSteps(tc.steps, pkg.GenerateCaseWallets(tc.initialCount, wallets))
 	return runAndAssert(transferCase, m, wallets)
 }
@@ -65,7 +65,7 @@ func assert(transferCase *pkg.TransferCase, walletsManager *pkg.WalletManager, w
 	var success bool
 	var err error
 	for i := 0; i < 3; i++ {
-		_, success, err = transferCase.AssertExpect(walletsManager, wallets)
+		got, success, err = transferCase.AssertExpect(walletsManager, wallets)
 		if err != nil {
 			return false, err
 		}
@@ -77,16 +77,19 @@ func assert(transferCase *pkg.TransferCase, walletsManager *pkg.WalletManager, w
 			continue
 		}
 	}
-	printChange(got, transferCase.Expect)
+	printChange(got, transferCase.Expect, transferCase)
 	return false, nil
 }
 
-func printChange(got, expect map[string]*pkg.CaseEthWallet) {
+func printChange(got, expect map[string]*pkg.CaseEthWallet, transferCase *pkg.TransferCase) {
+	for _, step := range transferCase.Steps {
+		log.Println(fmt.Sprintf("%v transfer %v eth to %v", step.From.Address, step.Count, step.To.Address))
+	}
 	for k, v := range got {
 		ev, ok := expect[k]
 		if ok {
 			if v.EthCount != ev.EthCount {
-				log.Println(fmt.Sprintf("address:%v got:%v expect:%v", k, v.EthCount, ev.EthCount))
+				log.Println(fmt.Sprintf("%v got:%v expect:%v", k, v.EthCount, ev.EthCount))
 			}
 		}
 	}

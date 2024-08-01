@@ -16,7 +16,17 @@ reset:
 	fi
 
 transfer_test: reset
-	go run ./test/test_txn.go
+	go run ./test/cmd/transfer/main.go
 
 clean:
 	rm -f $(PROJECT)
+
+check-mod-tidy:
+	@go mod tidy
+	@if [ -n "$$(git status --porcelain)" ]; then \
+		echo "Changes detected after running go mod tidy. Please run 'go mod tidy' locally and commit the changes."; \
+		git status; \
+		exit 1; \
+	else \
+		echo "No changes detected after running go mod tidy."; \
+	fi

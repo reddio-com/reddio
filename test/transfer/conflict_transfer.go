@@ -1,6 +1,7 @@
 package transfer
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/reddio-com/reddio/test/pkg"
@@ -19,7 +20,7 @@ func (c *ConflictTransfer) Run(m *pkg.WalletManager) error {
 	if err != nil {
 		return err
 	}
-	log.Println("create wallets finish")
+	log.Println(fmt.Sprintf("%s create wallets finish", c.CaseName))
 	cwallets := pkg.GenerateCaseWallets(c.initialCount, wallets)
 	transferCase := c.tm.GenerateSameTargetTransferSteps(c.steps, cwallets, cwallets[0])
 	return runAndAssert(transferCase, m, wallets)
