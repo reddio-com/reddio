@@ -16,7 +16,7 @@ reset:
 	fi
 
 transfer_test: reset
-	go run ./test/cmd/transfer/main.go
+	go run ./test/test_txn.go
 
 clean:
 	rm -f $(PROJECT)
