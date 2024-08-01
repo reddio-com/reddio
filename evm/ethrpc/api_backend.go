@@ -325,7 +325,8 @@ func (e *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction)
 	}
 
 	// Create Tx
-	signer := types.NewEIP155Signer(e.ethChainCfg.ChainID)
+	head := e.CurrentBlock()
+	signer := types.MakeSigner(e.ChainConfig(), head.Number, head.Time)
 	sender, err := types.Sender(signer, signedTx)
 	if err != nil {
 		return err
