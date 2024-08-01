@@ -14,7 +14,7 @@ require (
 	github.com/stretchr/testify v1.8.4
 	github.com/tendermint/tendermint v0.34.24
 	github.com/tyler-smith/go-bip39 v1.1.0
-	github.com/yu-org/yu v0.0.0-20240709100653-03905fa91836
+	github.com/yu-org/yu v0.0.0-20240715075605-c2bdff0e0a40
 	gopkg.in/yaml.v3 v3.0.1
 )
 
