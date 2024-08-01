@@ -12,11 +12,9 @@ import (
 	reddioKernel "github.com/reddio-com/reddio/kernel"
 )
 
-func Start(path string) {
-	cfg := startup.InitDefaultKernelConfig()
+func Start(yucfg *config.KernelConf, evmCfg *evm.GethConfig) {
 	poaCfg := poa.DefaultCfg(0)
-	gethCfg := evm.LoadEvmConfig(path)
-	StartUpChain(cfg, poaCfg, gethCfg)
+	StartUpChain(yucfg, poaCfg, evmCfg)
 }
 
 func StartUpChain(cfg *config.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm.GethConfig) {
