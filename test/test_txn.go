@@ -6,8 +6,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/yu-org/yu/core/startup"
-
 	"github.com/reddio-com/reddio/cmd/node/app"
 	"github.com/reddio-com/reddio/evm"
 	"github.com/reddio-com/reddio/test/conf"
@@ -29,10 +27,9 @@ func main() {
 	if err := conf.LoadConfig(configPath); err != nil {
 		panic(err)
 	}
-	cfg := startup.InitDefaultKernelConfig()
 	evmConfig := evm.LoadEvmConfig(evmConfigPath)
 	go func() {
-		app.Start(cfg, evmConfig)
+		app.Start(evmConfigPath)
 	}()
 	time.Sleep(5 * time.Second)
 	log.Println("finish start reddio")
