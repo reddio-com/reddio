@@ -41,7 +41,7 @@ func (tc *RandomTransferTestCase) Run(m *pkg.WalletManager) error {
 	if err != nil {
 		return err
 	}
-	log.Println("create wallets finish")
+	log.Println(fmt.Sprintf("%s create wallets finish", tc.CaseName))
 	transferCase := tc.tm.GenerateRandomTransferSteps(tc.steps, pkg.GenerateCaseWallets(tc.initialCount, wallets))
 	return runAndAssert(transferCase, m, wallets)
 }

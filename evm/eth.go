@@ -439,15 +439,15 @@ func executeContractCall(txReq *TxRequest, ethState *EthState, cfg *GethConfig, 
 
 	logrus.Printf("before transfer: account %s balance %d \n", sender.Address(), ethState.stateDB.GetBalance(sender.Address()))
 
-	ret, leftOverGas, err := vmenv.Call(sender, txReq.Address, txReq.Input, txReq.GasLimit, uint256.MustFromBig(txReq.Value))
+	_, _, err := vmenv.Call(sender, txReq.Address, txReq.Input, txReq.GasLimit, uint256.MustFromBig(txReq.Value))
 	if err != nil {
 		return err
 	}
 
 	logrus.Printf("after  transfer: account %s balance %d \n", sender.Address(), ethState.stateDB.GetBalance(sender.Address()))
 
-	println("Return ret value:", ret)
-	println("Return leftOverGas value:", leftOverGas)
+	//println("Return ret value:", ret)
+	//println("Return leftOverGas value:", leftOverGas)
 
 	return nil
 }
