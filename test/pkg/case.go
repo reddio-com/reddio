@@ -39,7 +39,7 @@ func GenerateCaseWallets(initialEthCount uint64, wallets []*EthWallet) []*CaseEt
 	return c
 }
 
-func (m *TransferManager) GenerateTransferSteps(stepCount int, wallets []*CaseEthWallet) *TransferCase {
+func (m *TransferManager) GenerateRandomTransferSteps(stepCount int, wallets []*CaseEthWallet) *TransferCase {
 	t := &TransferCase{
 		Original: getCopy(wallets),
 		Expect:   getCopy(wallets),
@@ -47,7 +47,28 @@ func (m *TransferManager) GenerateTransferSteps(stepCount int, wallets []*CaseEt
 	steps := make([]*Step, 0)
 	r := rand.New(rand.NewSource(time.Now().Unix()))
 	for i := 0; i < stepCount; i++ {
-		steps = append(steps, generateStep(r, wallets, maxTransfer))
+		steps = append(steps, generateRandomStep(r, wallets, maxTransfer))
+	}
+	t.Steps = steps
+	calculateExpect(t)
+	return t
+}
+
+func (m *TransferManager) GenerateSameTargetTransferSteps(stepCount int, wallets []*CaseEthWallet, target *CaseEthWallet) *TransferCase {
+	t := &TransferCase{
+		Original: getCopy(wallets),
+		Expect:   getCopy(wallets),
+	}
+	steps := make([]*Step, 0)
+	r := rand.New(rand.NewSource(time.Now().Unix()))
+	cur := 0
+	for i := 0; i < stepCount; i++ {
+		from := wallets[cur]
+		steps = append(steps, generateTransferStep(r, from, target, maxTransfer))
+		cur++
+		if cur >= len(wallets) {
+			cur = 0
+		}
 	}
 	t.Steps = steps
 	calculateExpect(t)
@@ -107,7 +128,7 @@ func calculate(step *Step, expect map[string]*CaseEthWallet) {
 	expect[step.To.Address] = toWallet
 }
 
-func generateStep(r *rand.Rand, wallets []*CaseEthWallet, maxTransfer int) *Step {
+func generateRandomStep(r *rand.Rand, wallets []*CaseEthWallet, maxTransfer int) *Step {
 	from := r.Intn(len(wallets))
 	to := from + 1
 	if to >= len(wallets) {
@@ -117,6 +138,15 @@ func generateStep(r *rand.Rand, wallets []*CaseEthWallet, maxTransfer int) *Step
 	return &Step{
 		From:  wallets[from].EthWallet,
 		To:    wallets[to].EthWallet,
+		Count: uint64(transferCount),
+	}
+}
+
+func generateTransferStep(r *rand.Rand, from, to *CaseEthWallet, maxTransfer int) *Step {
+	transferCount := r.Intn(maxTransfer) + 1
+	return &Step{
+		From:  from.EthWallet,
+		To:    to.EthWallet,
 		Count: uint64(transferCount),
 	}
 }

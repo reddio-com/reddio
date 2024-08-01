@@ -54,6 +54,8 @@ func (m *WalletManager) GenerateRandomWallet(count int, initialEthCount uint64) 
 		}
 		wallets = append(wallets, wallet)
 	}
+	// wait block ready
+	time.Sleep(4 * time.Second)
 	return wallets, nil
 }
 
@@ -62,7 +64,6 @@ func (m *WalletManager) createEthWallet(initialEthCount uint64) (*EthWallet, err
 	if err := m.transferEth(GenesisPrivateKey, address, initialEthCount); err != nil {
 		return nil, err
 	}
-	time.Sleep(3 * time.Second)
 	log.Println(fmt.Sprintf("create wallet %v", address))
 	return &EthWallet{PK: privateKey, Address: address}, nil
 }
@@ -147,7 +148,6 @@ func (m *WalletManager) transferEth(privateKeyHex string, toAddress string, amou
 		"method": "eth_sendRawTransaction",
 		"params": ["0x%x"] 
 	}`, rawTxBytes)
-	got, err := sendRequest(m.hostAddress, requestBody)
-	fmt.Println(string(got))
+	_, err = sendRequest(m.hostAddress, requestBody)
 	return err
 }

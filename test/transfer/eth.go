@@ -1,10 +1,8 @@
 package transfer
 
 import (
-	"errors"
 	"fmt"
 	"log"
-	"time"
 
 	"github.com/reddio-com/reddio/evm"
 	"github.com/reddio-com/reddio/test/conf"
@@ -15,64 +13,28 @@ type EthManager struct {
 	evmCfg *evm.GethConfig
 	config *conf.EthCaseConf
 	wm     *pkg.WalletManager
-	tm     *pkg.TransferManager
+	//tm     *pkg.TransferManager
+	testcases []TestCase
 }
 
 func (m *EthManager) Configure(cfg *conf.EthCaseConf, evmCfg *evm.GethConfig) {
 	m.config = cfg
 	m.evmCfg = evmCfg
 	m.wm = pkg.NewWalletManager(m.evmCfg, m.config.HostUrl)
-	m.tm = pkg.NewTransferManager()
+	m.testcases = []TestCase{
+		NewRandomTest("[2 account, 1 transfer]", 2, cfg.InitialEthCount, 1),
+		NewRandomTest("[20 account, 100 transfer]", 20, cfg.InitialEthCount, 100),
+		NewConflictTest("[20 account, 50 transfer]", 20, cfg.InitialEthCount, 50),
+	}
 }
 
 func (m *EthManager) Run() error {
-	wallets, err := m.wm.GenerateRandomWallet(m.config.GenWalletCount, m.config.InitialEthCount)
-	if err != nil {
-		return err
-	}
-	log.Println("create wallets finish")
-	tc := m.tm.GenerateTransferSteps(m.config.TestSteps, pkg.GenerateCaseWallets(m.config.InitialEthCount, wallets))
-	err = tc.Run(m.wm)
-	if err != nil {
-		return err
-	}
-	success, err := m.assert(tc, m.wm, wallets)
-	if err != nil {
-		return err
-	}
-	if !success {
-		return errors.New("transfer manager assert failed")
+	for _, tc := range m.testcases {
+		log.Println(fmt.Sprintf("start to test %v", tc.Name))
+		if err := tc.Run(m.wm); err != nil {
+			return fmt.Errorf("%s failed, err:%v", tc.Name, err)
+		}
+		log.Println(fmt.Sprintf("test %v success", tc.Name))
 	}
 	return nil
-}
-
-func (m *EthManager) assert(tc *pkg.TransferCase, walletsManager *pkg.WalletManager, wallets []*pkg.EthWallet) (bool, error) {
-	var got map[string]*pkg.CaseEthWallet
-	var success bool
-	var err error
-	for i := 0; i < m.config.RetryCount; i++ {
-		_, success, err = tc.AssertExpect(walletsManager, wallets)
-		if err != nil {
-			return false, err
-		}
-		if success {
-			return true, nil
-		} else {
-			time.Sleep(3 * time.Second)
-			continue
-		}
-	}
-	printChange(got, tc.Expect)
-	return false, nil
-}
-
-func printChange(got, expect map[string]*pkg.CaseEthWallet) {
-	for k, v := range got {
-		ev, ok := expect[k]
-		if ok {
-			if v.EthCount != ev.EthCount {
-				log.Println(fmt.Sprintf("address:%v got:%v expect:%v", k, v.EthCount, ev.EthCount))
-			}
-		}
-	}
 }
