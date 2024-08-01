@@ -30,11 +30,11 @@ func (m *EthManager) Configure(cfg *conf.EthCaseConf, evmCfg *evm.GethConfig) {
 
 func (m *EthManager) Run() error {
 	for _, tc := range m.testcases {
-		log.Println(fmt.Sprintf("start to test %v", tc.Name))
+		log.Println(fmt.Sprintf("start to test %v", tc.Name()))
 		if err := tc.Run(m.wm); err != nil {
-			return fmt.Errorf("%s failed, err:%v", tc.Name, err)
+			return fmt.Errorf("%s failed, err:%v", tc.Name(), err)
 		}
-		log.Println(fmt.Sprintf("test %v success", tc.Name))
+		log.Println(fmt.Sprintf("test %v success", tc.Name()))
 	}
 	return nil
 }
