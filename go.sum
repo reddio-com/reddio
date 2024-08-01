@@ -606,6 +606,14 @@ github.com/viant/assertly v0.4.8/go.mod h1:aGifi++jvCrUaklKEKT0BU95igDNaqkvz+49u
 github.com/viant/toolbox v0.24.0/go.mod h1:OxMCG57V0PXuIP2HNQrtJf2CjqdmbrOx5EkMILuUhzM=
 github.com/yu-org/yu v0.0.0-20240715075605-c2bdff0e0a40 h1:WktK6vXHmv8FNG6I3+i6psLf7bPr5aftra/cBThimv0=
 github.com/yu-org/yu v0.0.0-20240715075605-c2bdff0e0a40/go.mod h1:MebubG2I3xLVRp9dMQNIUh5uS/nh1LSNw4p6INCu//8=
+github.com/yu-org/yu v0.0.0-20240716151748-b344114d88a6 h1:1/5Y+pvwD2rmuPy3Gt7BqoE7hqyd2EFJIJgs+Pgq4sw=
+github.com/yu-org/yu v0.0.0-20240716151748-b344114d88a6/go.mod h1:MebubG2I3xLVRp9dMQNIUh5uS/nh1LSNw4p6INCu//8=
+github.com/yu-org/yu v0.0.0-20240723103414-092d12d2bba5 h1:rZYzpjWRum6Gc3ify5cK2rTmy83QzOHZRYxDhsYMasI=
+github.com/yu-org/yu v0.0.0-20240723103414-092d12d2bba5/go.mod h1:MebubG2I3xLVRp9dMQNIUh5uS/nh1LSNw4p6INCu//8=
+github.com/yu-org/yu v0.0.0-20240723164815-3e589efdbff6 h1:qjD5hmTwttjNlX6iEPpm415dut6Pdsk+VAAiO6NBgBA=
+github.com/yu-org/yu v0.0.0-20240723164815-3e589efdbff6/go.mod h1:MebubG2I3xLVRp9dMQNIUh5uS/nh1LSNw4p6INCu//8=
+github.com/yu-org/yu v0.0.0-20240725043823-aa17bde5eb5e h1:eeQ6hU0R4pM2AuQz1WXydFhPt877chFMknjpsFOYpvg=
+github.com/yu-org/yu v0.0.0-20240725043823-aa17bde5eb5e/go.mod h1:MebubG2I3xLVRp9dMQNIUh5uS/nh1LSNw4p6INCu//8=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.3.5/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1Zlc8k=
