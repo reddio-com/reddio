@@ -456,13 +456,19 @@ func (e *EthAPIBackend) GetPoolNonce(ctx context.Context, addr common.Address) (
 	// Loop through all transactions to find matching Account Address, and return it's nonce (if have)
 	allEthTxns, _ := e.GetPoolTransactions()
 
+	head := e.CurrentBlock()
+	signer := types.MakeSigner(e.ChainConfig(), head.Number, head.Time)
+
+	nonce := uint64(0)
 	for _, ethTxn := range allEthTxns {
-		if *ethTxn.To() == addr {
-			return ethTxn.Nonce(), nil
+		sender, _ := types.Sender(signer, ethTxn)
+		if sender == addr {
+			nonce++
+			//return ethTxn.Nonce(), nil
 		}
 	}
 
-	return 0, nil
+	return nonce, nil
 }
 
 func (e *EthAPIBackend) Stats() (pending int, queued int) {
