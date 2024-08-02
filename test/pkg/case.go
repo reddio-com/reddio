@@ -6,10 +6,6 @@ import (
 	"time"
 )
 
-const (
-	maxTransfer = 100
-)
-
 type CaseEthWallet struct {
 	*EthWallet
 	EthCount uint64 `json:"ethCount"`
@@ -46,8 +42,10 @@ func (m *TransferManager) GenerateRandomTransferSteps(stepCount int, wallets []*
 	}
 	steps := make([]*Step, 0)
 	r := rand.New(rand.NewSource(time.Now().Unix()))
+	curTransfer := 1
 	for i := 0; i < stepCount; i++ {
-		steps = append(steps, generateRandomStep(r, wallets, maxTransfer))
+		steps = append(steps, generateRandomStep(r, wallets, curTransfer))
+		curTransfer++
 	}
 	t.Steps = steps
 	calculateExpect(t)
@@ -62,13 +60,15 @@ func (m *TransferManager) GenerateSameTargetTransferSteps(stepCount int, wallets
 	steps := make([]*Step, 0)
 	r := rand.New(rand.NewSource(time.Now().Unix()))
 	cur := 0
+	curTransfer := 1
 	for i := 0; i < stepCount; i++ {
 		from := wallets[cur]
-		steps = append(steps, generateTransferStep(r, from, target, maxTransfer))
+		steps = append(steps, generateTransferStep(r, from, target, curTransfer))
 		cur++
 		if cur >= len(wallets) {
 			cur = 0
 		}
+		curTransfer++
 	}
 	t.Steps = steps
 	calculateExpect(t)
@@ -81,7 +81,7 @@ func (tc *TransferCase) Run(m *WalletManager) error {
 			return err
 		}
 	}
-	log.Println("wait transaction done")
+	log.Println("wait transfer transaction done")
 	time.Sleep(5 * time.Second)
 	return nil
 }
