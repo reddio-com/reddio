@@ -58,12 +58,11 @@ func (m *TransferManager) GenerateSameTargetTransferSteps(stepCount int, wallets
 		Expect:   getCopy(wallets),
 	}
 	steps := make([]*Step, 0)
-	r := rand.New(rand.NewSource(time.Now().Unix()))
 	cur := 0
 	curTransfer := 1
 	for i := 0; i < stepCount; i++ {
 		from := wallets[cur]
-		steps = append(steps, generateTransferStep(r, from, target, curTransfer))
+		steps = append(steps, generateTransferStep(from, target, curTransfer))
 		cur++
 		if cur >= len(wallets) {
 			cur = 0
@@ -128,22 +127,20 @@ func calculate(step *Step, expect map[string]*CaseEthWallet) {
 	expect[step.To.Address] = toWallet
 }
 
-func generateRandomStep(r *rand.Rand, wallets []*CaseEthWallet, maxTransfer int) *Step {
+func generateRandomStep(r *rand.Rand, wallets []*CaseEthWallet, transfer int) *Step {
 	from := r.Intn(len(wallets))
 	to := from + 1
 	if to >= len(wallets) {
 		to = 0
 	}
-	transferCount := r.Intn(maxTransfer) + 1
 	return &Step{
 		From:  wallets[from].EthWallet,
 		To:    wallets[to].EthWallet,
-		Count: uint64(transferCount),
+		Count: uint64(transfer),
 	}
 }
 
-func generateTransferStep(r *rand.Rand, from, to *CaseEthWallet, maxTransfer int) *Step {
-	transferCount := r.Intn(maxTransfer) + 1
+func generateTransferStep(from, to *CaseEthWallet, transferCount int) *Step {
 	return &Step{
 		From:  from.EthWallet,
 		To:    to.EthWallet,
