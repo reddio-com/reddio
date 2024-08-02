@@ -23,6 +23,7 @@ func (m *EthManager) Configure(cfg *conf.EthCaseConf, evmCfg *evm.GethConfig) {
 	m.wm = pkg.NewWalletManager(m.evmCfg, m.config.HostUrl)
 	m.testcases = []TestCase{
 		NewRandomTest("[rand_test 2 account, 1 transfer]", 2, cfg.InitialEthCount, 1),
+		NewBenchTestCase("[Benchmark transfer]"),
 		NewRandomTest("[rand_test 20 account, 100 transfer]", 20, cfg.InitialEthCount, 100),
 		NewConflictTest("[conflict_test 20 account, 50 transfer]", 20, cfg.InitialEthCount, 50),
 	}
