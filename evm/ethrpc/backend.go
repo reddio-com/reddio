@@ -100,6 +100,9 @@ func GetAPIs(apiBackend Backend) []rpc.API {
 		}, {
 			Namespace: "debug",
 			Service:   NewDebugAPI(apiBackend),
+		}, {
+			Namespace: "net",
+			Service:   NewNetAPI(nil, 0),
 		},
 	}
 }
