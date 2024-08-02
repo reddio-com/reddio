@@ -1330,55 +1330,14 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction) (c
 // SendTransaction creates a transaction for the given argument, sign it and submit it to the
 // transaction pool.
 func (s *TransactionAPI) SendTransaction(ctx context.Context, args TransactionArgs) (common.Hash, error) {
-	// Look up the wallet containing the requested signer
-	account := accounts.Account{Address: args.from()}
-
-	wallet, err := s.b.AccountManager().Find(account)
-	if err != nil {
-		return common.Hash{}, err
-	}
-
-	if args.Nonce == nil {
-		// Hold the mutex around signing to prevent concurrent assignment of
-		// the same nonce to multiple accounts.
-		s.nonceLock.LockAddr(args.from())
-		defer s.nonceLock.UnlockAddr(args.from())
-	}
-	if args.IsEIP4844() {
-		return common.Hash{}, errBlobTxNotSupported
-	}
-
-	// Set some sanity defaults and terminate on failure
-	if err := args.setDefaults(ctx, s.b, false); err != nil {
-		return common.Hash{}, err
-	}
-	// Assemble the transaction and sign with the wallet
-	tx := args.ToTransaction()
-
-	signed, err := wallet.SignTx(account, tx, s.b.ChainConfig().ChainID)
-	if err != nil {
-		return common.Hash{}, err
-	}
-	return SubmitTransaction(ctx, s.b, signed)
+	panic("implement me")
 }
 
 // FillTransaction fills the defaults (nonce, gas, gasPrice or 1559 fields)
 // on a given unsigned transaction, and returns it to the caller for further
 // processing (signing + broadcast).
 func (s *TransactionAPI) FillTransaction(ctx context.Context, args TransactionArgs) (*SignTransactionResult, error) {
-	args.blobSidecarAllowed = true
-
-	// Set some sanity defaults and terminate on failure
-	if err := args.setDefaults(ctx, s.b, false); err != nil {
-		return nil, err
-	}
-	// Assemble the transaction and obtain rlp
-	tx := args.ToTransaction()
-	data, err := tx.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	return &SignTransactionResult{data, tx}, nil
+	panic("implement me")
 }
 
 // SendRawTransaction will add the signed transaction to the transaction pool.
@@ -1426,44 +1385,7 @@ type SignTransactionResult struct {
 // The node needs to have the private key of the account corresponding with
 // the given from address and it needs to be unlocked.
 func (s *TransactionAPI) SignTransaction(ctx context.Context, args TransactionArgs) (*SignTransactionResult, error) {
-	args.blobSidecarAllowed = true
-
-	if args.Gas == nil {
-		return nil, errors.New("gas not specified")
-	}
-	if args.GasPrice == nil && (args.MaxPriorityFeePerGas == nil || args.MaxFeePerGas == nil) {
-		return nil, errors.New("missing gasPrice or maxFeePerGas/maxPriorityFeePerGas")
-	}
-	if args.Nonce == nil {
-		return nil, errors.New("nonce not specified")
-	}
-	if err := args.setDefaults(ctx, s.b, false); err != nil {
-		return nil, err
-	}
-	// Before actually sign the transaction, ensure the transaction fee is reasonable.
-	tx := args.ToTransaction()
-	if err := checkTxFee(tx.GasPrice(), tx.Gas(), s.b.RPCTxFeeCap()); err != nil {
-		return nil, err
-	}
-	signed, err := s.sign(args.from(), tx)
-	if err != nil {
-		return nil, err
-	}
-	// If the transaction-to-sign was a blob transaction, then the signed one
-	// no longer retains the blobs, only the blob hashes. In this step, we need
-	// to put back the blob(s).
-	if args.IsEIP4844() {
-		signed = signed.WithBlobTxSidecar(&types.BlobTxSidecar{
-			Blobs:       args.Blobs,
-			Commitments: args.Commitments,
-			Proofs:      args.Proofs,
-		})
-	}
-	data, err := signed.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	return &SignTransactionResult{data, signed}, nil
+	panic("implement me")
 }
 
 // PendingTransactions returns the transactions that are in the transaction pool
@@ -1493,53 +1415,7 @@ func (s *TransactionAPI) PendingTransactions() ([]*RPCTransaction, error) {
 // Resend accepts an existing transaction and a new gas price and limit. It will remove
 // the given transaction from the pool and reinsert it with the new gas price and limit.
 func (s *TransactionAPI) Resend(ctx context.Context, sendArgs TransactionArgs, gasPrice *hexutil.Big, gasLimit *hexutil.Uint64) (common.Hash, error) {
-	if sendArgs.Nonce == nil {
-		return common.Hash{}, errors.New("missing transaction nonce in transaction spec")
-	}
-	if err := sendArgs.setDefaults(ctx, s.b, false); err != nil {
-		return common.Hash{}, err
-	}
-	matchTx := sendArgs.ToTransaction()
-
-	// Before replacing the old transaction, ensure the _new_ transaction fee is reasonable.
-	var price = matchTx.GasPrice()
-	if gasPrice != nil {
-		price = gasPrice.ToInt()
-	}
-	var gas = matchTx.Gas()
-	if gasLimit != nil {
-		gas = uint64(*gasLimit)
-	}
-	if err := checkTxFee(price, gas, s.b.RPCTxFeeCap()); err != nil {
-		return common.Hash{}, err
-	}
-	// Iterate the pending list for replacement
-	pending, err := s.b.GetPoolTransactions()
-	if err != nil {
-		return common.Hash{}, err
-	}
-	for _, p := range pending {
-		wantSigHash := s.signer.Hash(matchTx)
-		pFrom, err := types.Sender(s.signer, p)
-		if err == nil && pFrom == sendArgs.from() && s.signer.Hash(p) == wantSigHash {
-			// Match. Re-sign and send the transaction.
-			if gasPrice != nil && (*big.Int)(gasPrice).Sign() != 0 {
-				sendArgs.GasPrice = gasPrice
-			}
-			if gasLimit != nil && *gasLimit != 0 {
-				sendArgs.Gas = gasLimit
-			}
-			signedTx, err := s.sign(sendArgs.from(), sendArgs.ToTransaction())
-			if err != nil {
-				return common.Hash{}, err
-			}
-			if err = s.b.SendTx(ctx, signedTx); err != nil {
-				return common.Hash{}, err
-			}
-			return signedTx.Hash(), nil
-		}
-	}
-	return common.Hash{}, fmt.Errorf("transaction %#x not found", matchTx.Hash())
+	panic("implement me")
 }
 
 // DebugAPI is the collection of Ethereum APIs exposed over the debugging
