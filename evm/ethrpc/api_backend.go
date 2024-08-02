@@ -332,6 +332,8 @@ func (e *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction)
 		return err
 	}
 	v, r, s := signedTx.RawSignatureValues()
+	txArg := NewTxArgsFromTx(signedTx)
+	txArgByte, _ := json.Marshal(txArg)
 	txReq := &evm.TxRequest{
 		Input:    signedTx.Data(),
 		Origin:   sender,
@@ -344,6 +346,8 @@ func (e *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction)
 		V:        v,
 		R:        r,
 		S:        s,
+
+		OriginArgs: txArgByte,
 	}
 	byt, err := json.Marshal(txReq)
 	if err != nil {
@@ -366,18 +370,9 @@ func yuTxn2EthTxn(yuSignedTxn *yutypes.SignedTxn) *types.Transaction {
 	json.Unmarshal([]byte(wrCallParams), txReq)
 
 	// if nonce is assigned to signedTx.Raw.Nonce, then this is ok; otherwise it's nil:
-	tx := types.NewTx(&types.LegacyTx{
-		Nonce:    txReq.Nonce,
-		GasPrice: txReq.GasPrice,
-		Gas:      txReq.GasLimit, // gasLimit: should be obtained from Block & Settings
-		To:       txReq.Address,
-		Value:    txReq.Value,
-		Data:     txReq.Input,
-		V:        txReq.V,
-		R:        txReq.R,
-		S:        txReq.S,
-	})
-
+	txArgs := &TransactionArgs{}
+	json.Unmarshal(txReq.OriginArgs, txArgs)
+	tx := txArgs.ToTransaction(txReq.V, txReq.R, txReq.S)
 	return tx
 }
 
