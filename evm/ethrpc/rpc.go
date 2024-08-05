@@ -1,17 +1,21 @@
 package ethrpc
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"io"
+	"net"
+	"net/http"
+	"time"
+
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/reddio-com/reddio/evm"
 	"github.com/rs/cors"
 	"github.com/sirupsen/logrus"
 	"github.com/sourcegraph/conc"
 	"github.com/yu-org/yu/core/kernel"
-	"net"
-	"net/http"
-	"time"
+
+	"github.com/reddio-com/reddio/evm"
 )
 
 const SolidityTripod = "solidity"
@@ -63,7 +67,7 @@ func NewEthRPC(chain *kernel.Kernel, cfg *evm.GethConfig) (*EthRPC, error) {
 	}
 
 	mux := http.NewServeMux()
-	mux.Handle("/", s.rpcServer)
+	mux.Handle("/", logRequestResponse(s.rpcServer))
 
 	s.srv = &http.Server{
 		Addr:        net.JoinHostPort(cfg.EthHost, cfg.EthPort),
@@ -92,4 +96,34 @@ func (s *EthRPC) Serve(ctx context.Context) error {
 	case err := <-errCh:
 		return err
 	}
+}
+
+func logRequestResponse(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		bodyBytes, err := io.ReadAll(r.Body)
+		if err == nil {
+			r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+		}
+
+		rec := &responseRecorder{ResponseWriter: w, body: &bytes.Buffer{}}
+		next.ServeHTTP(rec, r)
+		logrus.Printf("[API] Request:  %s", string(bodyBytes))
+		logrus.Printf("[API] Response: %s", rec.body.String())
+	})
+}
+
+type responseRecorder struct {
+	http.ResponseWriter
+	status int
+	body   *bytes.Buffer
+}
+
+func (r *responseRecorder) WriteHeader(status int) {
+	r.status = status
+	r.ResponseWriter.WriteHeader(status)
+}
+
+func (r *responseRecorder) Write(b []byte) (int, error) {
+	r.body.Write(b)
+	return r.ResponseWriter.Write(b)
 }
