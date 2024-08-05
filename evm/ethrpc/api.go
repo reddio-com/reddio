@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/sirupsen/logrus"
 	yutypes "github.com/yu-org/yu/core/types"
+	"itachi/evm"
 	"math/big"
 	"strings"
 	"time"
@@ -666,7 +667,7 @@ func DoEstimateGas(ctx context.Context, b Backend, args TransactionArgs, blockNr
 	estimate, revert, err := gasestimator.Estimate(ctx, call, opts, gasCap)
 	if err != nil {
 		if len(revert) > 0 {
-			return 0, newRevertError(revert)
+			return 0, evm.NewRevertError(revert)
 		}
 		return 0, err
 	}
@@ -1104,7 +1105,11 @@ func (s *TransactionAPI) GetTransactionByHash(ctx context.Context, hash common.H
 	// Try to return an already finalized transaction
 	found, tx, blockHash, blockNumber, index, err := s.b.GetTransaction(ctx, hash)
 	if !found {
-		// TODO: need to check different error
+		// In this case, it indicates that GetReceipt returned a specific error, not just that it wasn't found.
+		if err != nil && !errors.Is(err, evm.ErrNotFoundReceipt) {
+			return nil, err
+		}
+
 		// No finalized transaction, try to retrieve it from the pool
 		if tx := s.b.GetPoolTransaction(hash); tx != nil {
 			return NewRPCPendingTransaction(tx, s.b.CurrentHeader(), s.b.ChainConfig()), nil
@@ -1131,6 +1136,11 @@ func (s *TransactionAPI) GetRawTransactionByHash(ctx context.Context, hash commo
 	// Retrieve a finalized transaction, or a pooled otherwise
 	found, tx, _, _, _, err := s.b.GetTransaction(ctx, hash)
 	if !found {
+		// In this case, it indicates that GetReceipt returned a specific error, not just that it wasn't found.
+		if err != nil && !errors.Is(err, evm.ErrNotFoundReceipt) {
+			return nil, err
+		}
+
 		if tx = s.b.GetPoolTransaction(hash); tx != nil {
 			return tx.MarshalBinary()
 		}
@@ -1437,6 +1447,11 @@ func (api *DebugAPI) GetRawTransaction(ctx context.Context, hash common.Hash) (h
 	// Retrieve a finalized transaction, or a pooled otherwise
 	found, tx, _, _, _, err := api.b.GetTransaction(ctx, hash)
 	if !found {
+		// In this case, it indicates that GetReceipt returned a specific error, not just that it wasn't found.
+		if err != nil && !errors.Is(err, evm.ErrNotFoundReceipt) {
+			return nil, err
+		}
+
 		if tx = api.b.GetPoolTransaction(hash); tx != nil {
 			return tx.MarshalBinary()
 		}

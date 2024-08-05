@@ -1,4 +1,4 @@
-package ethrpc
+package evm
 
 import (
 	"errors"
@@ -14,35 +14,37 @@ var (
 	// ErrAlreadyKnown is returned if the transactions is already contained
 	// within the pool.
 	ErrAlreadyKnown = errors.New("already known")
+
+	ErrNotFoundReceipt = errors.New("receipt not found")
 )
 
-// revertError is an API error that encompasses an EVM revert with JSON error
+// RevertError is an API error that encompasses an EVM revert with JSON error
 // code and a binary data blob.
-type revertError struct {
+type RevertError struct {
 	error
 	reason string // revert reason hex encoded
 }
 
 // ErrorCode returns the JSON error code for a revert.
 // See: https://github.com/ethereum/wiki/wiki/JSON-RPC-Error-Codes-Improvement-Proposal
-func (e *revertError) ErrorCode() int {
+func (e *RevertError) ErrorCode() int {
 	return 3
 }
 
 // ErrorData returns the hex encoded revert reason.
-func (e *revertError) ErrorData() interface{} {
+func (e *RevertError) ErrorData() interface{} {
 	return e.reason
 }
 
-// newRevertError creates a revertError instance with the provided revert data.
-func newRevertError(revert []byte) *revertError {
+// NewRevertError creates a RevertError instance with the provided revert data.
+func NewRevertError(revert []byte) *RevertError {
 	err := vm.ErrExecutionReverted
 
 	reason, errUnpack := abi.UnpackRevert(revert)
 	if errUnpack == nil {
 		err = fmt.Errorf("%w: %v", vm.ErrExecutionReverted, reason)
 	}
-	return &revertError{
+	return &RevertError{
 		error:  err,
 		reason: hexutil.Encode(revert),
 	}
