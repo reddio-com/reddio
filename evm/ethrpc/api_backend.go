@@ -281,12 +281,24 @@ func (e *EthAPIBackend) SubscribeChainSideEvent(ch chan<- core.ChainSideEvent) e
 }
 
 func (e *EthAPIBackend) Call(ctx context.Context, args TransactionArgs, blockNrOrHash *rpc.BlockNumberOrHash, overrides *StateOverride, blockOverrides *BlockOverrides) (hexutil.Bytes, error) {
-	err := args.setDefaults(ctx, e, true)
-	if err != nil {
+	globalGasCap := e.RPCGasCap()
+	if blockNrOrHash == nil {
+		latest := rpc.BlockNumberOrHashWithNumber(rpc.LatestBlockNumber)
+		blockNrOrHash = &latest
+	}
+	stateDb, header, err := e.StateAndHeaderByNumberOrHash(ctx, *blockNrOrHash)
+	if stateDb == nil || err != nil {
 		return nil, err
 	}
 
-	// byt, _ := json.Marshal(args)
+	if err := args.CallDefaults(globalGasCap, header.BaseFee, e.ChainConfig().ChainID); err != nil {
+		return nil, err
+	}
+
+	if args.To == nil {
+		return nil, errors.New("missing 'to' in params")
+	}
+
 	callRequest := evm.CallRequest{
 		Address:  *args.To,
 		Input:    args.data(),
