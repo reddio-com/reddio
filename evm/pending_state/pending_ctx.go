@@ -28,24 +28,28 @@ func (sctx *StateContext) IsConflict(tar *StateContext) bool {
 		len(sctx.GetReadState()) < 1 && len(sctx.GetReadAddress()) < 1 {
 		return false
 	}
-	// write/write conflict
+	// write/write conflict of Address
 	if IsAddressConflict(sctx.GetWriteAddress(), tar.GetWriteAddress()) {
 		return true
 	}
-	// read/write conflict
+	// read/write conflict of Address
 	if IsAddressConflict(sctx.GetReadAddress(), tar.GetWriteAddress()) {
 		return true
 	}
-	// read/write conflict
+	// read/write conflict of Address
 	if IsAddressConflict(sctx.GetWriteAddress(), tar.GetReadAddress()) {
 		return true
 	}
+
+	// write/write conflict of (Address, StateKey)
 	if IsStateConflict(sctx.GetWriteState(), tar.GetWriteState()) {
 		return true
 	}
+	// read/write conflict of (Address, StateKey)
 	if IsStateConflict(sctx.GetReadState(), tar.GetWriteState()) {
 		return true
 	}
+	// read/write conflict of (Address, StateKey)
 	if IsStateConflict(sctx.GetWriteState(), tar.GetReadState()) {
 		return true
 	}
