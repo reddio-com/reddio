@@ -1495,11 +1495,11 @@ func (api *DebugAPI) GetRawReceipts(ctx context.Context, blockNrOrHash rpc.Block
 }
 
 // GetRawTransaction returns the bytes of the transaction for the given hash.
-func (s *DebugAPI) GetRawTransaction(ctx context.Context, hash common.Hash) (hexutil.Bytes, error) {
+func (api *DebugAPI) GetRawTransaction(ctx context.Context, hash common.Hash) (hexutil.Bytes, error) {
 	// Retrieve a finalized transaction, or a pooled otherwise
-	found, tx, _, _, _, err := s.b.GetTransaction(ctx, hash)
+	found, tx, _, _, _, err := api.b.GetTransaction(ctx, hash)
 	if !found {
-		if tx = s.b.GetPoolTransaction(hash); tx != nil {
+		if tx = api.b.GetPoolTransaction(hash); tx != nil {
 			return tx.MarshalBinary()
 		}
 		if err != nil {
@@ -1567,12 +1567,12 @@ func NewNetAPI(net *p2p.Server, networkVersion uint64) *NetAPI {
 
 // Listening returns an indication if the node is listening for network connections.
 func (s *NetAPI) Listening() bool {
-	return true // always listening
+	return false // always listening
 }
 
 // PeerCount returns the number of connected peers
 func (s *NetAPI) PeerCount() hexutil.Uint {
-	return hexutil.Uint(s.net.PeerCount())
+	return hexutil.Uint(0)
 }
 
 // Version returns the current ethereum protocol version.
