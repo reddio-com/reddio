@@ -70,26 +70,26 @@ const (
 	maxConcurrency = 4
 )
 
-// SplitTxnCtxList distinguish the same sender addresses
 func (k *Kernel) SplitTxnCtxList(list []*txnCtx) [][]*txnCtx {
-	canConcurrency := make([]*txnCtx, 0)
+	cur := 0
+	curList := make([]*txnCtx, 0)
 	got := make([][]*txnCtx, 0)
-	for i := 0; i < len(list); i++ {
-		curTxnCtx := list[i]
-		if checkAddressConflict(curTxnCtx, canConcurrency) {
-			got = append(got, canConcurrency)
-			canConcurrency = make([]*txnCtx, 0)
+	for cur < len(list) {
+		curTxnCtx := list[cur]
+		if checkAddressConflict(curTxnCtx, curList) {
+			got = append(got, curList)
+			curList = make([]*txnCtx, 0)
 			continue
 		}
-		canConcurrency = append(canConcurrency, curTxnCtx)
-		if len(canConcurrency) >= maxConcurrency {
-			got = append(got, canConcurrency)
-			canConcurrency = make([]*txnCtx, 0)
+		curList = append(curList, curTxnCtx)
+		if len(curList) >= maxConcurrency {
+			got = append(got, curList)
+			curList = make([]*txnCtx, 0)
 		}
-
+		cur++
 	}
-	if len(canConcurrency) > 0 {
-		got = append(got, canConcurrency)
+	if len(curList) > 0 {
+		got = append(got, curList)
 	}
 	if len(list) > 1 {
 
