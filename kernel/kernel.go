@@ -91,10 +91,6 @@ func (k *Kernel) SplitTxnCtxList(list []*txnCtx) [][]*txnCtx {
 	if len(curList) > 0 {
 		got = append(got, curList)
 	}
-	if len(list) > 1 {
-
-	}
-
 	return got
 }
 
