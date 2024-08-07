@@ -1,6 +1,9 @@
 package kernel
 
 import (
+	"sync"
+
+	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/yu-org/yu/common"
 	"github.com/yu-org/yu/core/context"
 	"github.com/yu-org/yu/core/kernel"
@@ -8,6 +11,7 @@ import (
 	"github.com/yu-org/yu/core/types"
 
 	"github.com/reddio-com/reddio/evm"
+	"github.com/reddio-com/reddio/evm/pending_state"
 )
 
 type Kernel struct {
@@ -59,10 +63,6 @@ func (k *Kernel) Execute(block *types.Block) error {
 			receipts[c.txn.TxnHash] = c.r
 		}
 	}
-	//got := k.executeTxnCtxList(txnCtxList)
-	//for _, c := range got {
-	//	receipts[c.txn.TxnHash] = c.r
-	//}
 	return k.kernel.PostExecute(block, receipts)
 }
 
@@ -113,18 +113,71 @@ func checkAddressConflict(curTxn *txnCtx, curList []*txnCtx) bool {
 }
 
 func (k *Kernel) executeTxnCtxList(list []*txnCtx) []*txnCtx {
-	for i, c := range list {
-		index := i
-		tctx := c
-		k.Solidity.SetStateDB(k.Solidity.StateDB().Copy())
+	return k.executeTxnCtxListInConcurrency(k.Solidity.StateDB(), list)
+}
+
+func (k *Kernel) reExecuteTxnCtxListInOrder(originStateDB *state.StateDB, list []*txnCtx) []*txnCtx {
+	for index, tctx := range list {
+		if tctx.err != nil {
+			list[index] = tctx
+			continue
+		}
+		tctx.ctx.ExtraInterface = originStateDB
 		err := tctx.writing(tctx.ctx)
 		if err != nil {
+			tctx.err = err
 			tctx.r = k.kernel.HandleError(err, tctx.ctx, tctx.ctx.Block, tctx.txn)
 		} else {
 			tctx.r = k.kernel.HandleEvent(tctx.ctx, tctx.ctx.Block, tctx.txn)
+			tctx.ps = tctx.ctx.ExtraInterface.(*pending_state.PendingState)
 		}
 		list[index] = tctx
 	}
+	return list
+}
+
+func (k *Kernel) executeTxnCtxListInConcurrency(originStateDB *state.StateDB, list []*txnCtx) []*txnCtx {
+	wg := sync.WaitGroup{}
+	for i, c := range list {
+		wg.Add(1)
+		go func(index int, tctx *txnCtx) {
+			defer func() {
+				wg.Done()
+			}()
+			tctx.ctx.ExtraInterface = originStateDB.Copy()
+			err := tctx.writing(tctx.ctx)
+			if err != nil {
+				tctx.err = err
+				tctx.r = k.kernel.HandleError(err, tctx.ctx, tctx.ctx.Block, tctx.txn)
+			} else {
+				tctx.r = k.kernel.HandleEvent(tctx.ctx, tctx.ctx.Block, tctx.txn)
+				tctx.ps = tctx.ctx.ExtraInterface.(*pending_state.PendingState)
+			}
+			list[index] = tctx
+		}(i, c)
+	}
+	wg.Wait()
+	curtCtx := pending_state.NewStateContext()
+	conflict := false
+	for _, tctx := range list {
+		if tctx.err != nil {
+			continue
+		}
+		if curtCtx.IsConflict(tctx.ps.GetCtx()) {
+			conflict = true
+			break
+		}
+	}
+	if conflict {
+		return k.reExecuteTxnCtxListInOrder(originStateDB, list)
+	}
+	for _, tctx := range list {
+		if tctx.err != nil {
+			continue
+		}
+		tctx.ps.MergeInto(originStateDB)
+	}
+	k.Solidity.SetStateDB(originStateDB)
 	return list
 }
 
@@ -134,4 +187,6 @@ type txnCtx struct {
 	r       *types.Receipt
 	writing dev.Writing
 	req     *evm.TxRequest
+	err     error
+	ps      *pending_state.PendingState
 }

@@ -6,7 +6,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/tracing"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/triedb"
 	"github.com/holiman/uint256"
 )
 
@@ -90,14 +89,14 @@ func (s *PendingState) GetCommittedState(address common.Address, hash common.Has
 	return s.state.GetCommittedState(address, hash)
 }
 
-func (s *PendingState) GetState(address common.Address, hash common.Hash) common.Hash {
-	s.sCtx.ReadState(address)
-	return s.state.GetState(address, hash)
+func (s *PendingState) GetState(address common.Address, key common.Hash) common.Hash {
+	s.sCtx.ReadState(address, key)
+	return s.state.GetState(address, key)
 }
 
-func (s *PendingState) SetState(address common.Address, hash common.Hash, hash2 common.Hash) {
-	s.sCtx.WriteState(address)
-	s.state.SetState(address, hash, hash2)
+func (s *PendingState) SetState(address common.Address, key common.Hash, value common.Hash) {
+	s.sCtx.WriteState(address, key)
+	s.state.SetState(address, key, value)
 }
 
 func (s *PendingState) GetStorageRoot(addr common.Address) common.Hash {
@@ -178,46 +177,45 @@ func (s *PendingState) AddPreimage(hash common.Hash, bytes []byte) {
 	s.state.AddPreimage(hash, bytes)
 }
 
-func (s *PendingState) StopPrefetcher() {
-	s.state.StopPrefetcher()
-}
-
-func (s *PendingState) Commit(block uint64, deleteEmptyObjects bool) (common.Hash, error) {
-	return s.state.Commit(block, deleteEmptyObjects)
-}
-
-func (s *PendingState) SetBalance(addr common.Address, amount *uint256.Int, reason tracing.BalanceChangeReason) {
-	s.state.SetBalance(addr, amount, reason)
-}
-
-func (s *PendingState) SetStorage(addr common.Address, storage map[common.Hash]common.Hash) {
-	s.state.SetStorage(addr, storage)
-}
-
-func (s *PendingState) Error() error {
-	return s.state.Error()
-}
-
-func (s *PendingState) TrieDB() *triedb.Database {
-	return s.state.Database().TrieDB()
-}
-
-func (s *PendingState) Finalise(deleteEmptyObjects bool) {
-	s.state.Finalise(deleteEmptyObjects)
-}
-
-func (s *PendingState) Internal() *state.StateDB {
-	return s.state
-}
-
-func (s *PendingState) Copy() *PendingState {
-	return NewPendingState(s.state.Copy())
-}
-
 func (s *PendingState) AllLogs() []*types.Log {
 	return s.state.Logs()
 }
 
 func (s *PendingState) AllPreimages() map[common.Hash][]byte {
 	return s.state.Preimages()
+}
+
+func (s *PendingState) MergeInto(stateDB *state.StateDB) {
+	if s.sCtx.prepareParams != nil {
+		pre := s.sCtx.prepareParams
+		stateDB.Prepare(pre.rules, pre.sender, pre.coinbase, pre.dest, pre.precompiles, pre.txAccesses)
+	}
+	for addr := range s.sCtx.Write.Account {
+		if s.state.Exist(addr) {
+			stateDB.CreateAccount(addr)
+		}
+	}
+	for addr := range s.sCtx.Write.Balance {
+		stateDB.SetBalance(addr, s.state.GetBalance(addr), tracing.BalanceChangeTransfer)
+	}
+	for addr := range s.sCtx.Write.Code {
+		stateDB.SetCode(addr, s.state.GetCode(addr))
+	}
+	for addr, keys := range s.sCtx.Write.State {
+		for key := range keys {
+			stateDB.SetState(addr, key, s.state.GetState(addr, key))
+		}
+	}
+	for _, addr := range s.sCtx.addAddressToList {
+		stateDB.AddAddressToAccessList(addr)
+	}
+	for _, sd := range s.sCtx.addSlotToAddress {
+		stateDB.AddSlotToAccessList(sd.addr, sd.slot)
+	}
+	for _, log := range s.AllLogs() {
+		stateDB.AddLog(log)
+	}
+	for hash, bs := range s.AllPreimages() {
+		stateDB.AddPreimage(hash, bs)
+	}
 }
