@@ -7,6 +7,7 @@ import (
 	"math"
 	"math/big"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/BurntSushi/toml"
@@ -33,6 +34,8 @@ import (
 )
 
 type Solidity struct {
+	sync.Mutex
+
 	*tripod.Tripod
 	ethState    *EthState
 	cfg         *GethConfig
@@ -288,21 +291,21 @@ func NewSolidity(gethConfig *GethConfig) *Solidity {
 // the given code. It makes sure that it's restored to its original state afterwards.
 func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 	txReq := new(TxRequest)
+	coinbase := common.BytesToAddress(s.cfg.Coinbase.Bytes())
+	origin := common.BytesToAddress(txReq.Origin.Bytes())
+	s.Lock()
 	err = ctx.BindJson(txReq)
-	logrus.Printf("ExecuteTxn: %+v\n", txReq)
 	if err != nil {
 		return err
 	}
-
+	//logrus.Printf("ExecuteTxn: %+v\n", txReq)
 	zeroAddress := common.Address{}
-
-	origin := txReq.Origin
 	gasLimit := txReq.GasLimit
 	gasPrice := txReq.GasPrice
 	value := txReq.Value
 
 	cfg := s.cfg
-	ethstate := s.ethState
+	//ethstate := s.ethState
 
 	cfg.Origin = origin
 	cfg.GasLimit = gasLimit
@@ -313,15 +316,16 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 	pd := pending_state.NewPendingState(ctx.ExtraInterface.(*state.StateDB))
 	vmenv.StateDB = pd
 
-	logrus.Println("ExecuteTxn vmenv: ", vmenv)
+	//logrus.Println("ExecuteTxn vmenv: ", vmenv)
 
 	sender := vm.AccountRef(txReq.Origin)
 	rules := cfg.ChainConfig.Rules(vmenv.Context.BlockNumber, vmenv.Context.Random != nil, vmenv.Context.Time)
+	s.Unlock()
 
 	if txReq.Address == zeroAddress {
-		err = executeContractCreation(txReq, ethstate, cfg, vmenv, sender, rules)
+		err = executeContractCreation(txReq, pd, cfg, origin, coinbase, vmenv, sender, rules)
 	} else {
-		err = executeContractCall(txReq, ethstate, cfg, vmenv, sender, rules)
+		err = executeContractCall(txReq, pd, cfg, origin, coinbase, vmenv, sender, rules)
 	}
 	if err != nil {
 		return err
@@ -414,12 +418,12 @@ func AdaptHash(ethHash common.Hash) yu_common.Hash {
 	return yuHash
 }
 
-func executeContractCreation(txReq *TxRequest, ethState *EthState, cfg *GethConfig, vmenv *vm.EVM, sender vm.AccountRef, rules params.Rules) error {
+func executeContractCreation(txReq *TxRequest, stateDB *pending_state.PendingState, cfg *GethConfig, origin, coinBase common.Address, vmenv *vm.EVM, sender vm.AccountRef, rules params.Rules) error {
 	if cfg.EVMConfig.Tracer != nil && cfg.EVMConfig.Tracer.OnTxStart != nil {
 		cfg.EVMConfig.Tracer.OnTxStart(vmenv.GetVMContext(), types.NewTx(&types.LegacyTx{Data: txReq.Input, Value: txReq.Value, Gas: txReq.GasLimit}), txReq.Origin)
 	}
 
-	ethState.Prepare(rules, cfg.Origin, cfg.Coinbase, nil, vm.ActivePrecompiles(rules), nil)
+	stateDB.Prepare(rules, origin, coinBase, nil, vm.ActivePrecompiles(rules), nil)
 
 	code, address, leftOverGas, err := vmenv.Create(sender, txReq.Input, txReq.GasLimit, uint256.MustFromBig(txReq.Value))
 	if err != nil {
@@ -435,22 +439,22 @@ func executeContractCreation(txReq *TxRequest, ethState *EthState, cfg *GethConf
 	return nil
 }
 
-func executeContractCall(txReq *TxRequest, ethState *EthState, cfg *GethConfig, vmenv *vm.EVM, sender vm.AccountRef, rules params.Rules) error {
+func executeContractCall(txReq *TxRequest, ethState *pending_state.PendingState, cfg *GethConfig, origin, coinBase common.Address, vmenv *vm.EVM, sender vm.AccountRef, rules params.Rules) error {
 	if cfg.EVMConfig.Tracer != nil && cfg.EVMConfig.Tracer.OnTxStart != nil {
 		cfg.EVMConfig.Tracer.OnTxStart(vmenv.GetVMContext(), types.NewTx(&types.LegacyTx{To: &txReq.Address, Data: txReq.Input, Value: txReq.Value, Gas: txReq.GasLimit}), txReq.Origin)
 	}
 
-	ethState.Prepare(rules, cfg.Origin, cfg.Coinbase, &txReq.Address, vm.ActivePrecompiles(rules), nil)
+	ethState.Prepare(rules, origin, coinBase, &txReq.Address, vm.ActivePrecompiles(rules), nil)
 	ethState.SetNonce(txReq.Origin, ethState.GetNonce(sender.Address())+1)
 
-	logrus.Printf("before transfer: account %s balance %d \n", sender.Address(), ethState.stateDB.GetBalance(sender.Address()))
+	logrus.Printf("before transfer: account %s balance %d \n", sender.Address(), ethState.GetBalance(sender.Address()))
 
 	_, _, err := vmenv.Call(sender, txReq.Address, txReq.Input, txReq.GasLimit, uint256.MustFromBig(txReq.Value))
 	if err != nil {
 		return err
 	}
 
-	logrus.Printf("after  transfer: account %s balance %d \n", sender.Address(), ethState.stateDB.GetBalance(sender.Address()))
+	logrus.Printf("after transfer: account %s balance %d \n", sender.Address(), ethState.GetBalance(sender.Address()))
 
 	//println("Return ret value:", ret)
 	//println("Return leftOverGas value:", leftOverGas)
