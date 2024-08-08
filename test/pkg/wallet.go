@@ -114,7 +114,15 @@ func (m *WalletManager) transferEth(privateKeyHex string, toAddress string, amou
 	return m.sendRawTx(privateKeyHex, toAddress, amount, nil, 0)
 }
 
-// sendRawTx is used by transferring and contract invocation.
+func (m *WalletManager) CreateContract(privateKeyHex string, amount uint64, data []byte, nonce uint64) error {
+	return m.sendRawTx(privateKeyHex, "", amount, data, nonce)
+}
+
+func (m *WalletManager) InvokeContract(privateKeyHex string, toAddress string, amount uint64, data []byte, nonce uint64) error {
+	return m.sendRawTx(privateKeyHex, toAddress, amount, data, nonce)
+}
+
+// sendRawTx is used by transferring and contract creation/invocation.
 func (m *WalletManager) sendRawTx(privateKeyHex string, toAddress string, amount uint64, data []byte, nonce uint64) error {
 	to := common.HexToAddress(toAddress)
 	gasLimit := uint64(21000)
