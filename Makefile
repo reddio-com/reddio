@@ -5,6 +5,9 @@ default: build
 build:
 	go build -v -o $(PROJECT) ./cmd/node/main.go ./cmd/node/testrequest.go
 
+transfer_test_race:
+	go build -race -v -o transfer_test ./test/cmd/transfer/main.go
+
 reset:
 	@if [ -d "yu" ]; then \
 		echo "Deleting 'yu' directory..."; \
@@ -15,8 +18,8 @@ reset:
 		rm -rf reddio_db; \
 	fi
 
-transfer_test: reset
-	go run ./test/cmd/transfer/main.go
+transfer_test: reset transfer_test_race
+	./transfer_test
 
 clean:
 	rm -f $(PROJECT)
