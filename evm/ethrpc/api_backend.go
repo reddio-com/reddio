@@ -123,41 +123,61 @@ func (e *EthAPIBackend) HeaderByHash(ctx context.Context, hash common.Hash) (*ty
 }
 
 func (e *EthAPIBackend) HeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Header, error) {
-	//TODO implement me
-	panic("implement me")
+	if blockNr, ok := blockNrOrHash.Number(); ok {
+		return e.HeaderByNumber(ctx, blockNr)
+	}
+
+	if blockHash, ok := blockNrOrHash.Hash(); ok {
+		return e.HeaderByHash(ctx, blockHash)
+	}
+
+	return nil, errors.New("invalid arguments; neither block number nor hash specified")
 }
 
 func (e *EthAPIBackend) CurrentHeader() *types.Header {
 	yuBlock, err := e.chain.Chain.GetEndBlock()
+
 	if err != nil {
 		logrus.Error("EthAPIBackend.CurrentBlock() failed: ", err)
 		return new(types.Header)
 	}
+
 	return yuHeader2EthHeader(yuBlock.Header)
 }
 
 func (e *EthAPIBackend) CurrentBlock() *types.Header {
 	yuBlock, err := e.chain.Chain.GetEndBlock()
+
 	if err != nil {
 		logrus.Error("EthAPIBackend.CurrentBlock() failed: ", err)
 		return new(types.Header)
 	}
+
 	return yuHeader2EthHeader(yuBlock.Header)
 }
 
 func (e *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Block, error) {
-	//TODO implement me
-	panic("implement me")
+	yuBlock, err := e.chain.Chain.GetBlockByHeight(yucommon.BlockNum(number))
+
+	return compactBlock2EthBlock(yuBlock), err
 }
 
 func (e *EthAPIBackend) BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error) {
-	//TODO implement me
-	panic("implement me")
+	yuBlock, err := e.chain.Chain.GetBlock(yucommon.Hash(hash))
+
+	return compactBlock2EthBlock(yuBlock), err
 }
 
 func (e *EthAPIBackend) BlockByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Block, error) {
-	//TODO implement me
-	panic("implement me")
+	if blockNr, ok := blockNrOrHash.Number(); ok {
+		return e.BlockByNumber(ctx, blockNr)
+	}
+
+	if blockHash, ok := blockNrOrHash.Hash(); ok {
+		return e.BlockByHash(ctx, blockHash)
+	}
+
+	return nil, errors.New("invalid arguments; neither block number nor hash specified")
 }
 
 func (e *EthAPIBackend) StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*state.StateDB, *types.Header, error) {
@@ -388,4 +408,33 @@ func yuHeader2EthHeader(yuHeader *yutypes.Header) *types.Header {
 		Nonce:       types.BlockNonce{},
 		BaseFee:     nil,
 	}
+}
+
+func compactBlock2EthBlock(yuBlock *yutypes.Block) *types.Block {
+	//// Init default values for Eth.Block.Transactions.TxData:
+	//var data []byte
+	//var ethTxs []*types.Transaction
+	//
+	//nonce := uint64(0)
+	//to := common.HexToAddress("")
+	//gasLimit := yuBlock.Header.LeiLimit
+	//gasPrice := big.NewInt(0)
+	//
+	//// Create Eth.Block.Transactions from yu.CompactBlock.Hashes:
+	//for _, yuSignedTxn := range yuBlock.Txns {
+	//	tx := types.NewTx(&types.LegacyTx{
+	//		Nonce:    nonce,
+	//		GasPrice: gasPrice,
+	//		Gas:      gasLimit,
+	//		To:       &to,
+	//		Value:    big.NewInt(0),
+	//		Data:     data,
+	//	}, common.Hash(yuSignedTxn.TxnHash))
+	//
+	//	ethTxs = append(ethTxs, tx)
+	//}
+	//
+	//// Create new Eth.Block using yu.Header & yu.Hashes:
+	//return types.NewBlock(yuHeader2EthHeader(yuBlock.Header), ethTxs, nil, nil, nil)
+	return types.NewBlock(yuHeader2EthHeader(yuBlock.Header), nil, nil, nil, nil)
 }
