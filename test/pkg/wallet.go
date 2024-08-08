@@ -111,11 +111,13 @@ type queryResponse struct {
 }
 
 func (m *WalletManager) transferEth(privateKeyHex string, toAddress string, amount uint64) error {
-	nonce := uint64(0)
+	return m.sendRawTx(privateKeyHex, toAddress, amount, nil, 0)
+}
+
+func (m *WalletManager) sendRawTx(privateKeyHex string, toAddress string, amount uint64, data []byte, nonce uint64) error {
 	to := common.HexToAddress(toAddress)
 	gasLimit := uint64(21000)
 	gasPrice := big.NewInt(0)
-	var data []byte
 
 	tx := types.NewTx(&types.LegacyTx{
 		Nonce:    nonce,
