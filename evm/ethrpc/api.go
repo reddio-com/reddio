@@ -1161,6 +1161,7 @@ func (s *TransactionAPI) GetTransactionByHash(ctx context.Context, hash common.H
 	// Try to return an already finalized transaction
 	found, tx, blockHash, blockNumber, index, err := s.b.GetTransaction(ctx, hash)
 	if !found {
+		// TODO: need to check different error
 		// No finalized transaction, try to retrieve it from the pool
 		if tx := s.b.GetPoolTransaction(hash); tx != nil {
 			return NewRPCPendingTransaction(tx, s.b.CurrentHeader(), s.b.ChainConfig()), nil

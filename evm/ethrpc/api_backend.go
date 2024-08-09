@@ -24,6 +24,7 @@ import (
 	"github.com/sirupsen/logrus"
 	yucommon "github.com/yu-org/yu/common"
 	yucore "github.com/yu-org/yu/core"
+	yucontext "github.com/yu-org/yu/core/context"
 	"github.com/yu-org/yu/core/kernel"
 	yutypes "github.com/yu-org/yu/core/types"
 
@@ -34,6 +35,7 @@ type EthAPIBackend struct {
 	allowUnprotectedTxs bool
 	ethChainCfg         *params.ChainConfig
 	chain               *kernel.Kernel
+	gasPriceCache       *EthGasPrice
 }
 
 func (e *EthAPIBackend) SyncProgress() ethereum.SyncProgress {
@@ -166,7 +168,9 @@ func (e *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumbe
 
 func (e *EthAPIBackend) BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error) {
 	yuBlock, err := e.chain.Chain.GetBlock(yucommon.Hash(hash))
-
+	if err != nil {
+		return nil, err
+	}
 	return compactBlock2EthBlock(yuBlock), err
 }
 
@@ -232,11 +236,6 @@ func (e *EthAPIBackend) AccountManager() *accounts.Manager {
 }
 
 func (e *EthAPIBackend) Pending() (*types.Block, types.Receipts, *state.StateDB) {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (e *EthAPIBackend) GetReceipts(ctx context.Context, hash common.Hash) (types.Receipts, error) {
 	//TODO implement me
 	panic("implement me")
 }
@@ -316,6 +315,7 @@ func (e *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction)
 	if err != nil {
 		return err
 	}
+	v, r, s := signedTx.RawSignatureValues()
 	txReq := &evm.TxRequest{
 		Input:    signedTx.Data(),
 		Origin:   sender,
@@ -323,6 +323,9 @@ func (e *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction)
 		GasPrice: signedTx.GasPrice(),
 		Value:    signedTx.Value(),
 		Hash:     signedTx.Hash(),
+		V:        v,
+		R:        r,
+		S:        s,
 	}
 	if signedTx.To() != nil {
 		txReq.Address = *signedTx.To()
@@ -358,6 +361,9 @@ func yuTxn2EthTxn(yuSignedTxn *yutypes.SignedTxn) *types.Transaction {
 		To:       &txReq.Address,
 		Value:    txReq.Value,
 		Data:     txReq.Input,
+		V:        txReq.V,
+		R:        txReq.R,
+		S:        txReq.S,
 	})
 
 	return tx
@@ -370,12 +376,49 @@ func (e *EthAPIBackend) GetTransaction(ctx context.Context, txHash common.Hash) 
 	}
 	ethTxn := yuTxn2EthTxn(stxn)
 
-	// Fixme: should return lookup.BlockHash, lookup.BlockIndex, lookup.Index
-	blockHash := txHash
-	blockIndex := uint64(0)
-	index := uint64(0)
+	rcptReq := &evm.ReceiptRequest{Hash: txHash}
+	resp, err := e.adaptChainRead(rcptReq, "GetReceipt")
+	if err != nil {
+		return false, nil, common.Hash{}, 0, 0, err
+	}
+	receiptResponse := resp.DataInterface.(*evm.ReceiptResponse)
+	if receiptResponse.Err != nil {
+		return false, nil, common.Hash{}, 0, 0, receiptResponse.Err
+	}
+	receipt := receiptResponse.Receipt
 
-	return true, ethTxn, blockHash, blockIndex, index, nil
+	blockHash := receipt.BlockHash
+	blockNumber := uint64(0)
+	if receipt.BlockNumber != nil {
+		blockNumber = receipt.BlockNumber.Uint64()
+	}
+	index := receipt.TransactionIndex
+
+	return true, ethTxn, blockHash, blockNumber, uint64(index), nil
+}
+
+func (e *EthAPIBackend) GetReceipts(ctx context.Context, hash common.Hash) (types.Receipts, error) {
+	compactBlock, err := e.chain.Chain.GetCompactBlock(yucommon.Hash(hash))
+	if err != nil {
+		return nil, err
+	}
+
+	var receipts []*types.Receipt
+
+	for _, txHash := range compactBlock.TxnsHashes {
+		rcptReq := &evm.ReceiptRequest{Hash: common.Hash(txHash)}
+		resp, err := e.adaptChainRead(rcptReq, "GetReceipt")
+		if err != nil {
+			continue
+		}
+		receiptResponse := resp.DataInterface.(*evm.ReceiptResponse)
+		if receiptResponse.Err != nil {
+			continue
+		}
+		receipts = append(receipts, receiptResponse.Receipt)
+	}
+
+	return receipts, nil
 }
 
 func (e *EthAPIBackend) GetPoolTransactions() (types.Transactions, error) {
@@ -517,6 +560,25 @@ func compactBlock2EthBlock(yuBlock *yutypes.Block) *types.Block {
 	//// Create new Eth.Block using yu.Header & yu.Hashes:
 	//return types.NewBlock(yuHeader2EthHeader(yuBlock.Header), ethTxs, nil, nil, nil)
 	return types.NewBlock(yuHeader2EthHeader(yuBlock.Header), nil, nil, nil, nil)
+}
+
+func (e *EthAPIBackend) adaptChainRead(req any, funcName string) (*yucontext.ResponseData, error) {
+	byt, err := json.Marshal(req)
+	if err != nil {
+		return nil, err
+	}
+
+	rdCall := &yucommon.RdCall{
+		TripodName: SolidityTripod,
+		FuncName:   funcName,
+		Params:     string(byt),
+	}
+
+	resp, err := e.chain.HandleRead(rdCall)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
 }
 
 // region ---- Fake Consensus Engine ----
