@@ -321,7 +321,6 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 	if err != nil {
 		return err
 	}
-	//logrus.Printf("ExecuteTxn: %+v\n", txReq)
 	gasLimit := txReq.GasLimit
 	gasPrice := txReq.GasPrice
 	value := txReq.Value
@@ -463,7 +462,6 @@ func executeContractCreation(ctx *context.WriteContext, txReq *TxRequest, stateD
 	var evmReceipt types.Receipt
 	if leftOverGas > 0 {
 		evmReceipt = makeEvmReceipt(code, ctx.Txn, ctx.Block, address, leftOverGas)
-		//fmt.Printf("Return evmReceipt value: %+v\n", evmReceipt)
 	}
 
 	receiptByt, err := json.Marshal(evmReceipt)
@@ -523,7 +521,6 @@ func executeContractCall(ctx *context.WriteContext, txReq *TxRequest, ethState *
 	var evmReceipt types.Receipt
 	if leftOverGas > 0 {
 		evmReceipt = makeEvmReceipt(ret, ctx.Txn, ctx.Block, common.Address{}, leftOverGas)
-		//fmt.Printf("Return evmReceipt value: %+v\n", evmReceipt)
 	}
 
 	receiptByt, err := json.Marshal(evmReceipt)
