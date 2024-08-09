@@ -339,6 +339,8 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 	vmenv := newEVM(cfg)
 	pd := pending_state.NewPendingState(ctx.ExtraInterface.(*state.StateDB))
 	vmenv.StateDB = pd
+	vmenv.Context.BlockNumber = big.NewInt(int64(ctx.Block.Height))
+	s.cfg.BlockNumber = big.NewInt(int64(ctx.Block.Height))
 
 	//logrus.Println("ExecuteTxn vmenv: ", vmenv)
 
