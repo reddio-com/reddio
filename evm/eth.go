@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
-	"github.com/NethermindEth/juno/encoder"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/yu-org/yu/common/yerror"
 
@@ -468,7 +467,7 @@ func executeContractCreation(ctx *context.WriteContext, txReq *TxRequest, stateD
 		//fmt.Printf("Return evmReceipt value: %+v\n", evmReceipt)
 	}
 
-	receiptByt, err := encoder.Marshal(evmReceipt)
+	receiptByt, err := json.Marshal(evmReceipt)
 	if err != nil {
 		return err
 	}
