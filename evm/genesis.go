@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"math/big"
 	"strings"
 
@@ -33,7 +34,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
@@ -285,10 +285,10 @@ func SetupGenesisBlockWithOverride(ethState *EthState, genesis *Genesis, overrid
 	stored := rawdb.ReadCanonicalHash(ethState.ethDB, 0)
 	if (stored == common.Hash{}) {
 		if genesis == nil {
-			log.Info("Writing default main-net genesis block")
+			logrus.Info("Writing default main-net genesis block")
 			genesis = DefaultGenesisBlock()
 		} else {
-			log.Info("Writing custom genesis block")
+			logrus.Info("Writing custom genesis block")
 		}
 
 		applyOverrides(genesis.Config)
@@ -335,7 +335,7 @@ func SetupGenesisBlockWithOverride(ethState *EthState, genesis *Genesis, overrid
 	}
 	storedcfg := rawdb.ReadChainConfig(ethState.ethDB, stored)
 	if storedcfg == nil {
-		log.Warn("Found genesis block without chain config")
+		logrus.Warn("Found genesis block without chain config")
 		rawdb.WriteChainConfig(ethState.ethDB, stored, newcfg)
 		return newcfg, stored, nil
 	}

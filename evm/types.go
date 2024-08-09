@@ -1,8 +1,9 @@
 package evm
 
 import (
-	"github.com/ethereum/go-ethereum/common"
 	"math/big"
+
+	"github.com/ethereum/go-ethereum/common"
 )
 
 type CallRequest struct {
@@ -21,16 +22,17 @@ type CallResponse struct {
 }
 
 type TxRequest struct {
-	Input    []byte         `json:"input"`
-	Address  common.Address `json:"address"`
-	Origin   common.Address `json:"origin"`
-	GasLimit uint64         `json:"gasLimit"`
-	GasPrice *big.Int       `json:"gasPrice"`
-	Value    *big.Int       `json:"value"`
-	Hash     common.Hash    `json:"hash"`
-	V        *big.Int       `json:"v"`
-	R        *big.Int       `json:"r"`
-	S        *big.Int       `json:"s"`
+	Input    []byte          `json:"input"`
+	Address  *common.Address `json:"address"`
+	Origin   common.Address  `json:"origin"`
+	GasLimit uint64          `json:"gasLimit"`
+	GasPrice *big.Int        `json:"gasPrice"`
+	Value    *big.Int        `json:"value"`
+	Hash     common.Hash     `json:"hash"`
+	Nonce    uint64          `json:"nonce"`
+	V        *big.Int        `json:"v"`
+	R        *big.Int        `json:"r"`
+	S        *big.Int        `json:"s"`
 }
 
 type CreateRequest struct {

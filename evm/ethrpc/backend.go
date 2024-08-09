@@ -3,6 +3,7 @@ package ethrpc
 import (
 	"context"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	yutypes "github.com/yu-org/yu/core/types"
 	"math/big"
 	"time"
 
@@ -40,14 +41,14 @@ type Backend interface {
 
 	// Blockchain API
 	SetHead(number uint64)
-	HeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Header, error)
-	HeaderByHash(ctx context.Context, hash common.Hash) (*types.Header, error)
-	HeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Header, error)
+	HeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Header, *yutypes.Header, error)
+	HeaderByHash(ctx context.Context, hash common.Hash) (*types.Header, *yutypes.Header, error)
+	HeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Header, *yutypes.Header, error)
 	CurrentHeader() *types.Header
 	CurrentBlock() *types.Header
-	BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Block, error)
-	BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error)
-	BlockByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Block, error)
+	BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Block, *yutypes.Block, error)
+	BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, *yutypes.Block, error)
+	BlockByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Block, *yutypes.Block, error)
 	StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*state.StateDB, *types.Header, error)
 	StateAndHeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*state.StateDB, *types.Header, error)
 	Pending() (*types.Block, types.Receipts, *state.StateDB)

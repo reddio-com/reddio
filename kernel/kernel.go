@@ -96,13 +96,13 @@ func (k *Kernel) SplitTxnCtxList(list []*txnCtx) [][]*txnCtx {
 
 func checkAddressConflict(curTxn *txnCtx, curList []*txnCtx) bool {
 	for _, compare := range curList {
-		if compare.req.Address == curTxn.req.Address {
+		if *compare.req.Address == *curTxn.req.Address {
 			return true
 		}
-		if compare.req.Address == curTxn.req.Origin {
+		if *compare.req.Address == curTxn.req.Origin {
 			return true
 		}
-		if compare.req.Origin == curTxn.req.Address {
+		if compare.req.Origin == *curTxn.req.Address {
 			return true
 		}
 		if compare.req.Origin == curTxn.req.Origin {

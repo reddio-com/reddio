@@ -277,7 +277,7 @@ func NewSolidity(gethConfig *GethConfig) *Solidity {
 
 	solidity.SetWritings(solidity.ExecuteTxn)
 	solidity.SetReadings(
-		solidity.Call, solidity.GetReceipt,
+		solidity.Call, solidity.GetReceipt, solidity.GetReceipts,
 		// solidity.GetClass, solidity.GetClassAt,
 		// 	solidity.GetClassHashAt, solidity.GetNonce, solidity.GetStorage,
 		// 	solidity.GetTransaction, solidity.GetTransactionStatus,
@@ -321,8 +321,6 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 	if err != nil {
 		return err
 	}
-	//logrus.Printf("ExecuteTxn: %+v\n", txReq)
-	zeroAddress := common.Address{}
 	gasLimit := txReq.GasLimit
 	gasPrice := txReq.GasPrice
 	value := txReq.Value
@@ -347,7 +345,7 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 	rules := cfg.ChainConfig.Rules(vmenv.Context.BlockNumber, vmenv.Context.Random != nil, vmenv.Context.Time)
 	s.Unlock()
 
-	if txReq.Address == zeroAddress {
+	if txReq.Address == nil {
 		err = executeContractCreation(ctx, txReq, pd, cfg, origin, coinbase, vmenv, sender, rules)
 	} else {
 		err = executeContractCall(ctx, txReq, pd, cfg, origin, coinbase, vmenv, sender, rules)
@@ -463,8 +461,7 @@ func executeContractCreation(ctx *context.WriteContext, txReq *TxRequest, stateD
 
 	var evmReceipt types.Receipt
 	if leftOverGas > 0 {
-		evmReceipt = makeEvmReceipt(vmenv, code, ctx.Block, address, leftOverGas)
-		//fmt.Printf("Return evmReceipt value: %+v\n", evmReceipt)
+		evmReceipt = makeEvmReceipt(code, ctx.Txn, ctx.Block, address, leftOverGas)
 	}
 
 	receiptByt, err := json.Marshal(evmReceipt)
@@ -476,16 +473,15 @@ func executeContractCreation(ctx *context.WriteContext, txReq *TxRequest, stateD
 	return nil
 }
 
-func makeEvmReceipt(vmenv *vm.EVM, code []byte, block *yu_types.Block, address common.Address, leftOverGas uint64) types.Receipt {
-	blockNumber := vmenv.Context.BlockNumber
-	txHash := common.BytesToHash(code)
+func makeEvmReceipt(code []byte, signedTx *yu_types.SignedTxn, block *yu_types.Block, address common.Address, leftOverGas uint64) types.Receipt {
+	blockNumber := big.NewInt(int64(block.Height))
+	txHash := common.BytesToHash(signedTx.TxnHash[:])
 	effectiveGasPrice := big.NewInt(1000000000) // 1 GWei
 	bloom := types.Bloom{}
 	logs := []*types.Log{}
 
 	return types.Receipt{
 		Type:              0,
-		PostState:         code,
 		Status:            1,
 		CumulativeGasUsed: leftOverGas,
 		Bloom:             bloom,
@@ -504,15 +500,15 @@ func makeEvmReceipt(vmenv *vm.EVM, code []byte, block *yu_types.Block, address c
 
 func executeContractCall(ctx *context.WriteContext, txReq *TxRequest, ethState *pending_state.PendingState, cfg *GethConfig, origin, coinBase common.Address, vmenv *vm.EVM, sender vm.AccountRef, rules params.Rules) error {
 	if cfg.EVMConfig.Tracer != nil && cfg.EVMConfig.Tracer.OnTxStart != nil {
-		cfg.EVMConfig.Tracer.OnTxStart(vmenv.GetVMContext(), types.NewTx(&types.LegacyTx{To: &txReq.Address, Data: txReq.Input, Value: txReq.Value, Gas: txReq.GasLimit}), txReq.Origin)
+		cfg.EVMConfig.Tracer.OnTxStart(vmenv.GetVMContext(), types.NewTx(&types.LegacyTx{To: txReq.Address, Data: txReq.Input, Value: txReq.Value, Gas: txReq.GasLimit}), txReq.Origin)
 	}
 
-	ethState.Prepare(rules, origin, coinBase, &txReq.Address, vm.ActivePrecompiles(rules), nil)
+	ethState.Prepare(rules, origin, coinBase, txReq.Address, vm.ActivePrecompiles(rules), nil)
 	ethState.SetNonce(txReq.Origin, ethState.GetNonce(sender.Address())+1)
 
 	logrus.Printf("before transfer: account %s balance %d \n", sender.Address(), ethState.GetBalance(sender.Address()))
 
-	ret, leftOverGas, err := vmenv.Call(sender, txReq.Address, txReq.Input, txReq.GasLimit, uint256.MustFromBig(txReq.Value))
+	ret, leftOverGas, err := vmenv.Call(sender, *txReq.Address, txReq.Input, txReq.GasLimit, uint256.MustFromBig(txReq.Value))
 	if err != nil {
 		return err
 	}
@@ -524,8 +520,7 @@ func executeContractCall(ctx *context.WriteContext, txReq *TxRequest, ethState *
 
 	var evmReceipt types.Receipt
 	if leftOverGas > 0 {
-		evmReceipt = makeEvmReceipt(vmenv, ret, ctx.Block, txReq.Address, leftOverGas)
-		//fmt.Printf("Return evmReceipt value: %+v\n", evmReceipt)
+		evmReceipt = makeEvmReceipt(ret, ctx.Txn, ctx.Block, common.Address{}, leftOverGas)
 	}
 
 	receiptByt, err := json.Marshal(evmReceipt)
@@ -551,6 +546,15 @@ type ReceiptRequest struct {
 type ReceiptResponse struct {
 	Receipt *types.Receipt `json:"receipt"`
 	Err     error          `json:"err"`
+}
+
+type ReceiptsRequest struct {
+	Hashes []common.Hash `json:"hashes"`
+}
+
+type ReceiptsResponse struct {
+	Receipts []*types.Receipt `json:"receipts"`
+	Err      error            `json:"err"`
 }
 
 func (s *Solidity) GetReceipt(ctx *context.ReadContext) {
@@ -585,6 +589,28 @@ func (s *Solidity) getReceipt(hash common.Hash) (*types.Receipt, error) {
 	receipt := new(types.Receipt)
 	err = json.Unmarshal(yuReceipt.Extra, receipt)
 	return receipt, err
+}
+
+func (s *Solidity) GetReceipts(ctx *context.ReadContext) {
+	var rq ReceiptsRequest
+	err := ctx.BindJson(&rq)
+	if err != nil {
+		ctx.Json(http.StatusBadRequest, &ReceiptsResponse{Err: err})
+		return
+	}
+
+	receipts := make([]*types.Receipt, 0, len(rq.Hashes))
+	for _, hash := range rq.Hashes {
+		receipt, err := s.getReceipt(hash)
+		if err != nil {
+			ctx.Json(http.StatusInternalServerError, &ReceiptsResponse{Err: err})
+			return
+		}
+
+		receipts = append(receipts, receipt)
+	}
+
+	ctx.JsonOk(&ReceiptsResponse{Receipts: receipts})
 }
 
 // endregion ---- Tripod Api ----
