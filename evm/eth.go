@@ -347,9 +347,9 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 	s.Unlock()
 
 	if txReq.Address == zeroAddress {
-		err = executeContractCreation(txReq, pd, cfg, origin, coinbase, vmenv, sender, rules)
+		err = executeContractCreation(ctx, txReq, pd, cfg, origin, coinbase, vmenv, sender, rules)
 	} else {
-		err = executeContractCall(txReq, pd, cfg, origin, coinbase, vmenv, sender, rules)
+		err = executeContractCall(ctx, txReq, pd, cfg, origin, coinbase, vmenv, sender, rules)
 	}
 	if err != nil {
 		return err
@@ -442,7 +442,7 @@ func AdaptHash(ethHash common.Hash) yu_common.Hash {
 	return yuHash
 }
 
-func executeContractCreation(txReq *TxRequest, stateDB *pending_state.PendingState, cfg *GethConfig, origin, coinBase common.Address, vmenv *vm.EVM, sender vm.AccountRef, rules params.Rules) error {
+func executeContractCreation(ctx *context.WriteContext, txReq *TxRequest, stateDB *pending_state.PendingState, cfg *GethConfig, origin, coinBase common.Address, vmenv *vm.EVM, sender vm.AccountRef, rules params.Rules) error {
 	if cfg.EVMConfig.Tracer != nil && cfg.EVMConfig.Tracer.OnTxStart != nil {
 		cfg.EVMConfig.Tracer.OnTxStart(vmenv.GetVMContext(), types.NewTx(&types.LegacyTx{Data: txReq.Input, Value: txReq.Value, Gas: txReq.GasLimit}), txReq.Origin)
 	}
@@ -460,10 +460,48 @@ func executeContractCreation(txReq *TxRequest, stateDB *pending_state.PendingSta
 	println("Return leftOverGas value:", leftOverGas)
 	println("Contract deployment successful!")
 
+	var evmReceipt types.Receipt
+	if leftOverGas > 0 {
+		evmReceipt = makeEvmReceipt(vmenv, code, ctx.Block, address, leftOverGas)
+		//fmt.Printf("Return evmReceipt value: %+v\n", evmReceipt)
+	}
+
+	receiptByt, err := encoder.Marshal(evmReceipt)
+	if err != nil {
+		return err
+	}
+	ctx.EmitExtra(receiptByt)
+
 	return nil
 }
 
-func executeContractCall(txReq *TxRequest, ethState *pending_state.PendingState, cfg *GethConfig, origin, coinBase common.Address, vmenv *vm.EVM, sender vm.AccountRef, rules params.Rules) error {
+func makeEvmReceipt(vmenv *vm.EVM, code []byte, block *yu_types.Block, address common.Address, leftOverGas uint64) types.Receipt {
+	blockNumber := vmenv.Context.BlockNumber
+	txHash := common.BytesToHash(code)
+	effectiveGasPrice := big.NewInt(1000000000) // 1 GWei
+	bloom := types.Bloom{}
+	logs := []*types.Log{}
+
+	return types.Receipt{
+		Type:              0,
+		PostState:         code,
+		Status:            1,
+		CumulativeGasUsed: leftOverGas,
+		Bloom:             bloom,
+		Logs:              logs,
+		TxHash:            txHash,
+		ContractAddress:   address,
+		GasUsed:           leftOverGas,
+		EffectiveGasPrice: effectiveGasPrice,
+		BlobGasUsed:       0,
+		BlobGasPrice:      big.NewInt(0),
+		BlockHash:         common.Hash(block.Hash),
+		BlockNumber:       blockNumber,
+		TransactionIndex:  0,
+	}
+}
+
+func executeContractCall(ctx *context.WriteContext, txReq *TxRequest, ethState *pending_state.PendingState, cfg *GethConfig, origin, coinBase common.Address, vmenv *vm.EVM, sender vm.AccountRef, rules params.Rules) error {
 	if cfg.EVMConfig.Tracer != nil && cfg.EVMConfig.Tracer.OnTxStart != nil {
 		cfg.EVMConfig.Tracer.OnTxStart(vmenv.GetVMContext(), types.NewTx(&types.LegacyTx{To: &txReq.Address, Data: txReq.Input, Value: txReq.Value, Gas: txReq.GasLimit}), txReq.Origin)
 	}
@@ -473,7 +511,7 @@ func executeContractCall(txReq *TxRequest, ethState *pending_state.PendingState,
 
 	logrus.Printf("before transfer: account %s balance %d \n", sender.Address(), ethState.GetBalance(sender.Address()))
 
-	_, _, err := vmenv.Call(sender, txReq.Address, txReq.Input, txReq.GasLimit, uint256.MustFromBig(txReq.Value))
+	ret, leftOverGas, err := vmenv.Call(sender, txReq.Address, txReq.Input, txReq.GasLimit, uint256.MustFromBig(txReq.Value))
 	if err != nil {
 		return err
 	}
@@ -483,6 +521,17 @@ func executeContractCall(txReq *TxRequest, ethState *pending_state.PendingState,
 	//println("Return ret value:", ret)
 	//println("Return leftOverGas value:", leftOverGas)
 
+	var evmReceipt types.Receipt
+	if leftOverGas > 0 {
+		evmReceipt = makeEvmReceipt(vmenv, ret, ctx.Block, txReq.Address, leftOverGas)
+		//fmt.Printf("Return evmReceipt value: %+v\n", evmReceipt)
+	}
+
+	receiptByt, err := encoder.Marshal(evmReceipt)
+	if err != nil {
+		return err
+	}
+	ctx.EmitExtra(receiptByt)
 	return nil
 }
 
