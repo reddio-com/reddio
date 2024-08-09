@@ -4,6 +4,9 @@ import (
 	// "github.com/yu-org/yu/common/yerror"
 
 	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"fmt"
 	"math"
 	"math/big"
 	"net/http"
@@ -284,6 +287,25 @@ func NewSolidity(gethConfig *GethConfig) *Solidity {
 	)
 
 	return solidity
+}
+
+func (s *Solidity) CheckTxn(txn *yu_types.SignedTxn) error {
+	var txReq TxRequest
+	param := txn.GetParams()
+	err := json.Unmarshal([]byte(param), &txReq)
+	if err != nil {
+		return err
+	}
+
+	var txnHash [yu_common.HashLen]byte
+	if len(txReq.Hash.Bytes()) == yu_common.HashLen {
+		copy(txnHash[:], txReq.Hash.Bytes())
+		txn.TxnHash = txnHash
+	} else {
+		return errors.New(fmt.Sprintf("Expected hash to be 32 bytes long, but got %d bytes", len(txReq.Hash.Bytes())))
+	}
+
+	return nil
 }
 
 // ExecuteTxn executes the code using the input as call data during the execution.

@@ -41,15 +41,13 @@ func (e *EthAPIBackend) SyncProgress() ethereum.SyncProgress {
 	panic("implement me")
 }
 
-func (e *EthAPIBackend) SuggestGasTipCap(ctx context.Context) (*big.Int, error) {
-	//TODO implement me
-	panic("implement me")
-}
+//func (e *EthAPIBackend) SuggestGasTipCap(ctx context.Context) (*big.Int, error) {
+//	//TODO implement me
+//	panic("implement me")
+//}
 
-func (e *EthAPIBackend) FeeHistory(ctx context.Context, blockCount uint64, lastBlock rpc.BlockNumber, rewardPercentiles []float64) (*big.Int, [][]*big.Int, []*big.Int, []float64, []*big.Int, []float64, error) {
-	//TODO implement me
-	panic("implement me")
-}
+// Move to ethrpc/gasprice.go
+//func (e *EthAPIBackend) FeeHistory(ctx context.Context, blockCount uint64, lastBlock rpc.BlockNumber, rewardPercentiles []float64) (*big.Int, [][]*big.Int, []*big.Int, []float64, []*big.Int, []float64, error) {}
 
 func (e *EthAPIBackend) BlobBaseFee(ctx context.Context) *big.Int {
 	//TODO implement me
@@ -145,8 +143,24 @@ func (e *EthAPIBackend) CurrentBlock() *types.Header {
 }
 
 func (e *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Block, error) {
-	yuBlock, err := e.chain.Chain.GetBlockByHeight(yucommon.BlockNum(number))
-
+	var (
+		yuBlock *yutypes.Block
+		err     error
+	)
+	switch number {
+	case rpc.PendingBlockNumber:
+		// FIXME
+		yuBlock, err = e.chain.Chain.GetEndBlock()
+	case rpc.LatestBlockNumber:
+		yuBlock, err = e.chain.Chain.GetEndBlock()
+	case rpc.FinalizedBlockNumber, rpc.SafeBlockNumber:
+		yuBlock, err = e.chain.Chain.LastFinalized()
+	default:
+		yuBlock, err = e.chain.Chain.GetBlockByHeight(yucommon.BlockNum(number))
+	}
+	if err != nil {
+		return nil, err
+	}
 	return compactBlock2EthBlock(yuBlock), err
 }
 
@@ -214,7 +228,7 @@ func (e *EthAPIBackend) ChainDb() ethdb.Database {
 
 func (e *EthAPIBackend) AccountManager() *accounts.Manager {
 	//TODO implement me
-	panic("implement me")
+	return nil
 }
 
 func (e *EthAPIBackend) Pending() (*types.Block, types.Receipts, *state.StateDB) {
@@ -227,14 +241,27 @@ func (e *EthAPIBackend) GetReceipts(ctx context.Context, hash common.Hash) (type
 	panic("implement me")
 }
 
+// Eth has changed to POS, Td(total difficulty) is for POW
 func (e *EthAPIBackend) GetTd(ctx context.Context, hash common.Hash) *big.Int {
-	//TODO implement me
-	panic("implement me")
+	return nil
 }
 
 func (e *EthAPIBackend) GetEVM(ctx context.Context, msg *core.Message, state *state.StateDB, header *types.Header, vmConfig *vm.Config, blockCtx *vm.BlockContext) *vm.EVM {
-	//TODO implement me
-	panic("implement me")
+	if vmConfig == nil {
+		//vmConfig = e.chain.Chain.GetVMConfig()
+		vmConfig = &vm.Config{
+			EnablePreimageRecording: false, // TODO: replace with ctx.Bool()
+		}
+	}
+	txContext := core.NewEVMTxContext(msg)
+	var context vm.BlockContext
+	if blockCtx != nil {
+		context = *blockCtx
+	} else {
+		var b Backend
+		context = core.NewEVMBlockContext(header, NewChainContext(ctx, b), nil)
+	}
+	return vm.NewEVM(context, txContext, state, e.ChainConfig(), *vmConfig)
 }
 
 func (e *EthAPIBackend) SubscribeChainEvent(ch chan<- core.ChainEvent) event.Subscription {
@@ -295,6 +322,7 @@ func (e *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction)
 		GasLimit: signedTx.Gas(),
 		GasPrice: signedTx.GasPrice(),
 		Value:    signedTx.Value(),
+		Hash:     signedTx.Hash(),
 	}
 	if signedTx.To() != nil {
 		txReq.Address = *signedTx.To()
@@ -314,24 +342,76 @@ func (e *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction)
 	return e.chain.HandleTxn(signedWrCall)
 }
 
+func yuTxn2EthTxn(yuSignedTxn *yutypes.SignedTxn) *types.Transaction {
+	// Un-serialize wrCall.params to retrive datas:
+	wrCallParams := yuSignedTxn.Raw.WrCall.Params
+	var txReq = &evm.TxRequest{}
+	json.Unmarshal([]byte(wrCallParams), txReq)
+
+	// if nonce is assigned to signedTx.Raw.Nonce, then this is ok; otherwise it's nil:
+	nonce := yuSignedTxn.Raw.Nonce
+
+	tx := types.NewTx(&types.LegacyTx{
+		Nonce:    nonce,
+		GasPrice: txReq.GasPrice,
+		Gas:      txReq.GasLimit, // gasLimit: should be obtained from Block & Settings
+		To:       &txReq.Address,
+		Value:    txReq.Value,
+		Data:     txReq.Input,
+	})
+
+	return tx
+}
 func (e *EthAPIBackend) GetTransaction(ctx context.Context, txHash common.Hash) (bool, *types.Transaction, common.Hash, uint64, uint64, error) {
-	//TODO implement me
-	panic("implement me")
+	// Used to get txn from either txdb & txpool:
+	stxn, err := e.chain.GetTxn(yucommon.Hash(txHash))
+	if err != nil || stxn == nil {
+		return false, nil, common.Hash{}, 0, 0, err
+	}
+	ethTxn := yuTxn2EthTxn(stxn)
+
+	// Fixme: should return lookup.BlockHash, lookup.BlockIndex, lookup.Index
+	blockHash := txHash
+	blockIndex := uint64(0)
+	index := uint64(0)
+
+	return true, ethTxn, blockHash, blockIndex, index, nil
 }
 
 func (e *EthAPIBackend) GetPoolTransactions() (types.Transactions, error) {
-	//TODO implement me
-	panic("implement me")
+	// Similar to: e.chain.ChainEnv.Pool.GetTxn - ChainEnv can be ignored b/c txpool has index based on hxHash, therefore it's unique
+	stxn, _ := e.chain.Pool.GetAllTxns() // will not return error here
+
+	var ethTxns []*types.Transaction
+
+	for _, yuSignedTxn := range stxn {
+		ethTxn := yuTxn2EthTxn(yuSignedTxn)
+		ethTxns = append(ethTxns, ethTxn)
+	}
+
+	return ethTxns, nil
 }
 
+// Similar to GetTransaction():
 func (e *EthAPIBackend) GetPoolTransaction(txHash common.Hash) *types.Transaction {
-	//TODO implement me
-	panic("implement me")
+	stxn, err := e.chain.Pool.GetTxn(yucommon.Hash(txHash)) // will not return error here
+	if err != nil || stxn == nil {
+		return nil
+	}
+	return yuTxn2EthTxn(stxn)
 }
 
 func (e *EthAPIBackend) GetPoolNonce(ctx context.Context, addr common.Address) (uint64, error) {
-	//TODO implement me
-	panic("implement me")
+	// Loop through all transactions to find matching Account Address, and return it's nonce (if have)
+	allEthTxns, _ := e.GetPoolTransactions()
+
+	for _, ethTxn := range allEthTxns {
+		if *ethTxn.To() == addr {
+			return ethTxn.Nonce(), nil
+		}
+	}
+
+	return 0, nil
 }
 
 func (e *EthAPIBackend) Stats() (pending int, queued int) {
