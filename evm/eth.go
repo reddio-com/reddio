@@ -322,7 +322,6 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 		return err
 	}
 	//logrus.Printf("ExecuteTxn: %+v\n", txReq)
-	zeroAddress := common.Address{}
 	gasLimit := txReq.GasLimit
 	gasPrice := txReq.GasPrice
 	value := txReq.Value
@@ -347,7 +346,7 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 	rules := cfg.ChainConfig.Rules(vmenv.Context.BlockNumber, vmenv.Context.Random != nil, vmenv.Context.Time)
 	s.Unlock()
 
-	if txReq.Address == zeroAddress {
+	if txReq.Address == nil {
 		err = executeContractCreation(ctx, txReq, pd, cfg, origin, coinbase, vmenv, sender, rules)
 	} else {
 		err = executeContractCall(ctx, txReq, pd, cfg, origin, coinbase, vmenv, sender, rules)
@@ -504,15 +503,15 @@ func makeEvmReceipt(vmenv *vm.EVM, code []byte, block *yu_types.Block, address c
 
 func executeContractCall(ctx *context.WriteContext, txReq *TxRequest, ethState *pending_state.PendingState, cfg *GethConfig, origin, coinBase common.Address, vmenv *vm.EVM, sender vm.AccountRef, rules params.Rules) error {
 	if cfg.EVMConfig.Tracer != nil && cfg.EVMConfig.Tracer.OnTxStart != nil {
-		cfg.EVMConfig.Tracer.OnTxStart(vmenv.GetVMContext(), types.NewTx(&types.LegacyTx{To: &txReq.Address, Data: txReq.Input, Value: txReq.Value, Gas: txReq.GasLimit}), txReq.Origin)
+		cfg.EVMConfig.Tracer.OnTxStart(vmenv.GetVMContext(), types.NewTx(&types.LegacyTx{To: txReq.Address, Data: txReq.Input, Value: txReq.Value, Gas: txReq.GasLimit}), txReq.Origin)
 	}
 
-	ethState.Prepare(rules, origin, coinBase, &txReq.Address, vm.ActivePrecompiles(rules), nil)
+	ethState.Prepare(rules, origin, coinBase, txReq.Address, vm.ActivePrecompiles(rules), nil)
 	ethState.SetNonce(txReq.Origin, ethState.GetNonce(sender.Address())+1)
 
 	logrus.Printf("before transfer: account %s balance %d \n", sender.Address(), ethState.GetBalance(sender.Address()))
 
-	ret, leftOverGas, err := vmenv.Call(sender, txReq.Address, txReq.Input, txReq.GasLimit, uint256.MustFromBig(txReq.Value))
+	ret, leftOverGas, err := vmenv.Call(sender, *txReq.Address, txReq.Input, txReq.GasLimit, uint256.MustFromBig(txReq.Value))
 	if err != nil {
 		return err
 	}
@@ -524,7 +523,7 @@ func executeContractCall(ctx *context.WriteContext, txReq *TxRequest, ethState *
 
 	var evmReceipt types.Receipt
 	if leftOverGas > 0 {
-		evmReceipt = makeEvmReceipt(vmenv, ret, ctx.Block, txReq.Address, leftOverGas)
+		evmReceipt = makeEvmReceipt(vmenv, ret, ctx.Block, *txReq.Address, leftOverGas)
 		//fmt.Printf("Return evmReceipt value: %+v\n", evmReceipt)
 	}
 
