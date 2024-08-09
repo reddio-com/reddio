@@ -56,20 +56,8 @@ func (e *EthAPIBackend) BlobBaseFee(ctx context.Context) *big.Int {
 	panic("implement me")
 }
 
-func (e *EthAPIBackend) ChainDb() ethdb.Database {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (e *EthAPIBackend) AccountManager() *accounts.Manager {
-	//TODO implement me
-	return nil
-	//panic("implement me")
-}
-
 func (e *EthAPIBackend) ExtRPCEnabled() bool {
-	//TODO implement me
-	panic("implement me")
+	return true
 }
 
 func (e *EthAPIBackend) RPCGasCap() uint64 {
@@ -113,7 +101,7 @@ func (e *EthAPIBackend) HeaderByNumber(ctx context.Context, number rpc.BlockNumb
 }
 
 func (e *EthAPIBackend) HeaderByHash(ctx context.Context, hash common.Hash) (*types.Header, error) {
-	yuBlock, err := e.chain.Chain.GetBlock(yucommon.Hash(hash))
+	yuBlock, err := e.chain.Chain.GetCompactBlock(yucommon.Hash(hash))
 	if err != nil {
 		logrus.Error("ethrpc.api_backend.HeaderByHash() failed: ", err)
 		return new(types.Header), err
@@ -135,7 +123,7 @@ func (e *EthAPIBackend) HeaderByNumberOrHash(ctx context.Context, blockNrOrHash 
 }
 
 func (e *EthAPIBackend) CurrentHeader() *types.Header {
-	yuBlock, err := e.chain.Chain.GetEndBlock()
+	yuBlock, err := e.chain.Chain.GetEndCompactBlock()
 
 	if err != nil {
 		logrus.Error("EthAPIBackend.CurrentBlock() failed: ", err)
@@ -146,7 +134,7 @@ func (e *EthAPIBackend) CurrentHeader() *types.Header {
 }
 
 func (e *EthAPIBackend) CurrentBlock() *types.Header {
-	yuBlock, err := e.chain.Chain.GetEndBlock()
+	yuBlock, err := e.chain.Chain.GetEndCompactBlock()
 
 	if err != nil {
 		logrus.Error("EthAPIBackend.CurrentBlock() failed: ", err)
@@ -215,6 +203,18 @@ func (e *EthAPIBackend) StateAndHeaderByNumberOrHash(ctx context.Context, blockN
 		return stateDB, yuHeader2EthHeader(yuBlock.Header), nil
 	}
 	return nil, nil, errors.New("invalid arguments; neither block nor hash specified")
+}
+
+func (e *EthAPIBackend) ChainDb() ethdb.Database {
+	tri := e.chain.GetTripodInstance(SolidityTripod)
+	solidityTri := tri.(*evm.Solidity)
+	ethDB := solidityTri.GetEthDB()
+	return ethDB
+}
+
+func (e *EthAPIBackend) AccountManager() *accounts.Manager {
+	//TODO implement me
+	panic("implement me")
 }
 
 func (e *EthAPIBackend) Pending() (*types.Block, types.Receipts, *state.StateDB) {
@@ -359,8 +359,7 @@ func (e *EthAPIBackend) ChainConfig() *params.ChainConfig {
 }
 
 func (e *EthAPIBackend) Engine() consensus.Engine {
-	//TODO implement me
-	panic("implement me")
+	return FakeEngine{}
 }
 
 func (e *EthAPIBackend) GetBody(ctx context.Context, hash common.Hash, number rpc.BlockNumber) (*types.Body, error) {
@@ -400,6 +399,7 @@ func yuHeader2EthHeader(yuHeader *yutypes.Header) *types.Header {
 		Root:        common.Hash(yuHeader.StateRoot),
 		TxHash:      common.Hash(yuHeader.TxnRoot),
 		ReceiptHash: common.Hash(yuHeader.ReceiptRoot),
+		Difficulty:  new(big.Int).SetUint64(yuHeader.Difficulty),
 		Number:      new(big.Int).SetUint64(uint64(yuHeader.Height)),
 		GasLimit:    yuHeader.LeiLimit,
 		GasUsed:     yuHeader.LeiUsed,
@@ -438,3 +438,69 @@ func compactBlock2EthBlock(yuBlock *yutypes.Block) *types.Block {
 	//return types.NewBlock(yuHeader2EthHeader(yuBlock.Header), ethTxs, nil, nil, nil)
 	return types.NewBlock(yuHeader2EthHeader(yuBlock.Header), nil, nil, nil, nil)
 }
+
+// region ---- Fake Consensus Engine ----
+
+type FakeEngine struct{}
+
+// Author retrieves the Ethereum address of the account that minted the given block.
+func (f FakeEngine) Author(header *types.Header) (common.Address, error) {
+	return header.Coinbase, nil
+}
+
+// VerifyHeader checks whether a header conforms to the consensus rules.
+func (f FakeEngine) VerifyHeader(chain consensus.ChainHeaderReader, header *types.Header) error {
+	panic("Unimplemented fake engine method VerifyHeader")
+}
+
+// VerifyHeaders checks whether a batch of headers conforms to the consensus rules.
+func (f FakeEngine) VerifyHeaders(chain consensus.ChainHeaderReader, headers []*types.Header) (chan<- struct{}, <-chan error) {
+	panic("Unimplemented fake engine method VerifyHeaders")
+}
+
+// VerifyUncles verifies that the given block's uncles conform to the consensus rules.
+func (f FakeEngine) VerifyUncles(chain consensus.ChainReader, block *types.Block) error {
+	panic("Unimplemented fake engine method VerifyUncles")
+}
+
+// Prepare initializes the consensus fields of a block header.
+func (f FakeEngine) Prepare(chain consensus.ChainHeaderReader, header *types.Header) error {
+	panic("Unimplemented fake engine method Prepare")
+}
+
+// Finalize runs any post-transaction state modifications.
+func (f FakeEngine) Finalize(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, body *types.Body) {
+	panic("Unimplemented fake engine method Finalize")
+}
+
+// FinalizeAndAssemble runs any post-transaction state modifications and assembles the final block.
+func (f FakeEngine) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, body *types.Body, receipts []*types.Receipt) (*types.Block, error) {
+	panic("Unimplemented fake engine method FinalizeAndAssemble")
+}
+
+// Seal generates a new sealing request for the given input block.
+func (f FakeEngine) Seal(chain consensus.ChainHeaderReader, block *types.Block, results chan<- *types.Block, stop <-chan struct{}) error {
+	panic("Unimplemented fake engine method Seal")
+}
+
+// SealHash returns the hash of a block prior to it being sealed.
+func (f FakeEngine) SealHash(header *types.Header) common.Hash {
+	panic("Unimplemented fake engine method SealHash")
+}
+
+// CalcDifficulty is the difficulty adjustment algorithm.
+func (f FakeEngine) CalcDifficulty(chain consensus.ChainHeaderReader, time uint64, parent *types.Header) *big.Int {
+	panic("Unimplemented fake engine method CalcDifficulty")
+}
+
+// APIs returns the RPC APIs this consensus engine provides.
+func (f FakeEngine) APIs(chain consensus.ChainHeaderReader) []rpc.API {
+	panic("Unimplemented fake engine method APIs")
+}
+
+// Close terminates any background threads maintained by the consensus engine.
+func (f FakeEngine) Close() error {
+	panic("Unimplemented fake engine method Close")
+}
+
+// endregion  ---- Fake Consensus Engine ----
