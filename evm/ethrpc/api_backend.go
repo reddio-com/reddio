@@ -383,7 +383,10 @@ func (e *EthAPIBackend) GetTransaction(ctx context.Context, txHash common.Hash) 
 	receipt := receiptResponse.Receipt
 
 	blockHash := receipt.BlockHash
-	blockNumber := receipt.BlockNumber.Uint64()
+	blockNumber := uint64(0)
+	if receipt.BlockNumber != nil {
+		blockNumber = receipt.BlockNumber.Uint64()
+	}
 	index := receipt.TransactionIndex
 
 	return true, ethTxn, blockHash, blockNumber, uint64(index), nil

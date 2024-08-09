@@ -527,7 +527,7 @@ func executeContractCall(ctx *context.WriteContext, txReq *TxRequest, ethState *
 		//fmt.Printf("Return evmReceipt value: %+v\n", evmReceipt)
 	}
 
-	receiptByt, err := encoder.Marshal(evmReceipt)
+	receiptByt, err := json.Marshal(evmReceipt)
 	if err != nil {
 		return err
 	}
@@ -582,7 +582,7 @@ func (s *Solidity) getReceipt(hash common.Hash) (*types.Receipt, error) {
 		return nil, errors.New("no receipt found")
 	}
 	receipt := new(types.Receipt)
-	err = encoder.Unmarshal(yuReceipt.Extra, receipt)
+	err = json.Unmarshal(yuReceipt.Extra, receipt)
 	return receipt, err
 }
 
