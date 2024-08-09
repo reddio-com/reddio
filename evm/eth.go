@@ -128,7 +128,7 @@ func SetDefaultGethConfig() *GethConfig {
 		},
 	}
 
-	cfg.ChainConfig.ChainID = big.NewInt(1)
+	cfg.ChainConfig.ChainID = big.NewInt(50342)
 
 	return cfg
 }
