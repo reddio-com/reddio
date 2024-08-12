@@ -103,25 +103,35 @@ func newEVM(cfg *GethConfig) *vm.EVM {
 
 type GethConfig struct {
 	ChainConfig *params.ChainConfig
-	Difficulty  *big.Int
-	Origin      common.Address
+
+	// BlockContext provides the EVM with auxiliary information. Once provided
+	// it shouldn't be modified.
+	GetHashFn   func(n uint64) common.Hash
 	Coinbase    common.Address
+	GasLimit    uint64
 	BlockNumber *big.Int
 	Time        uint64
-	GasLimit    uint64
-	GasPrice    *big.Int
-	Value       *big.Int
-	Debug       bool
-	EVMConfig   vm.Config
+	Difficulty  *big.Int
 	BaseFee     *big.Int
 	BlobBaseFee *big.Int
-	BlobHashes  []common.Hash
-	BlobFeeCap  *big.Int
 	Random      *common.Hash
 
-	State     *state.StateDB
-	GetHashFn func(n uint64) common.Hash
+	// TxContext provides the EVM with information about a transaction.
+	// All fields can change between transactions.
+	Origin     common.Address
+	GasPrice   *big.Int
+	BlobHashes []common.Hash
+	BlobFeeCap *big.Int
 
+	// StateDB gives access to the underlying state
+	State *state.StateDB
+
+	// Unknown
+	Value     *big.Int
+	Debug     bool
+	EVMConfig vm.Config
+
+	// Global config
 	EnableEthRPC bool   `toml:"enable_eth_rpc"`
 	EthHost      string `toml:"eth_host"`
 	EthPort      string `toml:"eth_port"`
@@ -265,7 +275,22 @@ func NewSolidity(gethConfig *GethConfig) *Solidity {
 
 // region ---- Tripod Api ----
 
-func (s *Solidity) CheckTxn(txn *yu_types.SignedTxn) error {
+func (s *Solidity) StartBlock(block *yu_types.Block) {
+	s.cfg.BlockNumber = big.NewInt(int64(block.Height))
+	//s.cfg.GasLimit =
+	s.cfg.Time = block.Timestamp
+	s.cfg.Difficulty = big.NewInt(int64(block.Difficulty))
+}
+
+func (s *Solidity) EndBlock(block *yu_types.Block) {
+	// nothing
+}
+
+func (s *Solidity) FinalizeBlock(block *yu_types.Block) {
+	// nothing
+}
+
+func (s *Solidity) PreHandleTxn(txn *yu_types.SignedTxn) error {
 	var txReq TxRequest
 	param := txn.GetParams()
 	err := json.Unmarshal([]byte(param), &txReq)
@@ -297,12 +322,17 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 		return err
 	}
 	cfg := s.cfg
+	ethstate := s.ethState
+
+	cfg.Origin = origin
+	cfg.GasLimit = txReq.GasLimit
+	cfg.GasPrice = txReq.GasPrice
+	cfg.Value = txReq.Value
+
 	vmenv := newEVM_copy(cfg, origin)
 	pd := pending_state.NewPendingState(ctx.ExtraInterface.(*state.StateDB))
 	vmenv.StateDB = pd
 	vmenv.Context.BlockNumber = big.NewInt(int64(ctx.Block.Height))
-
-	//logrus.Println("ExecuteTxn vmenv: ", vmenv)
 
 	sender := vm.AccountRef(txReq.Origin)
 	rules := cfg.ChainConfig.Rules(vmenv.Context.BlockNumber, vmenv.Context.Random != nil, vmenv.Context.Time)
@@ -350,6 +380,7 @@ func (s *Solidity) Call(ctx *context.ReadContext) {
 		rules    = cfg.ChainConfig.Rules(vmenv.Context.BlockNumber, vmenv.Context.Random != nil, vmenv.Context.Time)
 	)
 
+	logrus.Printf("[StateDB] %v", s.ethState.stateDB == s.cfg.State)
 	vmenv.StateDB = s.ethState.stateDB
 
 	if cfg.EVMConfig.Tracer != nil && cfg.EVMConfig.Tracer.OnTxStart != nil {
