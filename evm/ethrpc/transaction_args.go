@@ -6,9 +6,9 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
-	"github.com/sirupsen/logrus"
-	"itachi/evm"
 	"math/big"
+
+	"github.com/sirupsen/logrus"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -20,6 +20,8 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/holiman/uint256"
+
+	"github.com/reddio-com/reddio/evm"
 )
 
 var (
