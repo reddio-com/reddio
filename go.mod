@@ -17,6 +17,7 @@ require (
 	github.com/yu-org/yu v1.0.2
 	golang.org/x/time v0.5.0
 	gopkg.in/yaml.v3 v3.0.1
+
 )
 
 require (
@@ -65,7 +66,6 @@ require (
 	github.com/gin-gonic/gin v1.9.1 // indirect
 	github.com/go-kit/log v0.2.1 // indirect
 	github.com/go-logfmt/logfmt v0.5.1 // indirect
-	github.com/go-logr/logr v1.4.1 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect

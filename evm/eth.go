@@ -332,6 +332,8 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 	vmenv := newEVM_copy(cfg, origin)
 	pd := pending_state.NewPendingState(ctx.ExtraInterface.(*state.StateDB))
 	vmenv.StateDB = pd
+	s.ethState.setTxContext(common.Hash(ctx.GetTxnHash()), ctx.TxnIndex)
+
 	vmenv.Context.BlockNumber = big.NewInt(int64(ctx.Block.Height))
 
 	sender := vm.AccountRef(txReq.Origin)
@@ -343,12 +345,24 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 	} else {
 		err = executeContractCall(ctx, txReq, pd, origin, coinbase, vmenv, sender, rules)
 	}
+
 	if err != nil {
 		return err
 	}
 	ctx.ExtraInterface = pd
+
 	return nil
 }
+
+//func saveReceipt(ctx *context.WriteContext, vmEvm *vm.EVM, txReq *TxRequest, contractAddr common.Address, leftOverGas uint64, err error) error {
+//	evmReceipt := makeEvmReceipt(vmEvm, ctx.Txn, ctx.Block, contractAddr, leftOverGas, err)
+//	receiptByt, err := json.Marshal(evmReceipt)
+//	if err != nil {
+//		return err
+//	}
+//	ctx.ExtraInterface = pd
+//	return nil
+//}
 
 // Call executes the code given by the contract's address. It will return the
 // EVM's return value or an error if it failed.
@@ -469,10 +483,11 @@ func makeEvmReceipt(ctx *context.WriteContext, vmEvm *vm.EVM, code []byte, signe
 		status = types.ReceiptStatusSuccessful
 	}
 	var root []byte
+	stateDB := vmEvm.StateDB.(*state.StateDB)
 	if vmEvm.ChainConfig().IsByzantium(blockNumber) {
-		stateDb.Finalise(true)
+		stateDB.Finalise(true)
 	} else {
-		root = stateDb.IntermediateRoot(vmEvm.ChainConfig().IsEIP158(blockNumber)).Bytes()
+		root = stateDB.IntermediateRoot(vmEvm.ChainConfig().IsEIP158(blockNumber)).Bytes()
 	}
 
 	// TODO: 1. root is nil; 2. CumulativeGasUsed not; 3. Log is empty; 4. logBloom is empty
@@ -497,11 +512,11 @@ func makeEvmReceipt(ctx *context.WriteContext, vmEvm *vm.EVM, code []byte, signe
 	receipt.Bloom = types.CreateBloom(types.Receipts{})
 	receipt.BlockHash = common.Hash(block.Hash)
 	receipt.BlockNumber = blockNumber
-	receipt.TransactionIndex = uint(stateDb.TxIndex())
+	receipt.TransactionIndex = uint(stateDB.TxIndex())
 
 	logrus.Printf("[Receipt] log = %v", receipt.Logs)
-	logrus.Printf("[Receipt] log = %v", stateDb.Logs())
-	logrus.Printf("[Receipt] log is nil = %v", receipt.Logs == nil)
+	//spew.Dump("[Receipt] log = %v", stateDB.Logs())
+	//logrus.Printf("[Receipt] log is nil = %v", receipt.Logs == nil)
 	if receipt.Logs == nil {
 		receipt.Logs = []*types.Log{}
 	}
@@ -511,7 +526,7 @@ func makeEvmReceipt(ctx *context.WriteContext, vmEvm *vm.EVM, code []byte, signe
 			receipt.TransactionIndex = uint(idx)
 		}
 	}
-	logrus.Printf("[Receipt] statedb txIndex = %v, actual txIndex = %v", stateDb.TxIndex(), receipt.TransactionIndex)
+	logrus.Printf("[Receipt] statedb txIndex = %v, actual txIndex = %v", stateDB.TxIndex(), receipt.TransactionIndex)
 
 	return receipt
 }
