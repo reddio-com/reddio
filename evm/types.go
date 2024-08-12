@@ -33,6 +33,8 @@ type TxRequest struct {
 	V        *big.Int        `json:"v"`
 	R        *big.Int        `json:"r"`
 	S        *big.Int        `json:"s"`
+
+	OriginArgs []byte `json:"originArgs"`
 }
 
 type CreateRequest struct {

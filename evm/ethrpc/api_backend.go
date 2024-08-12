@@ -281,22 +281,32 @@ func (e *EthAPIBackend) SubscribeChainSideEvent(ch chan<- core.ChainSideEvent) e
 }
 
 func (e *EthAPIBackend) Call(ctx context.Context, args TransactionArgs, blockNrOrHash *rpc.BlockNumberOrHash, overrides *StateOverride, blockOverrides *BlockOverrides) (hexutil.Bytes, error) {
-	err := args.setDefaults(ctx, e, true)
-	if err != nil {
+	globalGasCap := e.RPCGasCap()
+	if blockNrOrHash == nil {
+		latest := rpc.BlockNumberOrHashWithNumber(rpc.LatestBlockNumber)
+		blockNrOrHash = &latest
+	}
+	stateDb, header, err := e.StateAndHeaderByNumberOrHash(ctx, *blockNrOrHash)
+	if stateDb == nil || err != nil {
 		return nil, err
 	}
 
-	// byt, _ := json.Marshal(args)
+	if err := args.CallDefaults(globalGasCap, header.BaseFee, e.ChainConfig().ChainID); err != nil {
+		return nil, err
+	}
+
+	if args.To == nil {
+		return nil, errors.New("missing 'to' in params")
+	}
+
 	callRequest := evm.CallRequest{
 		Address:  *args.To,
-		Input:    *args.Data,
+		Input:    args.data(),
 		Value:    args.Value.ToInt(),
 		GasLimit: uint64(*args.Gas),
 		GasPrice: args.GasPrice.ToInt(),
 	}
-	if args.From != nil {
-		callRequest.Origin = *args.From
-	}
+	callRequest.Origin = args.from()
 
 	requestByt, _ := json.Marshal(callRequest)
 	rdCall := new(yucommon.RdCall)
@@ -315,13 +325,13 @@ func (e *EthAPIBackend) Call(ctx context.Context, args TransactionArgs, blockNrO
 
 func (e *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction) error {
 	// Check if this tx has been created
-	exist, _, _, _, _, _ := e.GetTransaction(ctx, signedTx.Hash())
+	exist, _, _, _, _, err := e.GetTransaction(ctx, signedTx.Hash())
 	if exist {
-		return ErrAlreadyKnown
+		return evm.ErrAlreadyKnown
 	}
 	existedTx := e.GetPoolTransaction(signedTx.Hash())
 	if existedTx != nil {
-		return ErrAlreadyKnown
+		return evm.ErrAlreadyKnown
 	}
 
 	// Create Tx
@@ -332,6 +342,8 @@ func (e *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction)
 		return err
 	}
 	v, r, s := signedTx.RawSignatureValues()
+	txArg := NewTxArgsFromTx(signedTx)
+	txArgByte, _ := json.Marshal(txArg)
 	txReq := &evm.TxRequest{
 		Input:    signedTx.Data(),
 		Origin:   sender,
@@ -344,6 +356,8 @@ func (e *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction)
 		V:        v,
 		R:        r,
 		S:        s,
+
+		OriginArgs: txArgByte,
 	}
 	byt, err := json.Marshal(txReq)
 	if err != nil {
@@ -366,18 +380,9 @@ func yuTxn2EthTxn(yuSignedTxn *yutypes.SignedTxn) *types.Transaction {
 	json.Unmarshal([]byte(wrCallParams), txReq)
 
 	// if nonce is assigned to signedTx.Raw.Nonce, then this is ok; otherwise it's nil:
-	tx := types.NewTx(&types.LegacyTx{
-		Nonce:    txReq.Nonce,
-		GasPrice: txReq.GasPrice,
-		Gas:      txReq.GasLimit, // gasLimit: should be obtained from Block & Settings
-		To:       txReq.Address,
-		Value:    txReq.Value,
-		Data:     txReq.Input,
-		V:        txReq.V,
-		R:        txReq.R,
-		S:        txReq.S,
-	})
-
+	txArgs := &TransactionArgs{}
+	json.Unmarshal(txReq.OriginArgs, txArgs)
+	tx := txArgs.ToTransaction(txReq.V, txReq.R, txReq.S)
 	return tx
 }
 
@@ -461,13 +466,19 @@ func (e *EthAPIBackend) GetPoolNonce(ctx context.Context, addr common.Address) (
 	// Loop through all transactions to find matching Account Address, and return it's nonce (if have)
 	allEthTxns, _ := e.GetPoolTransactions()
 
+	head := e.CurrentBlock()
+	signer := types.MakeSigner(e.ChainConfig(), head.Number, head.Time)
+
+	nonce := uint64(0)
 	for _, ethTxn := range allEthTxns {
-		if *ethTxn.To() == addr {
-			return ethTxn.Nonce(), nil
+		sender, _ := types.Sender(signer, ethTxn)
+		if sender == addr {
+			nonce++
+			//return ethTxn.Nonce(), nil
 		}
 	}
 
-	return 0, nil
+	return nonce, nil
 }
 
 func (e *EthAPIBackend) Stats() (pending int, queued int) {

@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/holiman/uint256"
 	yu_common "github.com/yu-org/yu/common"
+	"math/big"
 )
 
 func ConvertHashToYuHash(hash common.Hash) (yu_common.Hash, error) {
@@ -16,6 +18,14 @@ func ConvertHashToYuHash(hash common.Hash) (yu_common.Hash, error) {
 	} else {
 		return yu_common.Hash{}, errors.New(fmt.Sprintf("Expected hash to be 32 bytes long, but got %d bytes", len(hash.Bytes())))
 	}
+}
+
+func ConvertBigIntToUint256(b *big.Int) *uint256.Int {
+	if b == nil {
+		return nil
+	}
+	u, _ := uint256.FromBig(b)
+	return u
 }
 
 func ObjToJson(obj interface{}) string {

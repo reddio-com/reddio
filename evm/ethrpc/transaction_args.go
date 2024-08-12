@@ -6,8 +6,9 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"math/big"
+
+	"github.com/sirupsen/logrus"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -19,6 +20,8 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/holiman/uint256"
+
+	"github.com/reddio-com/reddio/evm"
 )
 
 var (
@@ -58,6 +61,71 @@ type TransactionArgs struct {
 
 	// This configures whether blobs are allowed to be passed.
 	blobSidecarAllowed bool
+}
+
+func NewTxArgsFromTx(tx *types.Transaction) *TransactionArgs {
+	args := TransactionArgs{}
+
+	nonce := hexutil.Uint64(tx.Nonce())
+	args.Nonce = &nonce
+
+	gas := hexutil.Uint64(tx.Gas())
+	args.Gas = &gas
+	if tx.Value() != nil {
+		value := hexutil.Big(*tx.Value())
+		args.Value = &value
+	}
+	if tx.To() != nil {
+		to := *tx.To()
+		args.To = &to
+	}
+	if tx.Data() != nil {
+		data := hexutil.Bytes(tx.Data())
+		args.Data = &data
+	}
+	if tx.ChainId() != nil {
+		chainId := hexutil.Big(*tx.ChainId())
+		args.ChainID = &chainId
+	}
+	if tx.GasPrice() != nil {
+		gasPrice := hexutil.Big(*tx.GasPrice())
+		args.GasPrice = &gasPrice
+	}
+
+	if tx.Type() > 0 {
+		if tx.AccessList() != nil {
+			accessList := tx.AccessList()
+			args.AccessList = &accessList
+		}
+
+		if tx.Type() > 1 {
+			if tx.GasFeeCap() != nil {
+				maxFeePerGas := hexutil.Big(*tx.GasFeeCap())
+				args.MaxFeePerGas = &maxFeePerGas
+			}
+			if tx.GasTipCap() != nil {
+				maxPriorityFeePerGas := hexutil.Big(*tx.GasTipCap())
+				args.MaxPriorityFeePerGas = &maxPriorityFeePerGas
+			}
+
+			if tx.Type() == 3 {
+				if tx.BlobHashes() != nil {
+					args.BlobHashes = tx.BlobHashes()
+				}
+				if tx.BlobGasFeeCap() != nil {
+					blobFeeCap := hexutil.Big(*tx.BlobGasFeeCap())
+					args.BlobFeeCap = &blobFeeCap
+				}
+				if tx.BlobTxSidecar() != nil {
+					args.Blobs = tx.BlobTxSidecar().Blobs
+					args.Commitments = tx.BlobTxSidecar().Commitments
+					args.Proofs = tx.BlobTxSidecar().Proofs
+				}
+			}
+		}
+	}
+
+	return &args
 }
 
 // from retrieves the transaction sender address.
@@ -458,7 +526,7 @@ func (args *TransactionArgs) ToMessage(baseFee *big.Int) *core.Message {
 
 // ToTransaction converts the arguments to a transaction.
 // This assumes that setDefaults has been called.
-func (args *TransactionArgs) ToTransaction() *types.Transaction {
+func (args *TransactionArgs) ToTransaction(v, r, s *big.Int) *types.Transaction {
 	var data types.TxData
 	switch {
 	case args.BlobHashes != nil:
@@ -478,6 +546,9 @@ func (args *TransactionArgs) ToTransaction() *types.Transaction {
 			AccessList: al,
 			BlobHashes: args.BlobHashes,
 			BlobFeeCap: uint256.MustFromBig((*big.Int)(args.BlobFeeCap)),
+			V:          evm.ConvertBigIntToUint256(v),
+			R:          evm.ConvertBigIntToUint256(r),
+			S:          evm.ConvertBigIntToUint256(s),
 		}
 		if args.Blobs != nil {
 			data.(*types.BlobTx).Sidecar = &types.BlobTxSidecar{
@@ -502,6 +573,9 @@ func (args *TransactionArgs) ToTransaction() *types.Transaction {
 			Value:      (*big.Int)(args.Value),
 			Data:       args.data(),
 			AccessList: al,
+			V:          v,
+			R:          r,
+			S:          s,
 		}
 
 	case args.AccessList != nil:
@@ -514,6 +588,9 @@ func (args *TransactionArgs) ToTransaction() *types.Transaction {
 			Value:      (*big.Int)(args.Value),
 			Data:       args.data(),
 			AccessList: *args.AccessList,
+			V:          v,
+			R:          r,
+			S:          s,
 		}
 
 	default:
@@ -524,6 +601,9 @@ func (args *TransactionArgs) ToTransaction() *types.Transaction {
 			GasPrice: (*big.Int)(args.GasPrice),
 			Value:    (*big.Int)(args.Value),
 			Data:     args.data(),
+			V:        v,
+			R:        r,
+			S:        s,
 		}
 	}
 	return types.NewTx(data)
