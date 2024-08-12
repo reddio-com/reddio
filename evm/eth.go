@@ -5,6 +5,7 @@ import (
 
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"math/big"
 	"net/http"
 	"sync"
@@ -127,7 +128,7 @@ func SetDefaultGethConfig() *GethConfig {
 		},
 	}
 
-	cfg.ChainConfig.ChainID = big.NewInt(1)
+	cfg.ChainConfig.ChainID = big.NewInt(50342)
 
 	return cfg
 }
@@ -338,7 +339,7 @@ func (s *Solidity) Call(ctx *context.ReadContext) {
 		rules    = cfg.ChainConfig.Rules(vmenv.Context.BlockNumber, vmenv.Context.Random != nil, vmenv.Context.Time)
 	)
 
-	vmenv.StateDB = pending_state.NewPendingState(s.ethState.stateDB)
+	vmenv.StateDB = s.ethState.stateDB
 
 	if cfg.EVMConfig.Tracer != nil && cfg.EVMConfig.Tracer.OnTxStart != nil {
 		cfg.EVMConfig.Tracer.OnTxStart(vmenv.GetVMContext(), types.NewTx(&types.LegacyTx{To: &address, Data: input, Value: value, Gas: gasLimit}), origin)
@@ -348,12 +349,6 @@ func (s *Solidity) Call(ctx *context.ReadContext) {
 	// - reset transient storage(eip 1153)
 	ethState.Prepare(rules, origin, cfg.Coinbase, &address, vm.ActivePrecompiles(rules), nil)
 
-	println("Call Request sender:", sender.Address().Hex())
-	println("Call Request address:", address.Hex())
-	println("Call Request input:", hex.EncodeToString(input))
-	println("Call Request gasLimit:", gasLimit)
-	println("Call Request value :", value.String())
-
 	// Call the code with the given configuration.
 	ret, leftOverGas, err := vmenv.Call(
 		sender,
@@ -362,18 +357,18 @@ func (s *Solidity) Call(ctx *context.ReadContext) {
 		gasLimit,
 		uint256.MustFromBig(value),
 	)
-	println("Call Return ret value:", ret)
-	println("Call Return ret value:", hex.EncodeToString(ret))
-	retBigInt := new(big.Int).SetBytes(ret)
-	println("Call Return ret value:", retBigInt.String())
-	println("Call Return leftOverGas value:", leftOverGas)
+
+	logrus.Printf("[Call] Request from = %v, to = %v, gasLimit = %v, value = %v, input = %v", sender.Address().Hex(), address.Hex(), gasLimit, value.Uint64(), hex.EncodeToString(input))
+	logrus.Printf("[Call] Response: Origin Code = %v, Hex Code = %v, String Code = %v, LeftOverGas = %v", ret, hex.EncodeToString(ret), new(big.Int).SetBytes(ret).String(), leftOverGas)
 
 	if err != nil {
 		ctx.Json(http.StatusInternalServerError, &CallResponse{Err: err})
 		return
 	}
-
-	ctx.JsonOk(&CallResponse{Ret: ret, LeftOverGas: leftOverGas})
+	result := CallResponse{Ret: ret, LeftOverGas: leftOverGas}
+	json, _ := json.Marshal(result)
+	fmt.Printf("[ETH_CALL] eth return result is %v\n", string(json))
+	ctx.JsonOk(&result)
 }
 
 func (s *Solidity) Commit(block *yu_types.Block) {
@@ -401,52 +396,82 @@ func executeContractCreation(ctx *context.WriteContext, txReq *TxRequest, stateD
 
 	code, address, leftOverGas, err := vmenv.Create(sender, txReq.Input, txReq.GasLimit, uint256.MustFromBig(txReq.Value))
 	if err != nil {
+		// byt, _ := json.Marshal(txReq)
+		//logrus.Printf("[Execute Txn] Create contract Failed. err = %v. Request = %v", err, string(byt))
+		_ = saveReceipt(ctx, vmenv, txReq, code, address, leftOverGas, err)
 		return err
 	}
 
-	println("Return code value:", code)
-	println("Return code value:", hex.EncodeToString(code))
-	println("Return address value:", address.Hex())
-	println("Return leftOverGas value:", leftOverGas)
-	println("Contract deployment successful!")
-
-	var evmReceipt types.Receipt
-	if leftOverGas > 0 {
-		evmReceipt = makeEvmReceipt(code, ctx.Txn, ctx.Block, address, leftOverGas)
-	}
-
-	receiptByt, err := json.Marshal(evmReceipt)
-	if err != nil {
-		return err
-	}
-	ctx.EmitExtra(receiptByt)
-
-	return nil
+	//logrus.Printf("[Execute Txn] Create contract success. Oringin code = %v, Hex Code = %v, Address = %v, Left Gas = %v", code, hex.EncodeToString(code), address.Hex(), leftOverGas)
+	return saveReceipt(ctx, vmenv, txReq, code, address, leftOverGas, err)
 }
 
-func makeEvmReceipt(code []byte, signedTx *yu_types.SignedTxn, block *yu_types.Block, address common.Address, leftOverGas uint64) types.Receipt {
-	blockNumber := big.NewInt(int64(block.Height))
-	txHash := common.BytesToHash(signedTx.TxnHash[:])
-	effectiveGasPrice := big.NewInt(1000000000) // 1 GWei
-	bloom := types.Bloom{}
-	logs := []*types.Log{}
+func makeEvmReceipt(ctx *context.WriteContext, vmEvm *vm.EVM, code []byte, signedTx *yu_types.SignedTxn, block *yu_types.Block, address common.Address, leftOverGas uint64, err error) *types.Receipt {
+	wrCallParams := signedTx.Raw.WrCall.Params
+	var txReq = &TxRequest{}
+	_ = json.Unmarshal([]byte(wrCallParams), txReq)
 
-	return types.Receipt{
-		Type:              0,
-		Status:            1,
+	txArgs := &TempTransactionArgs{}
+	_ = json.Unmarshal(txReq.OriginArgs, txArgs)
+	originTx := txArgs.ToTransaction(txReq.V, txReq.R, txReq.S)
+
+	stateDb := vmEvm.StateDB.(*pending_state.PendingState).GetStateDB()
+	usedGas := originTx.Gas() - leftOverGas
+
+	blockNumber := big.NewInt(int64(block.Height))
+	txHash := common.Hash(signedTx.TxnHash)
+	effectiveGasPrice := big.NewInt(1000000000) // 1 GWei
+
+	status := types.ReceiptStatusFailed
+	if err == nil {
+		status = types.ReceiptStatusSuccessful
+	}
+	var root []byte
+	if vmEvm.ChainConfig().IsByzantium(blockNumber) {
+		stateDb.Finalise(true)
+	} else {
+		root = stateDb.IntermediateRoot(vmEvm.ChainConfig().IsEIP158(blockNumber)).Bytes()
+	}
+
+	// TODO: 1. root is nil; 2. CumulativeGasUsed not; 3. Log is empty; 4. logBloom is empty
+
+	receipt := &types.Receipt{
+		Type:              originTx.Type(),
+		Status:            status,
+		PostState:         root,
 		CumulativeGasUsed: leftOverGas,
-		Bloom:             bloom,
-		Logs:              logs,
 		TxHash:            txHash,
 		ContractAddress:   address,
-		GasUsed:           leftOverGas,
+		GasUsed:           usedGas,
 		EffectiveGasPrice: effectiveGasPrice,
-		BlobGasUsed:       0,
-		BlobGasPrice:      big.NewInt(0),
-		BlockHash:         common.Hash(block.Hash),
-		BlockNumber:       blockNumber,
-		TransactionIndex:  0,
 	}
+
+	if originTx.Type() == types.BlobTxType {
+		receipt.BlobGasUsed = uint64(len(originTx.BlobHashes()) * params.BlobTxBlobGasPerBlob)
+		receipt.BlobGasPrice = vmEvm.Context.BlobBaseFee
+	}
+
+	receipt.Logs = stateDb.GetLogs(txHash, blockNumber.Uint64(), common.Hash(block.Hash))
+	receipt.Bloom = types.CreateBloom(types.Receipts{})
+	receipt.BlockHash = common.Hash(block.Hash)
+	receipt.BlockNumber = blockNumber
+	receipt.TransactionIndex = uint(stateDb.TxIndex())
+
+	logrus.Printf("[Receipt] log = %v", receipt.Logs)
+	logrus.Printf("[Receipt] log = %v", stateDb.Logs())
+	logrus.Printf("[Receipt] log is nil = %v", receipt.Logs == nil)
+	if receipt.Logs == nil {
+		receipt.Logs = []*types.Log{}
+	}
+
+	for idx, txn := range block.Txns {
+		if common.Hash(txn.TxnHash) == txHash {
+			receipt.TransactionIndex = uint(idx)
+		}
+	}
+	logrus.Printf("[Receipt] statedb txIndex = %v, actual txIndex = %v", stateDb.TxIndex(), receipt.TransactionIndex)
+
+	return receipt
 }
 
 func executeContractCall(ctx *context.WriteContext, txReq *TxRequest, ethState *pending_state.PendingState, cfg *GethConfig, origin, coinBase common.Address, vmenv *vm.EVM, sender vm.AccountRef, rules params.Rules) error {
@@ -459,27 +484,17 @@ func executeContractCall(ctx *context.WriteContext, txReq *TxRequest, ethState *
 
 	logrus.Printf("before transfer: account %s balance %d \n", sender.Address(), ethState.GetBalance(sender.Address()))
 
-	ret, leftOverGas, err := vmenv.Call(sender, *txReq.Address, txReq.Input, txReq.GasLimit, uint256.MustFromBig(txReq.Value))
+	code, leftOverGas, err := vmenv.Call(sender, *txReq.Address, txReq.Input, txReq.GasLimit, uint256.MustFromBig(txReq.Value))
+	//logrus.Printf("after transfer: account %s balance %d \n", sender.Address(), ethState.GetBalance(sender.Address()))
 	if err != nil {
+		//byt, _ := json.Marshal(txReq)
+		//logrus.Printf("[Execute Txn] SendTx Failed. err = %v. Request = %v", err, string(byt))
+		_ = saveReceipt(ctx, vmenv, txReq, code, common.Address{}, leftOverGas, err)
 		return err
 	}
 
-	logrus.Printf("after transfer: account %s balance %d \n", sender.Address(), ethState.GetBalance(sender.Address()))
-
-	//println("Return ret value:", ret)
-	//println("Return leftOverGas value:", leftOverGas)
-
-	var evmReceipt types.Receipt
-	if leftOverGas > 0 {
-		evmReceipt = makeEvmReceipt(ret, ctx.Txn, ctx.Block, common.Address{}, leftOverGas)
-	}
-
-	receiptByt, err := json.Marshal(evmReceipt)
-	if err != nil {
-		return err
-	}
-	ctx.EmitExtra(receiptByt)
-	return nil
+	//logrus.Printf("[Execute Txn] SendTx success. Oringin code = %v, Hex Code = %v, Left Gas = %v", code, hex.EncodeToString(code), leftOverGas)
+	return saveReceipt(ctx, vmenv, txReq, code, common.Address{}, leftOverGas, err)
 }
 
 func (s *Solidity) StateAt(root common.Hash) (*state.StateDB, error) {
@@ -562,6 +577,18 @@ func (s *Solidity) GetReceipts(ctx *context.ReadContext) {
 	}
 
 	ctx.JsonOk(&ReceiptsResponse{Receipts: receipts})
+}
+
+func saveReceipt(ctx *context.WriteContext, vmEmv *vm.EVM, txReq *TxRequest, code []byte, contractAddr common.Address, leftOverGas uint64, err error) error {
+	evmReceipt := makeEvmReceipt(ctx, vmEmv, code, ctx.Txn, ctx.Block, contractAddr, leftOverGas, err)
+	receiptByt, err := json.Marshal(evmReceipt)
+	if err != nil {
+		txReqByt, _ := json.Marshal(txReq)
+		logrus.Errorf("Receipt marshal err: %v. Tx: %v", err, string(txReqByt))
+		return err
+	}
+	ctx.EmitExtra(receiptByt)
+	return nil
 }
 
 // endregion ---- Tripod Api ----

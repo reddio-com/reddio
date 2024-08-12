@@ -373,7 +373,7 @@ func (e *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction)
 	return e.chain.HandleTxn(signedWrCall)
 }
 
-func yuTxn2EthTxn(yuSignedTxn *yutypes.SignedTxn) *types.Transaction {
+func YuTxn2EthTxn(yuSignedTxn *yutypes.SignedTxn) *types.Transaction {
 	// Un-serialize wrCall.params to retrive datas:
 	wrCallParams := yuSignedTxn.Raw.WrCall.Params
 	var txReq = &evm.TxRequest{}
@@ -392,7 +392,7 @@ func (e *EthAPIBackend) GetTransaction(ctx context.Context, txHash common.Hash) 
 	if err != nil || stxn == nil {
 		return false, nil, common.Hash{}, 0, 0, err
 	}
-	ethTxn := yuTxn2EthTxn(stxn)
+	ethTxn := YuTxn2EthTxn(stxn)
 
 	rcptReq := &evm.ReceiptRequest{Hash: txHash}
 	resp, err := e.adaptChainRead(rcptReq, "GetReceipt")
@@ -446,7 +446,7 @@ func (e *EthAPIBackend) GetPoolTransactions() (types.Transactions, error) {
 	var ethTxns []*types.Transaction
 
 	for _, yuSignedTxn := range stxn {
-		ethTxn := yuTxn2EthTxn(yuSignedTxn)
+		ethTxn := YuTxn2EthTxn(yuSignedTxn)
 		ethTxns = append(ethTxns, ethTxn)
 	}
 
@@ -459,7 +459,7 @@ func (e *EthAPIBackend) GetPoolTransaction(txHash common.Hash) *types.Transactio
 	if err != nil || stxn == nil {
 		return nil
 	}
-	return yuTxn2EthTxn(stxn)
+	return YuTxn2EthTxn(stxn)
 }
 
 func (e *EthAPIBackend) GetPoolNonce(ctx context.Context, addr common.Address) (uint64, error) {
@@ -564,7 +564,7 @@ func (e *EthAPIBackend) compactBlock2EthBlock(yuBlock *yutypes.Block) *types.Blo
 	var ethTxs []*types.Transaction
 	var txHashes []common.Hash
 	for _, yuSignedTxn := range yuBlock.Txns {
-		tx := yuTxn2EthTxn(yuSignedTxn)
+		tx := YuTxn2EthTxn(yuSignedTxn)
 		ethTxs = append(ethTxs, tx)
 		txHashes = append(txHashes, tx.Hash())
 	}

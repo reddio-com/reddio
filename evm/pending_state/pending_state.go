@@ -21,6 +21,10 @@ func NewPendingState(db *state.StateDB) *PendingState {
 	}
 }
 
+func (s *PendingState) GetStateDB() *state.StateDB {
+	return s.state
+}
+
 func (s *PendingState) GetCtx() *StateContext {
 	return s.sCtx
 }
