@@ -70,8 +70,8 @@ func TestSendTransaction(gethCfg *evm.GethConfig, exit bool) {
 
 	//signer := types.MakeSigner(gethCfg, new(big.Int).SetUint64(uint64(block.Height)), block.Timestamp)
 
-	chainID := gethCfg.ChainConfig.ChainID
-	signedTx, err := types.SignTx(tx, types.NewEIP155Signer(chainID), privateKey)
+	signer := types.LatestSigner(gethCfg.ChainConfig)
+	signedTx, err := types.SignTx(tx, signer, privateKey)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -126,10 +126,8 @@ func TestCreateContract(gethCfg *evm.GethConfig, exit bool) {
 		log.Fatal(err)
 	}
 
-	//signer := types.MakeSigner(gethCfg, new(big.Int).SetUint64(uint64(block.Height)), block.Timestamp)
-
-	chainID := gethCfg.ChainConfig.ChainID
-	signedTx, err := types.SignTx(tx, types.NewEIP155Signer(chainID), privateKey)
+	signer := types.LatestSigner(gethCfg.ChainConfig)
+	signedTx, err := types.SignTx(tx, signer, privateKey)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -221,8 +219,8 @@ func GenerateTransferEthRequest(gethCfg *evm.GethConfig, privateKeyHex string, t
 		log.Fatal(err)
 	}
 
-	chainID := gethCfg.ChainConfig.ChainID
-	signedTx, err := types.SignTx(tx, types.NewEIP155Signer(chainID), privateKey)
+	signer := types.LatestSigner(gethCfg.ChainConfig)
+	signedTx, err := types.SignTx(tx, signer, privateKey)
 	if err != nil {
 		log.Fatal(err)
 	}
