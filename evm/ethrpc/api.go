@@ -55,6 +55,28 @@ func NewEthereumAPI(b Backend) *EthereumAPI {
 	return &EthereumAPI{b}
 }
 
+// GetLogs from *FilterAPI
+func (s *EthereumAPI) GetLogs(ctx context.Context, crit FilterCriteria) ([]*types.Log, error) {
+	if len(crit.Topics) > maxTopics {
+		return nil, errExceedMaxTopics
+	}
+
+	filter, err := newLogFilter(ctx, s.b, crit)
+	if err != nil {
+		return nil, err
+	}
+
+	logs, err := filter.Logs(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if logs == nil {
+		return []*types.Log{}, nil
+	}
+
+	return logs, nil
+}
+
 // GasPrice returns a suggestion for a gas price for legacy transactions.
 func (s *EthereumAPI) GasPrice(ctx context.Context) (*hexutil.Big, error) {
 	tipcap, err := s.b.SuggestGasTipCap(ctx)

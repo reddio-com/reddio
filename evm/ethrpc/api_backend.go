@@ -515,8 +515,26 @@ func (e *EthAPIBackend) GetBody(ctx context.Context, hash common.Hash, number rp
 }
 
 func (e *EthAPIBackend) GetLogs(ctx context.Context, blockHash common.Hash, number uint64) ([][]*types.Log, error) {
-	//TODO implement me
-	panic("implement me")
+	if blockHash == (common.Hash{}) {
+		_, yuHeader, _ := e.HeaderByNumber(ctx, rpc.BlockNumber(number))
+		blockHash = common.Hash(yuHeader.Hash)
+	}
+
+	receipts, err := e.GetReceipts(ctx, blockHash)
+	if err != nil {
+		return nil, err
+	}
+
+	result := [][]*types.Log{}
+	for _, receipt := range receipts {
+		logs := []*types.Log{}
+		for _, vLog := range receipt.Logs {
+			logs = append(logs, vLog)
+		}
+		result = append(result, logs)
+	}
+
+	return result, nil
 }
 
 func (e *EthAPIBackend) SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent) event.Subscription {
