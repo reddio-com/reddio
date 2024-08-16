@@ -683,6 +683,9 @@ func DoEstimateGas(ctx context.Context, b Backend, args TransactionArgs, blockNr
 		State:      stateDb,
 		ErrorRatio: estimateGasErrorRatio,
 	}
+	originGasLimit := args.Gas
+	args.Gas = nil
+
 	if err := args.CallDefaults(gasCap, header.BaseFee, b.ChainConfig().ChainID); err != nil {
 		return 0, err
 	}
@@ -695,6 +698,11 @@ func DoEstimateGas(ctx context.Context, b Backend, args TransactionArgs, blockNr
 		}
 		return 0, err
 	}
+
+	if originGasLimit != nil && uint64(*originGasLimit) < estimate {
+		return 0, fmt.Errorf("gas required exceeds allowance (%d)", uint64(*originGasLimit))
+	}
+
 	return hexutil.Uint64(estimate), nil
 }
 
