@@ -21,11 +21,11 @@ func (m *EthManager) Configure(cfg *conf.EthCaseConf, evmCfg *evm.GethConfig) {
 	m.config = cfg
 	m.evmCfg = evmCfg
 	m.wm = pkg.NewWalletManager(m.evmCfg, m.config.HostUrl)
-	m.testcases = []TestCase{
-		NewRandomTest("[rand_test 2 account, 1 transfer]", 2, cfg.InitialEthCount, 1),
-		NewRandomTest("[rand_test 20 account, 100 transfer]", 20, cfg.InitialEthCount, 100),
-		NewConflictTest("[conflict_test 20 account, 50 transfer]", 20, cfg.InitialEthCount, 50),
-	}
+	m.testcases = []TestCase{}
+}
+
+func (m *EthManager) AddTestCase(tc ...TestCase) {
+	m.testcases = append(m.testcases, tc...)
 }
 
 func (m *EthManager) Run() error {

@@ -20,15 +20,17 @@ type RandomTransferTestCase struct {
 	initialCount uint64
 	steps        int
 	tm           *pkg.TransferManager
+	assert       bool
 }
 
-func NewRandomTest(name string, count int, initial uint64, steps int) *RandomTransferTestCase {
+func NewRandomTest(name string, count int, initial uint64, steps int, assert bool) *RandomTransferTestCase {
 	return &RandomTransferTestCase{
 		CaseName:     name,
 		walletCount:  count,
 		initialCount: initial,
 		steps:        steps,
 		tm:           pkg.NewTransferManager(),
+		assert:       assert,
 	}
 }
 
@@ -43,7 +45,17 @@ func (tc *RandomTransferTestCase) Run(m *pkg.WalletManager) error {
 	}
 	log.Println(fmt.Sprintf("%s create wallets finish", tc.CaseName))
 	transferCase := tc.tm.GenerateRandomTransferSteps(tc.steps, pkg.GenerateCaseWallets(tc.initialCount, wallets))
-	return runAndAssert(transferCase, m, wallets)
+	if tc.assert {
+		return runAndAssert(transferCase, m, wallets)
+	}
+	return run(transferCase, m)
+}
+
+func run(transferCase *pkg.TransferCase, m *pkg.WalletManager) error {
+	if err := transferCase.Run(m); err != nil {
+		return err
+	}
+	return nil
 }
 
 func runAndAssert(transferCase *pkg.TransferCase, m *pkg.WalletManager, wallets []*pkg.EthWallet) error {
