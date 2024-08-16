@@ -99,6 +99,11 @@ func (e *EthAPIBackend) HeaderByNumber(ctx context.Context, number rpc.BlockNumb
 	default:
 		yuBlock, err = e.chain.Chain.GetCompactBlockByHeight(yucommon.BlockNum(number))
 	}
+
+	if yuBlock == nil {
+		return nil, nil, err
+	}
+
 	return yuHeader2EthHeader(yuBlock.Header), yuBlock.Header, err
 }
 
