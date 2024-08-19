@@ -1,6 +1,7 @@
 package transfer
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -15,7 +16,7 @@ type ConflictTransfer struct {
 	tm           *pkg.TransferManager
 }
 
-func (c *ConflictTransfer) Run(m *pkg.WalletManager) error {
+func (c *ConflictTransfer) Run(ctx context.Context, m *pkg.WalletManager) error {
 	wallets, err := m.GenerateRandomWallet(c.walletCount, c.initialCount)
 	if err != nil {
 		return err

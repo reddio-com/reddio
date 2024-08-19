@@ -1,6 +1,7 @@
 package transfer
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -21,17 +22,25 @@ func (m *EthManager) Configure(cfg *conf.EthCaseConf, evmCfg *evm.GethConfig) {
 	m.config = cfg
 	m.evmCfg = evmCfg
 	m.wm = pkg.NewWalletManager(m.evmCfg, m.config.HostUrl)
-	m.testcases = []TestCase{
-		NewRandomTest("[rand_test 2 account, 1 transfer]", 2, cfg.InitialEthCount, 1),
-		NewRandomTest("[rand_test 20 account, 100 transfer]", 20, cfg.InitialEthCount, 100),
-		NewConflictTest("[conflict_test 20 account, 50 transfer]", 20, cfg.InitialEthCount, 50),
-	}
+	m.testcases = []TestCase{}
 }
 
-func (m *EthManager) Run() error {
+func (m *EthManager) PreCreateWallets(walletCount int, initCount uint64) ([]*pkg.EthWallet, error) {
+	wallets, err := m.wm.GenerateRandomWallet(walletCount, initCount)
+	if err != nil {
+		return nil, err
+	}
+	return wallets, nil
+}
+
+func (m *EthManager) AddTestCase(tc ...TestCase) {
+	m.testcases = append(m.testcases, tc...)
+}
+
+func (m *EthManager) Run(ctx context.Context) error {
 	for _, tc := range m.testcases {
 		log.Println(fmt.Sprintf("start to test %v", tc.Name()))
-		if err := tc.Run(m.wm); err != nil {
+		if err := tc.Run(ctx, m.wm); err != nil {
 			return fmt.Errorf("%s failed, err:%v", tc.Name(), err)
 		}
 		log.Println(fmt.Sprintf("test %v success", tc.Name()))

@@ -1,6 +1,7 @@
 package transfer
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -10,7 +11,7 @@ import (
 )
 
 type TestCase interface {
-	Run(m *pkg.WalletManager) error
+	Run(ctx context.Context, m *pkg.WalletManager) error
 	Name() string
 }
 
@@ -36,8 +37,10 @@ func (tc *RandomTransferTestCase) Name() string {
 	return tc.CaseName
 }
 
-func (tc *RandomTransferTestCase) Run(m *pkg.WalletManager) error {
-	wallets, err := m.GenerateRandomWallet(tc.walletCount, tc.initialCount)
+func (tc *RandomTransferTestCase) Run(ctx context.Context, m *pkg.WalletManager) error {
+	var wallets []*pkg.EthWallet
+	var err error
+	wallets, err = m.GenerateRandomWallet(tc.walletCount, tc.initialCount)
 	if err != nil {
 		return err
 	}
@@ -46,10 +49,19 @@ func (tc *RandomTransferTestCase) Run(m *pkg.WalletManager) error {
 	return runAndAssert(transferCase, m, wallets)
 }
 
+func run(transferCase *pkg.TransferCase, m *pkg.WalletManager) error {
+	if err := transferCase.Run(m); err != nil {
+		return err
+	}
+	return nil
+}
+
 func runAndAssert(transferCase *pkg.TransferCase, m *pkg.WalletManager, wallets []*pkg.EthWallet) error {
 	if err := transferCase.Run(m); err != nil {
 		return err
 	}
+	log.Println("wait transfer transaction done")
+	time.Sleep(5 * time.Second)
 	success, err := assert(transferCase, m, wallets)
 	if err != nil {
 		return err

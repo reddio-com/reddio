@@ -1,7 +1,6 @@
 package pkg
 
 import (
-	"log"
 	"math/rand"
 	"time"
 )
@@ -80,8 +79,6 @@ func (tc *TransferCase) Run(m *WalletManager) error {
 			return err
 		}
 	}
-	log.Println("wait transfer transaction done")
-	time.Sleep(5 * time.Second)
 	return nil
 }
 
