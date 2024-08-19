@@ -1,6 +1,7 @@
 package transfer
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -10,7 +11,7 @@ import (
 )
 
 type TestCase interface {
-	Run(m *pkg.WalletManager) error
+	Run(ctx context.Context, m *pkg.WalletManager) error
 	Name() string
 }
 
@@ -20,17 +21,15 @@ type RandomTransferTestCase struct {
 	initialCount uint64
 	steps        int
 	tm           *pkg.TransferManager
-	assert       bool
 }
 
-func NewRandomTest(name string, count int, initial uint64, steps int, assert bool) *RandomTransferTestCase {
+func NewRandomTest(name string, count int, initial uint64, steps int) *RandomTransferTestCase {
 	return &RandomTransferTestCase{
 		CaseName:     name,
 		walletCount:  count,
 		initialCount: initial,
 		steps:        steps,
 		tm:           pkg.NewTransferManager(),
-		assert:       assert,
 	}
 }
 
@@ -38,17 +37,16 @@ func (tc *RandomTransferTestCase) Name() string {
 	return tc.CaseName
 }
 
-func (tc *RandomTransferTestCase) Run(m *pkg.WalletManager) error {
-	wallets, err := m.GenerateRandomWallet(tc.walletCount, tc.initialCount)
+func (tc *RandomTransferTestCase) Run(ctx context.Context, m *pkg.WalletManager) error {
+	var wallets []*pkg.EthWallet
+	var err error
+	wallets, err = m.GenerateRandomWallet(tc.walletCount, tc.initialCount)
 	if err != nil {
 		return err
 	}
 	log.Println(fmt.Sprintf("%s create wallets finish", tc.CaseName))
 	transferCase := tc.tm.GenerateRandomTransferSteps(tc.steps, pkg.GenerateCaseWallets(tc.initialCount, wallets))
-	if tc.assert {
-		return runAndAssert(transferCase, m, wallets)
-	}
-	return run(transferCase, m)
+	return runAndAssert(transferCase, m, wallets)
 }
 
 func run(transferCase *pkg.TransferCase, m *pkg.WalletManager) error {
@@ -62,6 +60,8 @@ func runAndAssert(transferCase *pkg.TransferCase, m *pkg.WalletManager, wallets 
 	if err := transferCase.Run(m); err != nil {
 		return err
 	}
+	log.Println("wait transfer transaction done")
+	time.Sleep(5 * time.Second)
 	success, err := assert(transferCase, m, wallets)
 	if err != nil {
 		return err

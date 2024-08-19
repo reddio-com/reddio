@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"log"
 	"os"
@@ -36,7 +37,7 @@ func main() {
 	}()
 	time.Sleep(5 * time.Second)
 	log.Println("finish start reddio")
-	if err := assertEthTransfer(evmConfig); err != nil {
+	if err := assertEthTransfer(context.Background(), evmConfig); err != nil {
 		log.Println(err)
 		os.Exit(1)
 	}
@@ -44,15 +45,15 @@ func main() {
 	os.Exit(0)
 }
 
-func assertEthTransfer(evmCfg *evm.GethConfig) error {
+func assertEthTransfer(ctx context.Context, evmCfg *evm.GethConfig) error {
 	log.Println("start asserting transfer eth")
 	ethManager := &transfer.EthManager{}
 	cfg := conf.Config.EthCaseConf
 	ethManager.Configure(cfg, evmCfg)
 	ethManager.AddTestCase(
-		transfer.NewRandomTest("[rand_test 2 account, 1 transfer]", 2, cfg.InitialEthCount, 1, true),
-		transfer.NewRandomTest("[rand_test 20 account, 100 transfer]", 20, cfg.InitialEthCount, 100, true),
+		transfer.NewRandomTest("[rand_test 2 account, 1 transfer]", 2, cfg.InitialEthCount, 1),
+		transfer.NewRandomTest("[rand_test 20 account, 100 transfer]", 20, cfg.InitialEthCount, 100),
 		transfer.NewConflictTest("[conflict_test 20 account, 50 transfer]", 20, cfg.InitialEthCount, 50),
 	)
-	return ethManager.Run()
+	return ethManager.Run(ctx)
 }
