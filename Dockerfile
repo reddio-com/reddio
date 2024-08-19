@@ -1,5 +1,5 @@
 # docker build . -t ghcr.io/reddio-com/reddio:latest
-FROM golang:1.22-bookworm
+FROM golang:1.23-bookworm
 
 RUN apt-get update && apt-get install -y ca-certificates && apt-get clean
 
