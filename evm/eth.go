@@ -53,6 +53,30 @@ func (s *Solidity) SetStateDB(d *state.StateDB) {
 	s.ethState.SetStateDB(d)
 }
 
+func newEVM_copy(cfg *GethConfig, origin common.Address) *vm.EVM {
+	txContext := vm.TxContext{
+		Origin:     cfg.Origin,
+		GasPrice:   cfg.GasPrice,
+		BlobHashes: cfg.BlobHashes,
+		BlobFeeCap: cfg.BlobFeeCap,
+	}
+	blockContext := vm.BlockContext{
+		CanTransfer: core.CanTransfer,
+		Transfer:    core.Transfer,
+		GetHash:     cfg.GetHashFn,
+		Coinbase:    cfg.Coinbase,
+		BlockNumber: cfg.BlockNumber,
+		Time:        cfg.Time,
+		Difficulty:  cfg.Difficulty,
+		GasLimit:    cfg.GasLimit,
+		BaseFee:     cfg.BaseFee,
+		BlobBaseFee: cfg.BlobBaseFee,
+		Random:      cfg.Random,
+	}
+
+	return vm.NewEVM(blockContext, txContext, cfg.State, cfg.ChainConfig, cfg.EVMConfig)
+}
+
 func newEVM(cfg *GethConfig) *vm.EVM {
 	txContext := vm.TxContext{
 		Origin:     cfg.Origin,
@@ -267,39 +291,27 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 	txReq := new(TxRequest)
 	coinbase := common.BytesToAddress(s.cfg.Coinbase.Bytes())
 	origin := common.BytesToAddress(txReq.Origin.Bytes())
-	s.Lock()
+	//s.Lock()
 	err = ctx.BindJson(txReq)
 	if err != nil {
 		return err
 	}
-	gasLimit := txReq.GasLimit
-	gasPrice := txReq.GasPrice
-	value := txReq.Value
-
 	cfg := s.cfg
-	//ethstate := s.ethState
-
-	cfg.Origin = origin
-	cfg.GasLimit = gasLimit
-	cfg.GasPrice = gasPrice
-	cfg.Value = value
-
-	vmenv := newEVM(cfg)
+	vmenv := newEVM_copy(cfg, origin)
 	pd := pending_state.NewPendingState(ctx.ExtraInterface.(*state.StateDB))
 	vmenv.StateDB = pd
 	vmenv.Context.BlockNumber = big.NewInt(int64(ctx.Block.Height))
-	s.cfg.BlockNumber = big.NewInt(int64(ctx.Block.Height))
 
 	//logrus.Println("ExecuteTxn vmenv: ", vmenv)
 
 	sender := vm.AccountRef(txReq.Origin)
 	rules := cfg.ChainConfig.Rules(vmenv.Context.BlockNumber, vmenv.Context.Random != nil, vmenv.Context.Time)
-	s.Unlock()
+	//s.Unlock()
 
 	if txReq.Address == nil {
-		err = executeContractCreation(ctx, txReq, pd, cfg, origin, coinbase, vmenv, sender, rules)
+		err = executeContractCreation(ctx, txReq, pd, origin, coinbase, vmenv, sender, rules)
 	} else {
-		err = executeContractCall(ctx, txReq, pd, cfg, origin, coinbase, vmenv, sender, rules)
+		err = executeContractCall(ctx, txReq, pd, origin, coinbase, vmenv, sender, rules)
 	}
 	if err != nil {
 		return err
@@ -386,10 +398,10 @@ func AdaptHash(ethHash common.Hash) yu_common.Hash {
 	return yuHash
 }
 
-func executeContractCreation(ctx *context.WriteContext, txReq *TxRequest, stateDB *pending_state.PendingState, cfg *GethConfig, origin, coinBase common.Address, vmenv *vm.EVM, sender vm.AccountRef, rules params.Rules) error {
-	if cfg.EVMConfig.Tracer != nil && cfg.EVMConfig.Tracer.OnTxStart != nil {
-		cfg.EVMConfig.Tracer.OnTxStart(vmenv.GetVMContext(), types.NewTx(&types.LegacyTx{Data: txReq.Input, Value: txReq.Value, Gas: txReq.GasLimit}), txReq.Origin)
-	}
+func executeContractCreation(ctx *context.WriteContext, txReq *TxRequest, stateDB *pending_state.PendingState, origin, coinBase common.Address, vmenv *vm.EVM, sender vm.AccountRef, rules params.Rules) error {
+	//if cfg.EVMConfig.Tracer != nil && cfg.EVMConfig.Tracer.OnTxStart != nil {
+	//	cfg.EVMConfig.Tracer.OnTxStart(vmenv.GetVMContext(), types.NewTx(&types.LegacyTx{Data: txReq.Input, Value: txReq.Value, Gas: txReq.GasLimit}), txReq.Origin)
+	//}
 
 	stateDB.Prepare(rules, origin, coinBase, nil, vm.ActivePrecompiles(rules), nil)
 
@@ -473,11 +485,7 @@ func makeEvmReceipt(ctx *context.WriteContext, vmEvm *vm.EVM, code []byte, signe
 	return receipt
 }
 
-func executeContractCall(ctx *context.WriteContext, txReq *TxRequest, ethState *pending_state.PendingState, cfg *GethConfig, origin, coinBase common.Address, vmenv *vm.EVM, sender vm.AccountRef, rules params.Rules) error {
-	if cfg.EVMConfig.Tracer != nil && cfg.EVMConfig.Tracer.OnTxStart != nil {
-		cfg.EVMConfig.Tracer.OnTxStart(vmenv.GetVMContext(), types.NewTx(&types.LegacyTx{To: txReq.Address, Data: txReq.Input, Value: txReq.Value, Gas: txReq.GasLimit}), txReq.Origin)
-	}
-
+func executeContractCall(ctx *context.WriteContext, txReq *TxRequest, ethState *pending_state.PendingState, origin, coinBase common.Address, vmenv *vm.EVM, sender vm.AccountRef, rules params.Rules) error {
 	ethState.Prepare(rules, origin, coinBase, txReq.Address, vm.ActivePrecompiles(rules), nil)
 	ethState.SetNonce(txReq.Origin, ethState.GetNonce(sender.Address())+1)
 
