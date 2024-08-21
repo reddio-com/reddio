@@ -82,7 +82,8 @@ func blockBenchmark(evmCfg *evm.GethConfig, target int, qps int) (int, error) {
 	for i := 1; i <= target; {
 		finish, txnCount, err := bm.GetBlockTxnCountByIndex(i)
 		if err != nil {
-			return 0, err
+			log.Println(fmt.Sprintf("GetBlockTxnCountByIndex Err:%v", err))
+			continue
 		}
 		if finish {
 			i++
