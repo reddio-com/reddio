@@ -5,7 +5,9 @@ type Config struct {
 }
 
 func defaultConfig() *Config {
-	return &Config{}
+	return &Config{
+		IsParallel: true,
+	}
 }
 
 var GlobalConfig *Config

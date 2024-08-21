@@ -7,7 +7,6 @@ import (
 	"github.com/yu-org/yu/core/kernel"
 	"github.com/yu-org/yu/core/startup"
 
-	"github.com/reddio-com/reddio/config"
 	"github.com/reddio-com/reddio/evm"
 	"github.com/reddio-com/reddio/evm/ethrpc"
 	reddioKernel "github.com/reddio-com/reddio/kernel"
@@ -39,8 +38,6 @@ func InitReddio(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm.G
 	)
 	//chain.WithExecuteFn(chain.OrderedExecute)
 	rk := reddioKernel.NewReddioKernel(chain, solidityTri)
-	if config.GetGlobalConfig().IsParallel {
-		chain.WithExecuteFn(rk.Execute)
-	}
+	chain.WithExecuteFn(rk.Execute)
 	return chain
 }

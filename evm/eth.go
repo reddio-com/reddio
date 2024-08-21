@@ -15,7 +15,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/yu-org/yu/common/yerror"
 
-	"github.com/reddio-com/reddio/config"
 	yuConfig "github.com/reddio-com/reddio/evm/config"
 
 	"github.com/reddio-com/reddio/evm/pending_state"
@@ -227,11 +226,7 @@ func NewSolidity(gethConfig *GethConfig) *Solidity {
 		stateConfig: ethStateConfig,
 		// network:       utils.Network(cfg.Network),
 	}
-	if config.GetGlobalConfig().IsParallel {
-		solidity.SetWritings(solidity.ExecuteTxn)
-	} else {
-		solidity.SetWritings(solidity.ExecuteTxnSerial)
-	}
+	solidity.SetWritings(solidity.ExecuteTxn)
 	solidity.SetReadings(
 		solidity.Call, solidity.GetReceipt, solidity.GetReceipts,
 		// solidity.GetClass, solidity.GetClassAt,
@@ -261,39 +256,6 @@ func (s *Solidity) CheckTxn(txn *yu_types.SignedTxn) error {
 	txn.TxnHash = yuHash
 
 	return nil
-}
-
-// ExecuteTxnSerial ...
-func (s *Solidity) ExecuteTxnSerial(ctx *context.WriteContext) error {
-	txReq := new(TxRequest)
-	err := ctx.BindJson(txReq)
-	coinbase := common.BytesToAddress(s.cfg.Coinbase.Bytes())
-	origin := common.BytesToAddress(txReq.Origin.Bytes())
-	logrus.Printf("ExecuteTxn: %+v\n", txReq)
-	if err != nil {
-		return err
-	}
-	gasLimit := txReq.GasLimit
-	gasPrice := txReq.GasPrice
-	value := txReq.Value
-
-	cfg := s.cfg
-	pd := pending_state.NewPendingState(s.ethState.stateDB)
-	cfg.Origin = origin
-	cfg.GasLimit = gasLimit
-	cfg.GasPrice = gasPrice
-	cfg.Value = value
-
-	vmenv := newEVM(cfg)
-	vmenv.StateDB = s.ethState.stateDB
-	sender := vm.AccountRef(txReq.Origin)
-	rules := cfg.ChainConfig.Rules(vmenv.Context.BlockNumber, vmenv.Context.Random != nil, vmenv.Context.Time)
-
-	if txReq.Address == nil {
-		return executeContractCreation(ctx, txReq, pd, cfg, origin, coinbase, vmenv, sender, rules)
-	} else {
-		return executeContractCall(ctx, txReq, pd, cfg, origin, coinbase, vmenv, sender, rules)
-	}
 }
 
 // ExecuteTxn executes the code using the input as call data during the execution.
