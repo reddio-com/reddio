@@ -3,22 +3,24 @@ package app
 import (
 	"github.com/common-nighthawk/go-figure"
 	"github.com/yu-org/yu/apps/poa"
-	"github.com/yu-org/yu/config"
+	yuConfig "github.com/yu-org/yu/config"
 	"github.com/yu-org/yu/core/kernel"
 	"github.com/yu-org/yu/core/startup"
 
+	"github.com/reddio-com/reddio/config"
 	"github.com/reddio-com/reddio/evm"
 	"github.com/reddio-com/reddio/evm/ethrpc"
 	reddioKernel "github.com/reddio-com/reddio/kernel"
 )
 
-func Start(path string, yuCfg *config.KernelConf) {
+func Start(path string, yuCfg *yuConfig.KernelConf) {
 	poaCfg := poa.DefaultCfg(0)
+	poaCfg.PrettyLog = false
 	gethCfg := evm.LoadEvmConfig(path)
 	StartUpChain(yuCfg, poaCfg, gethCfg)
 }
 
-func StartUpChain(yuCfg *config.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm.GethConfig) {
+func StartUpChain(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm.GethConfig) {
 	figure.NewColorFigure("Reddio", "big", "green", false).Print()
 
 	chain := InitReddio(yuCfg, poaCfg, evmCfg)
@@ -29,7 +31,7 @@ func StartUpChain(yuCfg *config.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm.G
 
 }
 
-func InitReddio(yuCfg *config.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm.GethConfig) *kernel.Kernel {
+func InitReddio(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm.GethConfig) *kernel.Kernel {
 	poaTri := poa.NewPoa(poaCfg)
 	solidityTri := evm.NewSolidity(evmCfg)
 	chain := startup.InitDefaultKernel(
@@ -37,6 +39,8 @@ func InitReddio(yuCfg *config.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm.Get
 	)
 	//chain.WithExecuteFn(chain.OrderedExecute)
 	rk := reddioKernel.NewReddioKernel(chain, solidityTri)
-	chain.WithExecuteFn(rk.Execute)
+	if config.GetGlobalConfig().IsParallel {
+		chain.WithExecuteFn(rk.Execute)
+	}
 	return chain
 }

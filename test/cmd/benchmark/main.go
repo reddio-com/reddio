@@ -12,6 +12,7 @@ import (
 	"golang.org/x/time/rate"
 
 	"github.com/reddio-com/reddio/cmd/node/app"
+	config2 "github.com/reddio-com/reddio/config"
 	"github.com/reddio-com/reddio/evm"
 	"github.com/reddio-com/reddio/test/conf"
 	"github.com/reddio-com/reddio/test/pkg"
@@ -23,13 +24,15 @@ var (
 	evmConfigPath string
 	maxBlock      int
 	qps           int
+	isParallel    bool
 )
 
 func init() {
 	flag.StringVar(&configPath, "configPath", "", "")
 	flag.StringVar(&evmConfigPath, "evmConfigPath", "./conf/evm_cfg.toml", "")
-	flag.IntVar(&maxBlock, "maxBlock", 10, "")
-	flag.IntVar(&qps, "qps", 1000, "")
+	flag.IntVar(&maxBlock, "maxBlock", 50, "")
+	flag.IntVar(&qps, "qps", 1500, "")
+	flag.BoolVar(&isParallel, "parallel", true, "")
 }
 
 func main() {
@@ -40,8 +43,14 @@ func main() {
 	yuCfg := startup.InitDefaultKernelConfig()
 	yuCfg.IsAdmin = true
 	evmConfig := evm.LoadEvmConfig(evmConfigPath)
+	config := config2.GetGlobalConfig()
+	config.IsParallel = isParallel
 	go func() {
-		log.Println("start reddio")
+		if config.IsParallel {
+			log.Println("start reddio in parallel")
+		} else {
+			log.Println("start reddio in serial")
+		}
 		app.Start(evmConfigPath, yuCfg)
 		log.Println("exit reddio")
 	}()

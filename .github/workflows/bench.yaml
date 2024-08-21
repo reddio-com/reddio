@@ -14,5 +14,9 @@ jobs:
         uses: actions/setup-go@v4
         with:
           go-version: '1.23'
-      - name: Test
-        run: make benchmark_test
+      - name: Build
+        run: make build_benchmark_test
+      - name: Serial Test
+        run: make serial_benchmark_test
+      - name: Parallel Test
+        run: make parallel_benchmark_test
