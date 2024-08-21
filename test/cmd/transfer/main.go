@@ -10,6 +10,7 @@ import (
 	"github.com/yu-org/yu/core/startup"
 
 	"github.com/reddio-com/reddio/cmd/node/app"
+	config2 "github.com/reddio-com/reddio/config"
 	"github.com/reddio-com/reddio/evm"
 	"github.com/reddio-com/reddio/test/conf"
 	"github.com/reddio-com/reddio/test/transfer"
@@ -18,11 +19,13 @@ import (
 var (
 	configPath    string
 	evmConfigPath string
+	isParallel    bool
 )
 
 func init() {
 	flag.StringVar(&configPath, "configPath", "", "")
 	flag.StringVar(&evmConfigPath, "evmConfigPath", "./conf/evm_cfg.toml", "")
+	flag.BoolVar(&isParallel, "parallel", true, "")
 }
 
 func main() {
@@ -32,7 +35,14 @@ func main() {
 	}
 	evmConfig := evm.LoadEvmConfig(evmConfigPath)
 	yuCfg := startup.InitDefaultKernelConfig()
+	config := config2.GetGlobalConfig()
+	config.IsParallel = isParallel
 	go func() {
+		if config.IsParallel {
+			log.Println("start transfer test in parallel")
+		} else {
+			log.Println("start transfer test in serial")
+		}
 		app.Start(evmConfigPath, yuCfg)
 	}()
 	time.Sleep(5 * time.Second)

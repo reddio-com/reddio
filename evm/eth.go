@@ -15,7 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/yu-org/yu/common/yerror"
 
-	"github.com/reddio-com/reddio/evm/config"
+	yuConfig "github.com/reddio-com/reddio/evm/config"
 
 	"github.com/reddio-com/reddio/evm/pending_state"
 
@@ -42,7 +42,7 @@ type Solidity struct {
 	*tripod.Tripod
 	ethState    *EthState
 	cfg         *GethConfig
-	stateConfig *config.Config
+	stateConfig *yuConfig.Config
 }
 
 func (s *Solidity) StateDB() *state.StateDB {
@@ -142,8 +142,8 @@ func LoadEvmConfig(fpath string) *GethConfig {
 	return cfg
 }
 
-func setDefaultEthStateConfig() *config.Config {
-	return &config.Config{
+func setDefaultEthStateConfig() *yuConfig.Config {
+	return &yuConfig.Config{
 		VMTrace:                 "",
 		VMTraceConfig:           "",
 		EnablePreimageRecording: false,
@@ -226,7 +226,6 @@ func NewSolidity(gethConfig *GethConfig) *Solidity {
 		stateConfig: ethStateConfig,
 		// network:       utils.Network(cfg.Network),
 	}
-
 	solidity.SetWritings(solidity.ExecuteTxn)
 	solidity.SetReadings(
 		solidity.Call, solidity.GetReceipt, solidity.GetReceipts,
