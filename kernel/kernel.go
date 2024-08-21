@@ -31,9 +31,9 @@ func (k *Kernel) Execute(block *types.Block) error {
 	stxns := block.Txns
 	receipts := make(map[common.Hash]*types.Receipt)
 	txnCtxList := make([]*txnCtx, 0)
-	for _, stxn := range stxns {
+	for index, stxn := range stxns {
 		wrCall := stxn.Raw.WrCall
-		ctx, err := context.NewWriteContext(stxn, block)
+		ctx, err := context.NewWriteContext(stxn, block, index)
 		if err != nil {
 			receipt := k.kernel.HandleError(err, ctx, block, stxn)
 			receipts[stxn.TxnHash] = receipt

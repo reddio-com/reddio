@@ -25,9 +25,9 @@ import (
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/sirupsen/logrus"
 	yucommon "github.com/yu-org/yu/common"
-	yucore "github.com/yu-org/yu/core"
 	yucontext "github.com/yu-org/yu/core/context"
 	"github.com/yu-org/yu/core/kernel"
+	"github.com/yu-org/yu/core/protocol"
 	yutypes "github.com/yu-org/yu/core/types"
 
 	"github.com/reddio-com/reddio/evm"
@@ -363,7 +363,7 @@ func (e *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction)
 	if err != nil {
 		return err
 	}
-	signedWrCall := &yucore.SignedWrCall{
+	signedWrCall := &protocol.SignedWrCall{
 		Call: &yucommon.WrCall{
 			TripodName: SolidityTripod,
 			FuncName:   "ExecuteTxn",

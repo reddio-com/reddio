@@ -6,7 +6,9 @@ import (
 	"crypto/rand"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -27,6 +29,22 @@ func generatePrivateKey() (string, string) {
 }
 
 func sendRequest(hostAddress string, dataString string) ([]byte, error) {
+	resp, err := sendSingleRequest(hostAddress, dataString)
+	if err == nil {
+		return resp, nil
+	}
+	log.Println(fmt.Sprintf("send request got Err:%v", err))
+	for {
+		time.Sleep(100 * time.Millisecond)
+		resp, err = sendSingleRequest(hostAddress, dataString)
+		if err == nil {
+			break
+		}
+	}
+	return resp, nil
+}
+
+func sendSingleRequest(hostAddress string, dataString string) ([]byte, error) {
 	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("http://%s", hostAddress), bytes.NewBuffer([]byte(dataString)))
 	if err != nil {
 		return nil, err
