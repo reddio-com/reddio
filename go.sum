@@ -655,6 +655,8 @@ github.com/viant/assertly v0.4.8/go.mod h1:aGifi++jvCrUaklKEKT0BU95igDNaqkvz+49u
 github.com/viant/toolbox v0.24.0/go.mod h1:OxMCG57V0PXuIP2HNQrtJf2CjqdmbrOx5EkMILuUhzM=
 github.com/yu-org/yu v0.0.0-20240802034751-7f4b29db96ee h1:Ijcicl672lnR/lm/Z3HREiMCD24wfj3f/khm7zvsSEY=
 github.com/yu-org/yu v0.0.0-20240802034751-7f4b29db96ee/go.mod h1:WBUP1KQR60y8qx5eA974Kn6X1Ckq28tbx7s36i16FI0=
+github.com/yu-org/yu v0.0.0-20240822011640-311645896601 h1:HBxvdLnfBbI7Qab2mffbDHG1z/mxSiL9vLx7gEt4pJM=
+github.com/yu-org/yu v0.0.0-20240822011640-311645896601/go.mod h1:WBUP1KQR60y8qx5eA974Kn6X1Ckq28tbx7s36i16FI0=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.3.5/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1Zlc8k=

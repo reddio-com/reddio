@@ -5,6 +5,9 @@ default: build
 build:
 	go build -v -o $(PROJECT) ./cmd/node/main.go ./cmd/node/testrequest.go
 
+build_race:
+	go build -race -v -o $(PROJECT) ./cmd/node/main.go ./cmd/node/testrequest.go
+
 transfer_test_race:
 	go build -race -v -o transfer_test ./test/cmd/transfer/main.go
 
