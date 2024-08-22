@@ -32,5 +32,7 @@ jobs:
         run: make check-mod-tidy
       - name: Build
         run: make build
+      - name: Check Data Race
+        run: make build_transfer_test_race
       - name: Test
         run: make transfer_test
