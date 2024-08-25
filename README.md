@@ -22,3 +22,6 @@ cd reddio && make build
 docker pull ghcr.io/reddio-com/reddio:latest
 docker-compose up
 ```
+
+### Check pprof
+http://localhost:10199/debug/pprof
