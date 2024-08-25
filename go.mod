@@ -14,7 +14,7 @@ require (
 	github.com/stretchr/testify v1.9.0
 	github.com/tendermint/tendermint v0.34.24
 	github.com/yu-org/nine-tripods/consensus/poa v0.0.0-20240825062458-fb3a95bb4a1a
-	github.com/yu-org/yu v1.0.1
+	github.com/yu-org/yu v1.0.2-0.20240825160925-6b80ed9813a3
 	golang.org/x/time v0.5.0
 	gopkg.in/yaml.v3 v3.0.1
 )
