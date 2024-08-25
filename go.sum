@@ -657,8 +657,8 @@ github.com/yu-org/nine-tripods/MEVless v0.0.0-20240825050451-fb006f187f33 h1:W0G
 github.com/yu-org/nine-tripods/MEVless v0.0.0-20240825050451-fb006f187f33/go.mod h1:T8fF0VapocBK1iTwZ18EOTEUsCwd15TLbU2aj46BHdQ=
 github.com/yu-org/nine-tripods/consensus/poa v0.0.0-20240825062458-fb3a95bb4a1a h1:+H8oH/xR2oTMPLQ9BgpXyjROL8HXj04XXk6Fun7Ubmg=
 github.com/yu-org/nine-tripods/consensus/poa v0.0.0-20240825062458-fb3a95bb4a1a/go.mod h1:3rD66CQ81cY8duJPcyuPZMteHhvwQk2iw/5bV9CO72k=
-github.com/yu-org/yu v1.0.0 h1:pb40QQTNvxhBYa1TUZWQJOxqB2SKvLH5kUS84dKxt+o=
-github.com/yu-org/yu v1.0.0/go.mod h1:vGI691GQk3eYCnaC/VleYimSUgPV3vkC8nCBCKGswVo=
+github.com/yu-org/yu v1.0.1 h1:/7eqLbMyDNo/pqvbv0nQ3oRvRx4W2vpMSO000q0IkPk=
+github.com/yu-org/yu v1.0.1/go.mod h1:vGI691GQk3eYCnaC/VleYimSUgPV3vkC8nCBCKGswVo=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.3.5/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1Zlc8k=
