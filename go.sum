@@ -603,8 +603,8 @@ github.com/shurcooL/webdavfs v0.0.0-20170829043945-18c3829fa133/go.mod h1:hKmq5k
 github.com/sirupsen/logrus v1.4.1/go.mod h1:ni0Sbl8bgC9z8RoU9G6nDWqqs/fq4eDPysMBDgk/93Q=
 github.com/sirupsen/logrus v1.4.2/go.mod h1:tLMulIdttU9McNUspp0xgXVQah82FyeX6MwdIuYE2rE=
 github.com/sirupsen/logrus v1.7.0/go.mod h1:yWOB1SBYBC5VeMP7gHvWumXLIWorT60ONWic61uBYv0=
-github.com/sirupsen/logrus v1.9.0 h1:trlNQbNUG3OdDrDil03MCb1H2o9nJ1x4/5LYw7byDE0=
-github.com/sirupsen/logrus v1.9.0/go.mod h1:naHLuLoDiP4jHNo9R0sCBMtWGeIprob74mVsIT4qYEQ=
+github.com/sirupsen/logrus v1.9.3 h1:dueUQJ1C2q9oE3F7wvmSGAaVtTmUizReu6fjN8uqzbQ=
+github.com/sirupsen/logrus v1.9.3/go.mod h1:naHLuLoDiP4jHNo9R0sCBMtWGeIprob74mVsIT4qYEQ=
 github.com/sourcegraph/annotate v0.0.0-20160123013949-f4cad6c6324d/go.mod h1:UdhH50NIW0fCiwBSr0co2m7BnFLdv4fQTgdqdJTHFeE=
 github.com/sourcegraph/conc v0.3.0 h1:OQTbbt6P72L20UqAkXXuLOj79LfEanQ+YQFNpLA9ySo=
 github.com/sourcegraph/conc v0.3.0/go.mod h1:Sdozi7LEKbFPqYX2/J+iBAM6HpqSLTASQIKqDmF7Mt0=
@@ -653,8 +653,12 @@ github.com/ugorji/go/codec v1.2.11/go.mod h1:UNopzCgEMSXjBc6AOMqYvWC1ktqTAfzJZUZ
 github.com/urfave/cli v1.22.2/go.mod h1:Gos4lmkARVdJ6EkW0WaNv/tZAAMe9V7XWyB60NtXRu0=
 github.com/viant/assertly v0.4.8/go.mod h1:aGifi++jvCrUaklKEKT0BU95igDNaqkvz+49uaYMPRU=
 github.com/viant/toolbox v0.24.0/go.mod h1:OxMCG57V0PXuIP2HNQrtJf2CjqdmbrOx5EkMILuUhzM=
-github.com/yu-org/yu v0.0.0-20240822011640-311645896601 h1:HBxvdLnfBbI7Qab2mffbDHG1z/mxSiL9vLx7gEt4pJM=
-github.com/yu-org/yu v0.0.0-20240822011640-311645896601/go.mod h1:WBUP1KQR60y8qx5eA974Kn6X1Ckq28tbx7s36i16FI0=
+github.com/yu-org/nine-tripods/MEVless v0.0.0-20240825050451-fb006f187f33 h1:W0GG61+c5DuWP3Mbk5b2YTYOOgTZPmtIfwH9zjymuqQ=
+github.com/yu-org/nine-tripods/MEVless v0.0.0-20240825050451-fb006f187f33/go.mod h1:T8fF0VapocBK1iTwZ18EOTEUsCwd15TLbU2aj46BHdQ=
+github.com/yu-org/nine-tripods/consensus/poa v0.0.0-20240825062458-fb3a95bb4a1a h1:+H8oH/xR2oTMPLQ9BgpXyjROL8HXj04XXk6Fun7Ubmg=
+github.com/yu-org/nine-tripods/consensus/poa v0.0.0-20240825062458-fb3a95bb4a1a/go.mod h1:3rD66CQ81cY8duJPcyuPZMteHhvwQk2iw/5bV9CO72k=
+github.com/yu-org/yu v1.0.0 h1:pb40QQTNvxhBYa1TUZWQJOxqB2SKvLH5kUS84dKxt+o=
+github.com/yu-org/yu v1.0.0/go.mod h1:vGI691GQk3eYCnaC/VleYimSUgPV3vkC8nCBCKGswVo=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.3.5/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1Zlc8k=
