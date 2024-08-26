@@ -1,7 +1,9 @@
 package kernel
 
 import (
+	"fmt"
 	"sync"
+	"time"
 
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/yu-org/yu/common"
@@ -13,6 +15,16 @@ import (
 	"github.com/reddio-com/reddio/config"
 	"github.com/reddio-com/reddio/evm"
 	"github.com/reddio-com/reddio/evm/pending_state"
+	"github.com/reddio-com/reddio/metrics"
+)
+
+const (
+	txnLabelRedoExecute    = "redo"
+	txnLabelExecuteSuccess = "success"
+	txnLabelErrExecute     = "err"
+
+	batchTxnLabelSuccess = "success"
+	batchTxnLabelRedo    = "redo"
 )
 
 type Kernel struct {
@@ -35,13 +47,13 @@ func (k *Kernel) Execute(block *types.Block) error {
 		wrCall := stxn.Raw.WrCall
 		ctx, err := context.NewWriteContext(stxn, block, index)
 		if err != nil {
-			receipt := k.kernel.HandleError(err, ctx, block, stxn)
+			receipt := k.handleTxnError(err, ctx, block, stxn)
 			receipts[stxn.TxnHash] = receipt
 			continue
 		}
 		req := &evm.TxRequest{}
 		if err := ctx.BindJson(req); err != nil {
-			receipt := k.kernel.HandleError(err, ctx, block, stxn)
+			receipt := k.handleTxnError(err, ctx, block, stxn)
 			receipts[stxn.TxnHash] = receipt
 			continue
 		}
@@ -117,10 +129,10 @@ func (k *Kernel) executeTxnCtxList(list []*txnCtx) []*txnCtx {
 	if config.GetGlobalConfig().IsParallel {
 		return k.executeTxnCtxListInConcurrency(k.Solidity.StateDB(), list)
 	}
-	return k.reExecuteTxnCtxListInOrder(k.Solidity.StateDB(), list)
+	return k.executeTxnCtxListInOrder(k.Solidity.StateDB(), list, false)
 }
 
-func (k *Kernel) reExecuteTxnCtxListInOrder(originStateDB *state.StateDB, list []*txnCtx) []*txnCtx {
+func (k *Kernel) executeTxnCtxListInOrder(originStateDB *state.StateDB, list []*txnCtx, isRedo bool) []*txnCtx {
 	for index, tctx := range list {
 		if tctx.err != nil {
 			list[index] = tctx
@@ -130,9 +142,9 @@ func (k *Kernel) reExecuteTxnCtxListInOrder(originStateDB *state.StateDB, list [
 		err := tctx.writing(tctx.ctx)
 		if err != nil {
 			tctx.err = err
-			tctx.r = k.kernel.HandleError(err, tctx.ctx, tctx.ctx.Block, tctx.txn)
+			tctx.r = k.handleTxnError(err, tctx.ctx, tctx.ctx.Block, tctx.txn)
 		} else {
-			tctx.r = k.kernel.HandleEvent(tctx.ctx, tctx.ctx.Block, tctx.txn)
+			tctx.r = k.handleTxnEvent(tctx.ctx, tctx.ctx.Block, tctx.txn, isRedo)
 			tctx.ps = tctx.ctx.ExtraInterface.(*pending_state.PendingState)
 		}
 		list[index] = tctx
@@ -142,6 +154,12 @@ func (k *Kernel) reExecuteTxnCtxListInOrder(originStateDB *state.StateDB, list [
 
 func (k *Kernel) executeTxnCtxListInConcurrency(originStateDB *state.StateDB, list []*txnCtx) []*txnCtx {
 	copiedStateDBList := make([]*state.StateDB, 0)
+	conflict := false
+	start := time.Now()
+	defer func() {
+		end := time.Now()
+		metrics.BatchTxnDuration.WithLabelValues(fmt.Sprintf("%s", conflict)).Observe(end.Sub(start).Seconds())
+	}()
 	for i := 0; i < len(list); i++ {
 		copiedStateDBList = append(copiedStateDBList, originStateDB.Copy())
 	}
@@ -156,9 +174,9 @@ func (k *Kernel) executeTxnCtxListInConcurrency(originStateDB *state.StateDB, li
 			err := tctx.writing(tctx.ctx)
 			if err != nil {
 				tctx.err = err
-				tctx.r = k.kernel.HandleError(err, tctx.ctx, tctx.ctx.Block, tctx.txn)
+				tctx.r = k.handleTxnError(err, tctx.ctx, tctx.ctx.Block, tctx.txn)
 			} else {
-				tctx.r = k.kernel.HandleEvent(tctx.ctx, tctx.ctx.Block, tctx.txn)
+				tctx.r = k.handleTxnEvent(tctx.ctx, tctx.ctx.Block, tctx.txn, false)
 				tctx.ps = tctx.ctx.ExtraInterface.(*pending_state.PendingState)
 			}
 			list[index] = tctx
@@ -166,7 +184,6 @@ func (k *Kernel) executeTxnCtxListInConcurrency(originStateDB *state.StateDB, li
 	}
 	wg.Wait()
 	curtCtx := pending_state.NewStateContext()
-	conflict := false
 	for _, tctx := range list {
 		if tctx.err != nil {
 			continue
@@ -177,8 +194,10 @@ func (k *Kernel) executeTxnCtxListInConcurrency(originStateDB *state.StateDB, li
 		}
 	}
 	if conflict {
-		return k.reExecuteTxnCtxListInOrder(originStateDB, list)
+		metrics.BatchTxnCounter.WithLabelValues(batchTxnLabelRedo).Inc()
+		return k.executeTxnCtxListInOrder(originStateDB, list, true)
 	}
+	metrics.BatchTxnCounter.WithLabelValues(batchTxnLabelSuccess).Inc()
 	for _, tctx := range list {
 		if tctx.err != nil {
 			continue
@@ -197,4 +216,17 @@ type txnCtx struct {
 	req     *evm.TxRequest
 	err     error
 	ps      *pending_state.PendingState
+}
+
+func (k *Kernel) handleTxnError(err error, ctx *context.WriteContext, block *types.Block, stxn *types.SignedTxn) *types.Receipt {
+	metrics.TxnCounter.WithLabelValues(txnLabelErrExecute).Inc()
+	return k.kernel.HandleError(err, ctx, block, stxn)
+}
+
+func (k *Kernel) handleTxnEvent(ctx *context.WriteContext, block *types.Block, stxn *types.SignedTxn, isRedo bool) *types.Receipt {
+	metrics.TxnCounter.WithLabelValues(txnLabelExecuteSuccess).Inc()
+	if isRedo {
+		metrics.TxnCounter.WithLabelValues(txnLabelRedoExecute).Inc()
+	}
+	return k.kernel.HandleEvent(ctx, block, stxn)
 }

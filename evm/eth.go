@@ -13,6 +13,7 @@ import (
 	"sync"
 
 	yuConfig "github.com/reddio-com/reddio/evm/config"
+	"github.com/reddio-com/reddio/metrics"
 
 	"github.com/reddio-com/reddio/evm/pending_state"
 
@@ -208,6 +209,12 @@ func (s *Solidity) PreHandleTxn(txn *yu_types.SignedTxn) error {
 // Execute sets up an in-memory, temporary, environment for the execution of
 // the given code. It makes sure that it's restored to its original state afterwards.
 func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
+	start := time.Now()
+	defer func() {
+		end := time.Now()
+		metrics.TxnDuration.WithLabelValues().Observe(end.Sub(start).Seconds())
+	}()
+
 	txReq := new(TxRequest)
 	coinbase := common.BytesToAddress(s.cfg.Coinbase.Bytes())
 	//s.Lock()
