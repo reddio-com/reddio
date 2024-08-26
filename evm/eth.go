@@ -481,14 +481,14 @@ func makeEvmReceipt(ctx *context.WriteContext, vmEvm *vm.EVM, code []byte, signe
 		status = types.ReceiptStatusSuccessful
 	}
 	var root []byte
-	stateDB := vmEvm.StateDB.(*state.StateDB)
-	if vmEvm.ChainConfig().IsByzantium(blockNumber) {
-		stateDB.Finalise(true)
-	} else {
-		root = stateDB.IntermediateRoot(vmEvm.ChainConfig().IsEIP158(blockNumber)).Bytes()
-	}
+	//stateDB := vmEvm.StateDB.(*pending_state.PendingState)
+	//if vmEvm.ChainConfig().IsByzantium(blockNumber) {
+	//	stateDB.Finalise(true)
+	//} else {
+	//	root = stateDB.IntermediateRoot(vmEvm.ChainConfig().IsEIP158(blockNumber)).Bytes()
+	//}
 
-	// TODO: 1. root is nil; 2. CumulativeGasUsed not; 3. Log is empty; 4. logBloom is empty
+	// TODO: 1. root is nil; 2. CumulativeGasUsed not; 3. logBloom is empty
 
 	receipt := &types.Receipt{
 		Type:              originTx.Type(),
@@ -510,7 +510,7 @@ func makeEvmReceipt(ctx *context.WriteContext, vmEvm *vm.EVM, code []byte, signe
 	receipt.Bloom = types.CreateBloom(types.Receipts{})
 	receipt.BlockHash = common.Hash(block.Hash)
 	receipt.BlockNumber = blockNumber
-	receipt.TransactionIndex = uint(stateDB.TxIndex())
+	receipt.TransactionIndex = uint(ctx.TxnIndex)
 
 	logrus.Printf("[Receipt] log = %v", receipt.Logs)
 	//spew.Dump("[Receipt] log = %v", stateDB.Logs())
@@ -524,7 +524,7 @@ func makeEvmReceipt(ctx *context.WriteContext, vmEvm *vm.EVM, code []byte, signe
 			receipt.TransactionIndex = uint(idx)
 		}
 	}
-	logrus.Printf("[Receipt] statedb txIndex = %v, actual txIndex = %v", stateDB.TxIndex(), receipt.TransactionIndex)
+	logrus.Printf("[Receipt] statedb txIndex = %v, actual txIndex = %v", ctx.TxnIndex, receipt.TransactionIndex)
 
 	return receipt
 }
