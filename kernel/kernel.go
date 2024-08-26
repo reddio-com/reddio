@@ -141,9 +141,9 @@ func (k *Kernel) reExecuteTxnCtxListInOrder(originStateDB *state.StateDB, list [
 }
 
 func (k *Kernel) executeTxnCtxListInConcurrency(originStateDB *state.StateDB, list []*txnCtx) []*txnCtx {
-	copyedStateDBList := make([]*state.StateDB, 0)
+	copiedStateDBList := make([]*state.StateDB, 0)
 	for i := 0; i < len(list); i++ {
-		copyedStateDBList = append(copyedStateDBList, originStateDB.Copy())
+		copiedStateDBList = append(copiedStateDBList, originStateDB.Copy())
 	}
 	wg := sync.WaitGroup{}
 	for i, c := range list {
@@ -162,7 +162,7 @@ func (k *Kernel) executeTxnCtxListInConcurrency(originStateDB *state.StateDB, li
 				tctx.ps = tctx.ctx.ExtraInterface.(*pending_state.PendingState)
 			}
 			list[index] = tctx
-		}(i, c, copyedStateDBList[i])
+		}(i, c, copiedStateDBList[i])
 	}
 	wg.Wait()
 	curtCtx := pending_state.NewStateContext()

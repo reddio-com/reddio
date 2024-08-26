@@ -219,8 +219,9 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 
 	vmenv := newEVM_copy(cfg, txReq)
 	pd := pending_state.NewPendingState(ctx.ExtraInterface.(*state.StateDB))
+
+	pd.SetTxContext(common.Hash(ctx.GetTxnHash()), ctx.TxnIndex)
 	vmenv.StateDB = pd
-	s.ethState.setTxContext(common.Hash(ctx.GetTxnHash()), ctx.TxnIndex)
 
 	vmenv.Context.BlockNumber = big.NewInt(int64(ctx.Block.Height))
 
