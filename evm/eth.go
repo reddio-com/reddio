@@ -352,7 +352,7 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 	return nil
 }
 
-//func saveReceipt(ctx *context.WriteContext, vmEvm *vm.EVM, txReq *TxRequest, contractAddr common.Address, leftOverGas uint64, err error) error {
+//func emitReceipt(ctx *context.WriteContext, vmEvm *vm.EVM, txReq *TxRequest, contractAddr common.Address, leftOverGas uint64, err error) error {
 //	evmReceipt := makeEvmReceipt(vmEvm, ctx.Txn, ctx.Block, contractAddr, leftOverGas, err)
 //	receiptByt, err := json.Marshal(evmReceipt)
 //	if err != nil {
@@ -452,12 +452,12 @@ func executeContractCreation(ctx *context.WriteContext, txReq *TxRequest, stateD
 	if err != nil {
 		// byt, _ := json.Marshal(txReq)
 		//logrus.Printf("[Execute Txn] Create contract Failed. err = %v. Request = %v", err, string(byt))
-		_ = saveReceipt(ctx, vmenv, txReq, code, address, leftOverGas, err)
+		_ = emitReceipt(ctx, vmenv, txReq, code, address, leftOverGas, err)
 		return err
 	}
 
 	//logrus.Printf("[Execute Txn] Create contract success. Oringin code = %v, Hex Code = %v, Address = %v, Left Gas = %v", code, hex.EncodeToString(code), address.Hex(), leftOverGas)
-	return saveReceipt(ctx, vmenv, txReq, code, address, leftOverGas, err)
+	return emitReceipt(ctx, vmenv, txReq, code, address, leftOverGas, err)
 }
 
 func makeEvmReceipt(ctx *context.WriteContext, vmEvm *vm.EVM, code []byte, signedTx *yu_types.SignedTxn, block *yu_types.Block, address common.Address, leftOverGas uint64, err error) *types.Receipt {
@@ -540,12 +540,12 @@ func executeContractCall(ctx *context.WriteContext, txReq *TxRequest, ethState *
 	if err != nil {
 		//byt, _ := json.Marshal(txReq)
 		//logrus.Printf("[Execute Txn] SendTx Failed. err = %v. Request = %v", err, string(byt))
-		_ = saveReceipt(ctx, vmenv, txReq, code, common.Address{}, leftOverGas, err)
+		_ = emitReceipt(ctx, vmenv, txReq, code, common.Address{}, leftOverGas, err)
 		return err
 	}
 
 	//logrus.Printf("[Execute Txn] SendTx success. Oringin code = %v, Hex Code = %v, Left Gas = %v", code, hex.EncodeToString(code), leftOverGas)
-	return saveReceipt(ctx, vmenv, txReq, code, common.Address{}, leftOverGas, err)
+	return emitReceipt(ctx, vmenv, txReq, code, common.Address{}, leftOverGas, err)
 }
 
 func (s *Solidity) StateAt(root common.Hash) (*state.StateDB, error) {
@@ -630,7 +630,7 @@ func (s *Solidity) GetReceipts(ctx *context.ReadContext) {
 	ctx.JsonOk(&ReceiptsResponse{Receipts: receipts})
 }
 
-func saveReceipt(ctx *context.WriteContext, vmEmv *vm.EVM, txReq *TxRequest, code []byte, contractAddr common.Address, leftOverGas uint64, err error) error {
+func emitReceipt(ctx *context.WriteContext, vmEmv *vm.EVM, txReq *TxRequest, code []byte, contractAddr common.Address, leftOverGas uint64, err error) error {
 	evmReceipt := makeEvmReceipt(ctx, vmEmv, code, ctx.Txn, ctx.Block, contractAddr, leftOverGas, err)
 	receiptByt, err := json.Marshal(evmReceipt)
 	if err != nil {
