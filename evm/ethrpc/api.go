@@ -55,6 +55,28 @@ func NewEthereumAPI(b Backend) *EthereumAPI {
 	return &EthereumAPI{b}
 }
 
+// GetLogs from *FilterAPI
+func (s *EthereumAPI) GetLogs(ctx context.Context, crit FilterCriteria) ([]*types.Log, error) {
+	if len(crit.Topics) > maxTopics {
+		return nil, errExceedMaxTopics
+	}
+
+	filter, err := newLogFilter(ctx, s.b, crit)
+	if err != nil {
+		return nil, err
+	}
+
+	logs, err := filter.Logs(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if logs == nil {
+		return []*types.Log{}, nil
+	}
+
+	return logs, nil
+}
+
 // GasPrice returns a suggestion for a gas price for legacy transactions.
 func (s *EthereumAPI) GasPrice(ctx context.Context) (*hexutil.Big, error) {
 	tipcap, err := s.b.SuggestGasTipCap(ctx)
@@ -661,6 +683,9 @@ func DoEstimateGas(ctx context.Context, b Backend, args TransactionArgs, blockNr
 		State:      stateDb,
 		ErrorRatio: estimateGasErrorRatio,
 	}
+	originGasLimit := args.Gas
+	args.Gas = nil
+
 	if err := args.CallDefaults(gasCap, header.BaseFee, b.ChainConfig().ChainID); err != nil {
 		return 0, err
 	}
@@ -673,6 +698,11 @@ func DoEstimateGas(ctx context.Context, b Backend, args TransactionArgs, blockNr
 		}
 		return 0, err
 	}
+
+	if originGasLimit != nil && uint64(*originGasLimit) < estimate {
+		return 0, fmt.Errorf("gas required exceeds allowance (%d)", uint64(*originGasLimit))
+	}
+
 	return hexutil.Uint64(estimate), nil
 }
 

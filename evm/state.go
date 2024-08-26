@@ -99,6 +99,10 @@ func (s *EthState) SetStateDB(d *state.StateDB) {
 	s.stateDB = d
 }
 
+func (s *EthState) setTxContext(txHash common.Hash, txIdx int) {
+	s.stateDB.SetTxContext(txHash, txIdx)
+}
+
 func (s *EthState) StateAt(root common.Hash) (*state.StateDB, error) {
 	return state.New(root, s.stateCache, s.snaps)
 }
