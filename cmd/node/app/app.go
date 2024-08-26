@@ -1,7 +1,10 @@
 package app
 
 import (
+	"net/http"
+
 	"github.com/common-nighthawk/go-figure"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/yu-org/nine-tripods/consensus/poa"
 	yuConfig "github.com/yu-org/yu/config"
 	"github.com/yu-org/yu/core/kernel"
@@ -16,6 +19,7 @@ func Start(path string, yuCfg *yuConfig.KernelConf) {
 	poaCfg := poa.DefaultCfg(0)
 	poaCfg.PrettyLog = false
 	gethCfg := evm.LoadEvmConfig(path)
+	go startPromServer()
 	StartUpChain(yuCfg, poaCfg, gethCfg)
 }
 
@@ -40,4 +44,10 @@ func InitReddio(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm.G
 	rk := reddioKernel.NewReddioKernel(chain, solidityTri)
 	chain.WithExecuteFn(rk.Execute)
 	return chain
+}
+
+func startPromServer() {
+	// 暴露 Prometheus 指标
+	http.Handle("/metrics", promhttp.Handler())
+	http.ListenAndServe(":8080", nil)
 }
