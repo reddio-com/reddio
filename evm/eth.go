@@ -6,14 +6,11 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/yu-org/yu/common/yerror"
 	"math/big"
 	"net/http"
 	"sync"
-	"time"
-
-	"github.com/BurntSushi/toml"
-	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/yu-org/yu/common/yerror"
 
 	yuConfig "github.com/reddio-com/reddio/evm/config"
 
@@ -30,7 +27,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
 
 	"github.com/holiman/uint256"
@@ -53,10 +49,10 @@ func (s *Solidity) SetStateDB(d *state.StateDB) {
 	s.ethState.SetStateDB(d)
 }
 
-func newEVM_copy(cfg *GethConfig, origin common.Address) *vm.EVM {
+func newEVM_copy(cfg *GethConfig, req *TxRequest) *vm.EVM {
 	txContext := vm.TxContext{
-		Origin:     cfg.Origin,
-		GasPrice:   cfg.GasPrice,
+		Origin:     req.Origin,
+		GasPrice:   req.GasPrice,
 		BlobHashes: cfg.BlobHashes,
 		BlobFeeCap: cfg.BlobFeeCap,
 	}
@@ -68,7 +64,7 @@ func newEVM_copy(cfg *GethConfig, origin common.Address) *vm.EVM {
 		BlockNumber: cfg.BlockNumber,
 		Time:        cfg.Time,
 		Difficulty:  cfg.Difficulty,
-		GasLimit:    cfg.GasLimit,
+		GasLimit:    req.GasLimit,
 		BaseFee:     cfg.BaseFee,
 		BlobBaseFee: cfg.BlobBaseFee,
 		Random:      cfg.Random,
@@ -99,107 +95,6 @@ func newEVM(cfg *GethConfig) *vm.EVM {
 	}
 
 	return vm.NewEVM(blockContext, txContext, cfg.State, cfg.ChainConfig, cfg.EVMConfig)
-}
-
-type GethConfig struct {
-	ChainConfig *params.ChainConfig
-
-	// BlockContext provides the EVM with auxiliary information. Once provided
-	// it shouldn't be modified.
-	GetHashFn   func(n uint64) common.Hash
-	Coinbase    common.Address
-	GasLimit    uint64
-	BlockNumber *big.Int
-	Time        uint64
-	Difficulty  *big.Int
-	BaseFee     *big.Int
-	BlobBaseFee *big.Int
-	Random      *common.Hash
-
-	// TxContext provides the EVM with information about a transaction.
-	// All fields can change between transactions.
-	Origin     common.Address
-	GasPrice   *big.Int
-	BlobHashes []common.Hash
-	BlobFeeCap *big.Int
-
-	// StateDB gives access to the underlying state
-	State *state.StateDB
-
-	// Unknown
-	Value     *big.Int
-	Debug     bool
-	EVMConfig vm.Config
-
-	// Global config
-	EnableEthRPC bool   `toml:"enable_eth_rpc"`
-	EthHost      string `toml:"eth_host"`
-	EthPort      string `toml:"eth_port"`
-}
-
-// sets defaults on the config
-func SetDefaultGethConfig() *GethConfig {
-	cfg := &GethConfig{
-		ChainConfig: params.AllEthashProtocolChanges,
-		Difficulty:  big.NewInt(1),
-		Origin:      common.HexToAddress("0x0"),
-		Coinbase:    common.HexToAddress("0x0"),
-		BlockNumber: big.NewInt(0),
-		Time:        0,
-		GasLimit:    8000000,
-		GasPrice:    big.NewInt(1),
-		Value:       big.NewInt(0),
-		Debug:       false,
-		EVMConfig:   vm.Config{},
-		BaseFee:     big.NewInt(params.InitialBaseFee), // 1 gwei
-		BlobBaseFee: big.NewInt(params.BlobTxMinBlobGasprice),
-		BlobHashes:  []common.Hash{},
-		BlobFeeCap:  big.NewInt(0),
-		Random:      &common.Hash{},
-		State:       nil,
-		GetHashFn: func(n uint64) common.Hash {
-			return common.BytesToHash(crypto.Keccak256([]byte(new(big.Int).SetUint64(n).String())))
-		},
-	}
-
-	cfg.ChainConfig.ChainID = big.NewInt(50342)
-
-	return cfg
-}
-
-func LoadEvmConfig(fpath string) *GethConfig {
-	cfg := SetDefaultGethConfig()
-	_, err := toml.DecodeFile(fpath, cfg)
-	if err != nil {
-		logrus.Fatalf("load config file failed: %v", err)
-	}
-	return cfg
-}
-
-func setDefaultEthStateConfig() *yuConfig.Config {
-	return &yuConfig.Config{
-		VMTrace:                 "",
-		VMTraceConfig:           "",
-		EnablePreimageRecording: false,
-		Recovery:                false,
-		NoBuild:                 false,
-		SnapshotWait:            false,
-		SnapshotCache:           128,              // Default cache size
-		TrieCleanCache:          256,              // Default Trie cleanup cache size
-		TrieDirtyCache:          256,              // Default Trie dirty cache size
-		TrieTimeout:             60 * time.Second, // Default Trie timeout
-		Preimages:               false,
-		NoPruning:               false,
-		NoPrefetch:              false,
-		StateHistory:            0,                   // By default, there is no state history
-		StateScheme:             "hash",              // Default state scheme
-		DbPath:                  "reddio_db",         // Default database path
-		DbType:                  "pebble",            // Default database type
-		NameSpace:               "eth/db/chaindata/", // Default namespace
-		Ancient:                 "ancient",           // Default ancient data path
-		Cache:                   512,                 // Default cache size
-		Handles:                 64,                  // Default number of handles
-	}
 }
 
 func (s *Solidity) InitChain(genesisBlock *yu_types.Block) {
@@ -315,19 +210,14 @@ func (s *Solidity) PreHandleTxn(txn *yu_types.SignedTxn) error {
 func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 	txReq := new(TxRequest)
 	coinbase := common.BytesToAddress(s.cfg.Coinbase.Bytes())
-	origin := common.BytesToAddress(txReq.Origin.Bytes())
 	//s.Lock()
 	err = ctx.BindJson(txReq)
 	if err != nil {
 		return err
 	}
 	cfg := s.cfg
-	cfg.Origin = origin
-	cfg.GasLimit = txReq.GasLimit
-	cfg.GasPrice = txReq.GasPrice
-	cfg.Value = txReq.Value
 
-	vmenv := newEVM_copy(cfg, origin)
+	vmenv := newEVM_copy(cfg, txReq)
 	pd := pending_state.NewPendingState(ctx.ExtraInterface.(*state.StateDB))
 	vmenv.StateDB = pd
 	s.ethState.setTxContext(common.Hash(ctx.GetTxnHash()), ctx.TxnIndex)
@@ -339,9 +229,9 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 	//s.Unlock()
 
 	if txReq.Address == nil {
-		err = executeContractCreation(ctx, txReq, pd, origin, coinbase, vmenv, sender, rules)
+		err = executeContractCreation(ctx, txReq, pd, txReq.Origin, coinbase, vmenv, sender, rules)
 	} else {
-		err = executeContractCall(ctx, txReq, pd, origin, coinbase, vmenv, sender, rules)
+		err = executeContractCall(ctx, txReq, pd, txReq.Origin, coinbase, vmenv, sender, rules)
 	}
 
 	if err != nil {
