@@ -322,8 +322,6 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 		return err
 	}
 	cfg := s.cfg
-	ethstate := s.ethState
-
 	cfg.Origin = origin
 	cfg.GasLimit = txReq.GasLimit
 	cfg.GasPrice = txReq.GasPrice
