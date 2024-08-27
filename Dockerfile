@@ -10,7 +10,7 @@ FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y ca-certificates && apt-get clean
 
 COPY ./conf /conf
-RUN mkdir /cairo_db /yu
+RUN mkdir /reddio_db /yu
 COPY --from=builder /build/reddio /reddio
 
 CMD ["/reddio"]
