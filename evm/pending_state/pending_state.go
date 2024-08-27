@@ -21,6 +21,10 @@ func NewPendingState(db *state.StateDB) *PendingState {
 	}
 }
 
+func (s *PendingState) SetTxContext(txHash common.Hash, txIndex int) {
+	s.state.SetTxContext(txHash, txIndex)
+}
+
 func (s *PendingState) GetStateDB() *state.StateDB {
 	return s.state
 }
