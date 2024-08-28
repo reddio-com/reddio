@@ -1,4 +1,4 @@
-name: Benchmark
+name: benchmark
 
 on:
   workflow_dispatch:

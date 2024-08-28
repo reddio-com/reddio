@@ -1,4 +1,5 @@
-name: Build/release docker images and push
+name: cd
+
 on:
   push:
     branches:
