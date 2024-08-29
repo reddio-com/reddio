@@ -9,15 +9,18 @@ import (
 	"github.com/holiman/uint256"
 )
 
+// PendingState provides a pending state for a transaction.
 type PendingState struct {
-	sCtx  *StateContext
-	state *state.StateDB
+	sCtx   *StateContext
+	state  *state.StateDB
+	sender common.Address
 }
 
-func NewPendingState(db *state.StateDB) *PendingState {
+func NewPendingState(sender common.Address, db *state.StateDB) *PendingState {
 	return &PendingState{
-		sCtx:  NewStateContext(),
-		state: db,
+		sCtx:   NewStateContext(),
+		state:  db,
+		sender: sender,
 	}
 }
 
@@ -203,6 +206,9 @@ func (s *PendingState) MergeInto(stateDB *state.StateDB) {
 			stateDB.CreateAccount(addr)
 		}
 	}
+
+	stateDB.SetNonce(s.sender, s.state.GetNonce(s.sender))
+
 	for addr := range s.sCtx.Write.Balance {
 		stateDB.SetBalance(addr, s.state.GetBalance(addr), tracing.BalanceChangeTransfer)
 	}

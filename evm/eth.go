@@ -218,6 +218,7 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 
 	txReq := new(TxRequest)
 	coinbase := common.BytesToAddress(s.cfg.Coinbase.Bytes())
+
 	//s.Lock()
 	err = ctx.BindJson(txReq)
 	if err != nil {
@@ -226,7 +227,7 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 	cfg := s.cfg
 
 	vmenv := newEVM_copy(cfg, txReq)
-	pd := pending_state.NewPendingState(ctx.ExtraInterface.(*state.StateDB))
+	pd := pending_state.NewPendingState(txReq.Origin, ctx.ExtraInterface.(*state.StateDB))
 
 	pd.SetTxContext(common.Hash(ctx.GetTxnHash()), ctx.TxnIndex)
 	vmenv.StateDB = pd
