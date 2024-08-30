@@ -12,7 +12,7 @@ import (
 
 	"github.com/reddio-com/reddio/evm"
 	"github.com/reddio-com/reddio/evm/ethrpc"
-	reddioKernel "github.com/reddio-com/reddio/kernel"
+	"github.com/reddio-com/reddio/parallel"
 )
 
 func Start(path string, yuCfg *yuConfig.KernelConf) {
@@ -37,12 +37,13 @@ func StartUpChain(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm
 func InitReddio(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm.GethConfig) *kernel.Kernel {
 	poaTri := poa.NewPoa(poaCfg)
 	solidityTri := evm.NewSolidity(evmCfg)
+	parallelTri := parallel.NewParallelEVM()
+
 	chain := startup.InitDefaultKernel(
-		yuCfg, poaTri, solidityTri,
+		yuCfg, poaTri, solidityTri, parallelTri,
 	)
 	//chain.WithExecuteFn(chain.OrderedExecute)
-	rk := reddioKernel.NewReddioKernel(chain, solidityTri)
-	chain.WithExecuteFn(rk.Execute)
+	chain.WithExecuteFn(parallelTri.Execute)
 	return chain
 }
 
