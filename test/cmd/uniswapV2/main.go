@@ -26,7 +26,7 @@ var (
 func init() {
 	flag.StringVar(&configPath, "configPath", "", "")
 	flag.StringVar(&evmConfigPath, "evmConfigPath", "./conf/evm_cfg.toml", "")
-	flag.BoolVar(&isParallel, "parallel", true, "")
+	flag.BoolVar(&isParallel, "parallel", false, "")
 }
 
 func main() {
@@ -74,6 +74,7 @@ func main() {
 	// // Wait for a while to ensure all goroutines exit
 	// time.Sleep(2 * time.Second)
 	// log.Printf("Number of goroutines at shutdown: %d", runtime.NumGoroutine())
+
 }
 
 func assertUniswapV2(ctx context.Context, evmCfg *evm.GethConfig) error {

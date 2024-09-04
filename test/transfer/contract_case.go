@@ -29,6 +29,7 @@ func (cd *ContractDeploymentTestCase) Name() string {
 func (cd *ContractDeploymentTestCase) Run(ctx context.Context, m *pkg.WalletManager) error {
 	//create a wallet for contract deployment
 	wallets, err := m.GenerateRandomWallet(1, 100000000000000000)
+
 	log.Println("initialCount:", cd.initialCount)
 	if err != nil {
 		return err
@@ -43,6 +44,12 @@ func (cd *ContractDeploymentTestCase) Run(ctx context.Context, m *pkg.WalletMana
 	if err != nil {
 		log.Fatalf("Failed to connect to the Ethereum client: %v", err)
 	}
+
+	defer client.Close()
+	if err != nil {
+		log.Fatalf("Failed to Close  the Ethereum client: %v", err)
+	}
+
 	balance, err := client.BalanceAt(ctx, common.HexToAddress(wallets[0].Address), nil)
 	if err != nil {
 		log.Fatalf("Failed to get balance: %v", err)
@@ -228,27 +235,36 @@ func (cd *ContractDeploymentTestCase) Run(ctx context.Context, m *pkg.WalletMana
 	//swap from ETH to token A
 	startTime := time.Now()
 	log.Printf("Start time: %s", startTime.Format(time.RFC3339))
-	amountOut := big.NewInt(99)
-	// Perform 500 swaps
-	for i := 0; i < 500; i++ {
+	//amountOut := big.NewInt(99)
+	// Perform  swaps
+	for i := 0; i < 2000; i++ {
 		log.Printf("Swap %d", i)
 		// Set swap parameters
 		auth.Value = big.NewInt(100)
 
-		// Get output amount
-		// amounts, err := routerInstance.GetAmountsOut(nil, big.NewInt(100), []common.Address{WETHAddress, tokenAAddress})
-		// if err != nil {
-		// 	log.Fatalf("Failed to get amounts out: %v", err)
-		// }
-		// amountOut := amounts[len(amounts)-1]
+		//Get output amount
+		amounts, err := routerInstance.GetAmountsOut(nil, big.NewInt(100), []common.Address{WETHAddress, tokenAAddress})
+		if err != nil {
+			log.Fatalf("Failed to get amounts out: %v", err)
+		}
+		amountOut := amounts[len(amounts)-1]
 		log.Printf("TokenA Amount out: %v", amountOut)
 		// Execute swap operation
+		nonce, err := client.PendingNonceAt(context.Background(), common.HexToAddress(wallets[0].Address))
+		if err != nil {
+			log.Fatalf("Failed to get nonce: %v", err)
+		}
+		log.Printf("Nonce: %v", nonce)
 		swapETHForExactTokensTx, err := routerInstance.SwapETHForExactTokens(auth, amountOut, []common.Address{WETHAddress, tokenAAddress}, common.HexToAddress(wallets[0].Address), big.NewInt(time.Now().Unix()+1000))
 		if err != nil {
 			log.Fatalf("Failed to swapETHForExactTokensTx transaction: %v", err)
 		}
 		log.Printf("SwapETHForExactTokens transaction hash: %s", swapETHForExactTokensTx.Hash().Hex())
 
+		// if (i+1)%540 == 0 {
+		// 	amountOut.Sub(amountOut, big.NewInt(1))
+		// 	log.Printf("Decreased amountOut to: %v", amountOut)
+		// }
 		// Wait for transaction confirmation
 		// isConfirmed, err := waitForConfirmation(client, swapETHForExactTokensTx.Hash())
 		// if err != nil {
@@ -264,7 +280,7 @@ func (cd *ContractDeploymentTestCase) Run(ctx context.Context, m *pkg.WalletMana
 
 	// Calculate TPS
 	duration := endTime.Sub(startTime).Seconds()
-	tps := float64(500) / duration
+	tps := float64(2000) / duration
 	log.Printf("TPS: %.2f", tps)
 
 	// Swap from TokenA to ETH
