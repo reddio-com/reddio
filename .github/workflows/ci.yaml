@@ -32,5 +32,9 @@ jobs:
         run: make check-mod-tidy
       - name: Build
         run: make build
-      - name: Test
-        run: make transfer_test
+      - name: Build Test
+        run: make build_transfer_test_race
+      - name: Parallel Transfer Test
+        run: make parallel_transfer_test
+      - name: Serial Transfer Test
+        run: make serial_transfer_test
