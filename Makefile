@@ -30,9 +30,6 @@ serial_benchmark_test: reset
 build_benchmark_test: reset
 	go build -v -o benchmark_test ./test/cmd/benchmark/main.go
 
-transfer_test: reset build_transfer_test_race
-	./transfer_test
-
 parallel_transfer_test: reset
 	./transfer_test --parallel=true
 

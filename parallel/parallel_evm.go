@@ -2,9 +2,10 @@ package parallel
 
 import (
 	"fmt"
-	"github.com/yu-org/yu/core/tripod"
 	"sync"
 	"time"
+
+	"github.com/yu-org/yu/core/tripod"
 
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/yu-org/yu/common"
@@ -132,12 +133,13 @@ func (k *ParallelEVM) executeTxnCtxList(list []*txnCtx) []*txnCtx {
 }
 
 func (k *ParallelEVM) executeTxnCtxListInOrder(originStateDB *state.StateDB, list []*txnCtx, isRedo bool) []*txnCtx {
+	currStateDb := originStateDB
 	for index, tctx := range list {
 		if tctx.err != nil {
 			list[index] = tctx
 			continue
 		}
-		tctx.ctx.ExtraInterface = originStateDB
+		tctx.ctx.ExtraInterface = currStateDb
 		err := tctx.writing(tctx.ctx)
 		if err != nil {
 			tctx.err = err
@@ -145,9 +147,11 @@ func (k *ParallelEVM) executeTxnCtxListInOrder(originStateDB *state.StateDB, lis
 		} else {
 			tctx.r = k.handleTxnEvent(tctx.ctx, tctx.ctx.Block, tctx.txn, isRedo)
 			tctx.ps = tctx.ctx.ExtraInterface.(*pending_state.PendingState)
+			currStateDb = tctx.ps.GetStateDB()
 		}
 		list[index] = tctx
 	}
+	k.Solidity.SetStateDB(currStateDb)
 	return list
 }
 
