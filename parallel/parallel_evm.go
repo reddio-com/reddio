@@ -151,6 +151,7 @@ func (k *ParallelEVM) executeTxnCtxListInOrder(originStateDB *state.StateDB, lis
 		}
 		list[index] = tctx
 	}
+	k.Solidity.SetStateDB(currStateDb)
 	return list
 }
 
