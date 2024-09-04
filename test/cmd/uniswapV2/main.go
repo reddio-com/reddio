@@ -5,9 +5,7 @@ import (
 	"flag"
 	"log"
 	"os"
-	"os/signal"
 	"runtime"
-	"syscall"
 	"time"
 
 	"github.com/yu-org/yu/core/startup"
@@ -40,12 +38,12 @@ func main() {
 	yuCfg := startup.InitDefaultKernelConfig()
 	config := config2.GetGlobalConfig()
 	config.IsParallel = isParallel
-	// 创建一个上下文和取消函数
-	ctx, cancel := context.WithCancel(context.Background())
+	// // Create a context and cancel function
+	// ctx, cancel := context.WithCancel(context.Background())
 
-	// 捕获系统信号
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	// // Capture system signals
+	// sigChan := make(chan os.Signal, 1)
+	// signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
 		log.Printf("Number of goroutines after app.Start: %d", runtime.NumGoroutine())
@@ -59,27 +57,23 @@ func main() {
 	}()
 	time.Sleep(5 * time.Second)
 	log.Println("finish start reddio")
-	go func() {
-		if err := assertUniswapV2(ctx, evmConfig); err != nil {
-			log.Println(err)
-			os.Exit(1)
-		}
-		log.Println("assert success")
-	}()
+	if err := assertUniswapV2(context.Background(), evmConfig); err != nil {
+		log.Println(err)
+		os.Exit(1)
+	}
+	log.Println("assert success")
+	os.Exit(0)
 
-	//os.Exit(0)
+	// Wait for signal
+	// <-sigChan
+	// log.Println("Received shutdown signal")
+	// cancel() // Cancel the context
 
-	// 等待信号
-	<-sigChan
-	log.Println("Received shutdown signal")
-	cancel() // 取消上下文
+	// log.Println("Shutting down gracefully...")
 
-	// 这里可以添加任何清理代码
-	log.Println("Shutting down gracefully...")
-
-	// 等待一段时间以确保所有 goroutine 退出
-	time.Sleep(2 * time.Second)
-	log.Printf("Number of goroutines at shutdown: %d", runtime.NumGoroutine())
+	// // Wait for a while to ensure all goroutines exit
+	// time.Sleep(2 * time.Second)
+	// log.Printf("Number of goroutines at shutdown: %d", runtime.NumGoroutine())
 }
 
 func assertUniswapV2(ctx context.Context, evmCfg *evm.GethConfig) error {
