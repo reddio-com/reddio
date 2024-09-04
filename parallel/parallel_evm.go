@@ -1,14 +1,14 @@
-package kernel
+package parallel
 
 import (
 	"fmt"
+	"github.com/yu-org/yu/core/tripod"
 	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/yu-org/yu/common"
 	"github.com/yu-org/yu/core/context"
-	"github.com/yu-org/yu/core/kernel"
 	"github.com/yu-org/yu/core/tripod/dev"
 	"github.com/yu-org/yu/core/types"
 
@@ -27,19 +27,18 @@ const (
 	batchTxnLabelRedo    = "redo"
 )
 
-type Kernel struct {
-	kernel   *kernel.Kernel
-	Solidity *evm.Solidity
+type ParallelEVM struct {
+	*tripod.Tripod
+	Solidity *evm.Solidity `tripod:"solidity"`
 }
 
-func NewReddioKernel(k *kernel.Kernel, s *evm.Solidity) *Kernel {
-	return &Kernel{
-		kernel:   k,
-		Solidity: s,
+func NewParallelEVM() *ParallelEVM {
+	return &ParallelEVM{
+		Tripod: tripod.NewTripod(),
 	}
 }
 
-func (k *Kernel) Execute(block *types.Block) error {
+func (k *ParallelEVM) Execute(block *types.Block) error {
 	stxns := block.Txns
 	receipts := make(map[common.Hash]*types.Receipt)
 	txnCtxList := make([]*txnCtx, 0)
@@ -57,7 +56,7 @@ func (k *Kernel) Execute(block *types.Block) error {
 			receipts[stxn.TxnHash] = receipt
 			continue
 		}
-		writing, _ := k.kernel.Land.GetWriting(wrCall.TripodName, wrCall.FuncName)
+		writing, _ := k.Land.GetWriting(wrCall.TripodName, wrCall.FuncName)
 		stxnCtx := &txnCtx{
 			ctx:     ctx,
 			txn:     stxn,
@@ -76,14 +75,14 @@ func (k *Kernel) Execute(block *types.Block) error {
 			receipts[c.txn.TxnHash] = c.r
 		}
 	}
-	return k.kernel.PostExecute(block, receipts)
+	return k.PostExecute(block, receipts)
 }
 
 const (
 	maxConcurrency = 4
 )
 
-func (k *Kernel) SplitTxnCtxList(list []*txnCtx) [][]*txnCtx {
+func (k *ParallelEVM) SplitTxnCtxList(list []*txnCtx) [][]*txnCtx {
 	cur := 0
 	curList := make([]*txnCtx, 0)
 	got := make([][]*txnCtx, 0)
@@ -125,14 +124,14 @@ func checkAddressConflict(curTxn *txnCtx, curList []*txnCtx) bool {
 	return false
 }
 
-func (k *Kernel) executeTxnCtxList(list []*txnCtx) []*txnCtx {
+func (k *ParallelEVM) executeTxnCtxList(list []*txnCtx) []*txnCtx {
 	if config.GetGlobalConfig().IsParallel {
 		return k.executeTxnCtxListInConcurrency(k.Solidity.StateDB(), list)
 	}
 	return k.executeTxnCtxListInOrder(k.Solidity.StateDB(), list, false)
 }
 
-func (k *Kernel) executeTxnCtxListInOrder(originStateDB *state.StateDB, list []*txnCtx, isRedo bool) []*txnCtx {
+func (k *ParallelEVM) executeTxnCtxListInOrder(originStateDB *state.StateDB, list []*txnCtx, isRedo bool) []*txnCtx {
 	for index, tctx := range list {
 		if tctx.err != nil {
 			list[index] = tctx
@@ -152,7 +151,7 @@ func (k *Kernel) executeTxnCtxListInOrder(originStateDB *state.StateDB, list []*
 	return list
 }
 
-func (k *Kernel) executeTxnCtxListInConcurrency(originStateDB *state.StateDB, list []*txnCtx) []*txnCtx {
+func (k *ParallelEVM) executeTxnCtxListInConcurrency(originStateDB *state.StateDB, list []*txnCtx) []*txnCtx {
 	copiedStateDBList := make([]*state.StateDB, 0)
 	conflict := false
 	start := time.Now()
@@ -218,15 +217,15 @@ type txnCtx struct {
 	ps      *pending_state.PendingState
 }
 
-func (k *Kernel) handleTxnError(err error, ctx *context.WriteContext, block *types.Block, stxn *types.SignedTxn) *types.Receipt {
+func (k *ParallelEVM) handleTxnError(err error, ctx *context.WriteContext, block *types.Block, stxn *types.SignedTxn) *types.Receipt {
 	metrics.TxnCounter.WithLabelValues(txnLabelErrExecute).Inc()
-	return k.kernel.HandleError(err, ctx, block, stxn)
+	return k.HandleError(err, ctx, block, stxn)
 }
 
-func (k *Kernel) handleTxnEvent(ctx *context.WriteContext, block *types.Block, stxn *types.SignedTxn, isRedo bool) *types.Receipt {
+func (k *ParallelEVM) handleTxnEvent(ctx *context.WriteContext, block *types.Block, stxn *types.SignedTxn, isRedo bool) *types.Receipt {
 	metrics.TxnCounter.WithLabelValues(txnLabelExecuteSuccess).Inc()
 	if isRedo {
 		metrics.TxnCounter.WithLabelValues(txnLabelRedoExecute).Inc()
 	}
-	return k.kernel.HandleEvent(ctx, block, stxn)
+	return k.HandleEvent(ctx, block, stxn)
 }

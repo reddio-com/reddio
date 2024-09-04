@@ -1322,12 +1322,18 @@ func (s *TransactionAPI) FillTransaction(ctx context.Context, args TransactionAr
 
 // SendRawTransaction will add the signed transaction to the transaction pool.
 // The sender is responsible for signing the transaction and using the correct nonce.
-func (s *TransactionAPI) SendRawTransaction(ctx context.Context, input hexutil.Bytes) (common.Hash, error) {
+func (s *TransactionAPI) SendRawTransaction(ctx context.Context, input hexutil.Bytes) (txHash common.Hash, err error) {
+	defer func() {
+		if err != nil {
+			logrus.Warning("SendRawTransaction failed: ", err)
+		}
+	}()
 	tx := new(types.Transaction)
-	if err := tx.UnmarshalBinary(input); err != nil {
-		return common.Hash{}, err
+	if err = tx.UnmarshalBinary(input); err != nil {
+		return
 	}
-	return SubmitTransaction(ctx, s.b, tx)
+	txHash, err = SubmitTransaction(ctx, s.b, tx)
+	return
 }
 
 // Sign calculates an ECDSA signature for:
