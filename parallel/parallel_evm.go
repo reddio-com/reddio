@@ -68,7 +68,7 @@ func (k *ParallelEVM) Execute(block *types.Block) error {
 	}
 	got := k.SplitTxnCtxList(txnCtxList)
 	for index, subList := range got {
-		k.executeTxnCtxList(block.Height, subList)
+		k.executeTxnCtxList(subList)
 		got[index] = subList
 	}
 	for _, subList := range got {
@@ -125,9 +125,9 @@ func checkAddressConflict(curTxn *txnCtx, curList []*txnCtx) bool {
 	return false
 }
 
-func (k *ParallelEVM) executeTxnCtxList(blockNum common.BlockNum, list []*txnCtx) []*txnCtx {
+func (k *ParallelEVM) executeTxnCtxList(list []*txnCtx) []*txnCtx {
 	if config.GetGlobalConfig().IsParallel {
-		return k.executeTxnCtxListInConcurrency(blockNum, k.Solidity.StateDB(), list)
+		return k.executeTxnCtxListInConcurrency(k.Solidity.StateDB(), list)
 	}
 	return k.executeTxnCtxListInOrder(k.Solidity.StateDB(), list, false)
 }
@@ -155,7 +155,7 @@ func (k *ParallelEVM) executeTxnCtxListInOrder(originStateDB *state.StateDB, lis
 	return list
 }
 
-func (k *ParallelEVM) executeTxnCtxListInConcurrency(blockNum common.BlockNum, originStateDB *state.StateDB, list []*txnCtx) []*txnCtx {
+func (k *ParallelEVM) executeTxnCtxListInConcurrency(originStateDB *state.StateDB, list []*txnCtx) []*txnCtx {
 	copiedStateDBList := make([]*state.StateDB, 0)
 	conflict := false
 	start := time.Now()
@@ -166,7 +166,7 @@ func (k *ParallelEVM) executeTxnCtxListInConcurrency(blockNum common.BlockNum, o
 	for i := 0; i < len(list); i++ {
 		copiedStateDBList = append(copiedStateDBList, originStateDB.Copy())
 	}
-	metrics.StatedbCopyDuration.WithLabelValues(fmt.Sprintf("%d", blockNum)).Observe(time.Since(start).Seconds())
+	metrics.StatedbCopyDuration.WithLabelValues().Observe(time.Since(start).Seconds())
 	wg := sync.WaitGroup{}
 	for i, c := range list {
 		wg.Add(1)

@@ -55,7 +55,7 @@ var (
 			Help:      "stateDB copy duration distribution.",
 			Buckets:   prometheus.DefBuckets,
 		},
-		[]string{TypeLbl},
+		[]string{},
 	)
 )
 
