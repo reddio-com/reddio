@@ -26,7 +26,7 @@ var (
 func init() {
 	flag.StringVar(&configPath, "configPath", "", "")
 	flag.StringVar(&evmConfigPath, "evmConfigPath", "./conf/evm_cfg.toml", "")
-	flag.BoolVar(&isParallel, "parallel", false, "")
+	flag.BoolVar(&isParallel, "parallel", true, "")
 }
 
 func main() {

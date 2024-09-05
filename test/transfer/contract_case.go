@@ -237,6 +237,12 @@ func (cd *ContractDeploymentTestCase) Run(ctx context.Context, m *pkg.WalletMana
 	log.Printf("Start time: %s", startTime.Format(time.RFC3339))
 	//amountOut := big.NewInt(99)
 	// Perform  swaps
+	const maxRetries = 300
+	const retryDelay = 10 * time.Millisecond
+	var retryErrors []struct {
+		Nonce int
+		Err   error
+	}
 	for i := 0; i < 2000; i++ {
 		log.Printf("Swap %d", i)
 		// Set swap parameters
@@ -255,11 +261,24 @@ func (cd *ContractDeploymentTestCase) Run(ctx context.Context, m *pkg.WalletMana
 			log.Fatalf("Failed to get nonce: %v", err)
 		}
 		log.Printf("Nonce: %v", nonce)
-		swapETHForExactTokensTx, err := routerInstance.SwapETHForExactTokens(auth, amountOut, []common.Address{WETHAddress, tokenAAddress}, common.HexToAddress(wallets[0].Address), big.NewInt(time.Now().Unix()+1000))
-		if err != nil {
-			log.Fatalf("Failed to swapETHForExactTokensTx transaction: %v", err)
+
+		for i := 0; i < maxRetries; i++ {
+			swapETHForExactTokensTx, err := routerInstance.SwapETHForExactTokens(auth, amountOut, []common.Address{WETHAddress, tokenAAddress}, common.HexToAddress(wallets[0].Address), big.NewInt(time.Now().Unix()+1000))
+			if err == nil {
+				log.Printf("SwapETHForExactTokens transaction hash: %s", swapETHForExactTokensTx.Hash().Hex())
+				break
+			}
+			log.Printf("Attempt %d: Failed to swapETHForExactTokensTx transaction: %v", i+1, err)
+			retryErrors = append(retryErrors, struct {
+				Nonce int
+				Err   error
+			}{Nonce: int(nonce), Err: err}) // record和 nonce
+			time.Sleep(retryDelay)
 		}
-		log.Printf("SwapETHForExactTokens transaction hash: %s", swapETHForExactTokensTx.Hash().Hex())
+
+		if err != nil {
+			log.Fatalf("Failed to swapETHForExactTokensTx transaction after %d attempts: %v", maxRetries, err)
+		}
 
 		// if (i+1)%540 == 0 {
 		// 	amountOut.Sub(amountOut, big.NewInt(1))
@@ -283,6 +302,10 @@ func (cd *ContractDeploymentTestCase) Run(ctx context.Context, m *pkg.WalletMana
 	tps := float64(2000) / duration
 	log.Printf("TPS: %.2f", tps)
 
+	log.Println("All retry attempts failed. Error reasons and nonces:")
+	for j, retryErr := range retryErrors {
+		log.Printf("Attempt %d: Nonce %d, Error: %v", j+1, retryErr.Nonce, retryErr.Err)
+	}
 	// Swap from TokenA to ETH
 	// Perform 10 swaps
 	// for i := 0; i < 10; i++ {
