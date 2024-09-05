@@ -163,9 +163,11 @@ func (k *ParallelEVM) executeTxnCtxListInConcurrency(originStateDB *state.StateD
 		end := time.Now()
 		metrics.BatchTxnDuration.WithLabelValues(fmt.Sprintf("%v", conflict)).Observe(end.Sub(start).Seconds())
 	}()
+	startCopy := time.Now()
 	for i := 0; i < len(list); i++ {
 		copiedStateDBList = append(copiedStateDBList, originStateDB.Copy())
 	}
+	metrics.StatedbCopyDuration.WithLabelValues().Observe(time.Since(startCopy).Seconds())
 	wg := sync.WaitGroup{}
 	for i, c := range list {
 		wg.Add(1)

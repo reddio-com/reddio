@@ -46,6 +46,17 @@ var (
 		},
 		[]string{TypeLbl},
 	)
+
+	StatedbCopyDuration = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace: "reddio",
+			Subsystem: "batch_txn",
+			Name:      "statedb_copy",
+			Help:      "stateDB copy duration distribution.",
+			Buckets:   prometheus.DefBuckets,
+		},
+		[]string{TypeLbl},
+	)
 )
 
 func init() {
