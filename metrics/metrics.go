@@ -57,6 +57,13 @@ var (
 		},
 		[]string{},
 	)
+
+	InternalTPS = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace: "reddio",
+		Subsystem: "batch_txn",
+		Name:      "internal_TPS",
+		Help:      "EVM invocation TPS",
+	})
 )
 
 func init() {
@@ -65,4 +72,5 @@ func init() {
 	prometheus.MustRegister(BatchTxnCounter)
 	prometheus.MustRegister(BatchTxnDuration)
 	prometheus.MustRegister(StatedbCopyDuration)
+	prometheus.MustRegister(InternalTPS)
 }

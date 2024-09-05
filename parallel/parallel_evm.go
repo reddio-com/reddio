@@ -43,6 +43,13 @@ func (k *ParallelEVM) Execute(block *types.Block) error {
 	stxns := block.Txns
 	receipts := make(map[common.Hash]*types.Receipt)
 	txnCtxList := make([]*txnCtx, 0)
+
+	start := time.Now()
+	defer func() {
+		dura := time.Since(start).Seconds()
+		tps := float64(len(stxns)) / dura
+		metrics.InternalTPS.Set(tps)
+	}()
 	for index, stxn := range stxns {
 		wrCall := stxn.Raw.WrCall
 		ctx, err := context.NewWriteContext(stxn, block, index)
