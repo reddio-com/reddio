@@ -1,6 +1,7 @@
 package app
 
 import (
+	"github.com/reddio-com/reddio/config"
 	"net/http"
 
 	"github.com/common-nighthawk/go-figure"
@@ -42,8 +43,11 @@ func InitReddio(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm.G
 	chain := startup.InitDefaultKernel(
 		yuCfg, poaTri, solidityTri, parallelTri,
 	)
-	//chain.WithExecuteFn(chain.OrderedExecute)
-	chain.WithExecuteFn(parallelTri.Execute)
+	if config.GetGlobalConfig().IsParallel {
+		chain.WithExecuteFn(parallelTri.Execute)
+	} else {
+		chain.WithExecuteFn(chain.OrderedExecute)
+	}
 	return chain
 }
 

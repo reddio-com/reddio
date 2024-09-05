@@ -13,7 +13,6 @@ import (
 	"github.com/yu-org/yu/core/tripod/dev"
 	"github.com/yu-org/yu/core/types"
 
-	"github.com/reddio-com/reddio/config"
 	"github.com/reddio-com/reddio/evm"
 	"github.com/reddio-com/reddio/evm/pending_state"
 	"github.com/reddio-com/reddio/metrics"
@@ -126,10 +125,7 @@ func checkAddressConflict(curTxn *txnCtx, curList []*txnCtx) bool {
 }
 
 func (k *ParallelEVM) executeTxnCtxList(list []*txnCtx) []*txnCtx {
-	if config.GetGlobalConfig().IsParallel {
-		return k.executeTxnCtxListInConcurrency(k.Solidity.StateDB(), list)
-	}
-	return k.executeTxnCtxListInOrder(k.Solidity.StateDB(), list, false)
+	return k.executeTxnCtxListInConcurrency(k.Solidity.StateDB(), list)
 }
 
 func (k *ParallelEVM) executeTxnCtxListInOrder(originStateDB *state.StateDB, list []*txnCtx, isRedo bool) []*txnCtx {
