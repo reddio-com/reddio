@@ -45,14 +45,12 @@ func InitReddio(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm.G
 	)
 	if config.GetGlobalConfig().IsParallel {
 		chain.WithExecuteFn(parallelTri.Execute)
-	} else {
-		chain.WithExecuteFn(chain.OrderedExecute)
 	}
 	return chain
 }
 
 func startPromServer() {
-	// 暴露 Prometheus 指标
+	// Export Prometheus metrics
 	http.Handle("/metrics", promhttp.Handler())
 	http.ListenAndServe(":8080", nil)
 }
