@@ -64,4 +64,5 @@ func init() {
 	prometheus.MustRegister(TxnDuration)
 	prometheus.MustRegister(BatchTxnCounter)
 	prometheus.MustRegister(BatchTxnDuration)
+	prometheus.MustRegister(StatedbCopyDuration)
 }
