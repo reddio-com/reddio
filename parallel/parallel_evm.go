@@ -46,9 +46,7 @@ func (k *ParallelEVM) Execute(block *types.Block) error {
 
 	start := time.Now()
 	defer func() {
-		dura := time.Since(start).Seconds()
-		tps := float64(len(stxns)) / dura
-		metrics.InternalTPS.Set(tps)
+		metrics.TxsExecutePerBlockDuration.WithLabelValues().Observe(time.Since(start).Seconds())
 	}()
 	for index, stxn := range stxns {
 		wrCall := stxn.Raw.WrCall

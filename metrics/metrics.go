@@ -58,12 +58,15 @@ var (
 		[]string{},
 	)
 
-	InternalTPS = prometheus.NewGauge(prometheus.GaugeOpts{
-		Namespace: "reddio",
-		Subsystem: "batch_txn",
-		Name:      "internal_TPS",
-		Help:      "EVM invocation TPS",
-	})
+	TxsExecutePerBlockDuration = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace: "reddio",
+			Subsystem: "batch_txn",
+			Name:      "block_txs_duration_seconds",
+			Help:      "Transactions execute duration per block distribution.",
+		},
+		[]string{},
+	)
 )
 
 func init() {
@@ -72,5 +75,5 @@ func init() {
 	prometheus.MustRegister(BatchTxnCounter)
 	prometheus.MustRegister(BatchTxnDuration)
 	prometheus.MustRegister(StatedbCopyDuration)
-	prometheus.MustRegister(InternalTPS)
+	prometheus.MustRegister(TxsExecutePerBlockDuration)
 }
