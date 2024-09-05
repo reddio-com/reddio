@@ -223,7 +223,7 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 	start := time.Now()
 	defer func() {
 		end := time.Now()
-		metrics.TxnDuration.WithLabelValues(fmt.Sprintf("%d", ctx.Block.Height)).Observe(end.Sub(start).Seconds())
+		metrics.TxnDuration.WithLabelValues().Observe(end.Sub(start).Seconds())
 	}()
 
 	txReq := new(TxRequest)
