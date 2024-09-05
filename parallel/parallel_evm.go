@@ -43,6 +43,11 @@ func (k *ParallelEVM) Execute(block *types.Block) error {
 	stxns := block.Txns
 	receipts := make(map[common.Hash]*types.Receipt)
 	txnCtxList := make([]*txnCtx, 0)
+
+	start := time.Now()
+	defer func() {
+		metrics.TxsExecutePerBlockDuration.WithLabelValues().Observe(time.Since(start).Seconds())
+	}()
 	for index, stxn := range stxns {
 		wrCall := stxn.Raw.WrCall
 		ctx, err := context.NewWriteContext(stxn, block, index)
@@ -166,6 +171,7 @@ func (k *ParallelEVM) executeTxnCtxListInConcurrency(originStateDB *state.StateD
 	for i := 0; i < len(list); i++ {
 		copiedStateDBList = append(copiedStateDBList, originStateDB.Copy())
 	}
+	metrics.StatedbCopyDuration.WithLabelValues().Observe(time.Since(start).Seconds())
 	wg := sync.WaitGroup{}
 	for i, c := range list {
 		wg.Add(1)
