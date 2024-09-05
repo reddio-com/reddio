@@ -1,12 +1,16 @@
 package config
 
+import "runtime"
+
 type Config struct {
-	IsParallel bool
+	IsParallel     bool
+	MaxConcurrency int
 }
 
 func defaultConfig() *Config {
 	return &Config{
-		IsParallel: true,
+		IsParallel:     true,
+		MaxConcurrency: runtime.NumCPU(),
 	}
 }
 
