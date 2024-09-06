@@ -104,7 +104,6 @@ func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManag
 	}
 
 	//Arrange :
-	///
 	testUser, err := m.GenerateRandomWallet(1, 1e18)
 	if err != nil {
 		return err
@@ -395,7 +394,7 @@ func (cd *UniswapV2TPSStatisticsTestCase) Run(ctx context.Context, m *pkg.Wallet
 		log.Fatalf("Failed to create authorized transactor: %v", err)
 	}
 	auth.GasPrice = gasPrice
-	auth.GasLimit = uint64(60000000)
+	auth.GasLimit = uint64(6e7)
 
 	// deploy contracts
 	uniswapV2Contract, err := deployUniswapV2Contracts(auth, client)
@@ -405,7 +404,7 @@ func (cd *UniswapV2TPSStatisticsTestCase) Run(ctx context.Context, m *pkg.Wallet
 
 	// interact with the contract
 	// ETH <-> TOKEN A
-	amountApproved := big.NewInt(1000000000000000000)
+	amountApproved := big.NewInt(1e18)
 	tokenAApproveTx, err := uniswapV2Contract.tokenAInstance.Approve(auth, common.HexToAddress(uniswapV2Contract.uniswapV2Router01Address.Hex()), amountApproved)
 	if err != nil {
 		log.Fatalf("Failed to create approve transaction: %v", err)
@@ -422,7 +421,7 @@ func (cd *UniswapV2TPSStatisticsTestCase) Run(ctx context.Context, m *pkg.Wallet
 	}
 	log.Println("tokenAApproveTx transaction confirmed")
 
-	WethAmountApproved := big.NewInt(1000000000000000000)
+	WethAmountApproved := big.NewInt(1e18)
 	WethAApproveTx, err := uniswapV2Contract.weth9Instance.Approve(auth, common.HexToAddress(uniswapV2Contract.uniswapV2Router01Address.Hex()), WethAmountApproved)
 	if err != nil {
 		log.Fatalf("Failed to create approve transaction: %v", err)
@@ -440,8 +439,8 @@ func (cd *UniswapV2TPSStatisticsTestCase) Run(ctx context.Context, m *pkg.Wallet
 	log.Println("WethAApproveTx transaction confirmed")
 
 	//add ETH liquidity
-	amountADesired := big.NewInt(1000000)
-	auth.Value = big.NewInt(1000)
+	amountADesired := big.NewInt(1e18)
+	auth.Value = big.NewInt(1e18)
 	addLiquidityETHTx, err := uniswapV2Contract.uniswapV2RouterInstance.AddLiquidityETH(auth, uniswapV2Contract.tokenAAddress, amountADesired, big.NewInt(0), big.NewInt(0), common.HexToAddress(wallets[0].Address), big.NewInt(time.Now().Unix()+1000))
 	if err != nil {
 		log.Fatalf("Failed to create add liquidity transaction: %v", err)

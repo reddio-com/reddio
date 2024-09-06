@@ -15,6 +15,7 @@ import (
 	"github.com/reddio-com/reddio/evm"
 	"github.com/reddio-com/reddio/test/conf"
 	"github.com/reddio-com/reddio/test/transfer"
+	"github.com/reddio-com/reddio/test/uniswap"
 )
 
 var (
@@ -38,12 +39,6 @@ func main() {
 	yuCfg := startup.InitDefaultKernelConfig()
 	config := config2.GetGlobalConfig()
 	config.IsParallel = isParallel
-	// // Create a context and cancel function
-	// ctx, cancel := context.WithCancel(context.Background())
-
-	// // Capture system signals
-	// sigChan := make(chan os.Signal, 1)
-	// signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
 		log.Printf("Number of goroutines after app.Start: %d", runtime.NumGoroutine())
@@ -64,17 +59,6 @@ func main() {
 	log.Println("assert success")
 	os.Exit(0)
 
-	// Wait for signal
-	// <-sigChan
-	// log.Println("Received shutdown signal")
-	// cancel() // Cancel the context
-
-	// log.Println("Shutting down gracefully...")
-
-	// // Wait for a while to ensure all goroutines exit
-	// time.Sleep(2 * time.Second)
-	// log.Printf("Number of goroutines at shutdown: %d", runtime.NumGoroutine())
-
 }
 
 func assertUniswapV2(ctx context.Context, evmCfg *evm.GethConfig) error {
@@ -83,8 +67,8 @@ func assertUniswapV2(ctx context.Context, evmCfg *evm.GethConfig) error {
 	cfg := conf.Config.EthCaseConf
 	ethManager.Configure(cfg, evmCfg)
 	ethManager.AddTestCase(
-		//transfer.NewUniswapV2TPSStatisticsTestCase("UniswapV2 TPS StatisticsTestCase", 2, cfg.InitialEthCount),
-		transfer.NewUniswapV2AccuracyTestCase("UniswapV2 Accuracy TestCase", 2, cfg.InitialEthCount),
+		uniswap.NewUniswapV2TPSStatisticsTestCase("UniswapV2 TPS StatisticsTestCase", 2, cfg.InitialEthCount),
+		//transfer.NewUniswapV2AccuracyTestCase("UniswapV2 Accuracy TestCase", 2, cfg.InitialEthCount),
 	)
 	return ethManager.Run(ctx)
 }
