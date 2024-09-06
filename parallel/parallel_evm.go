@@ -28,6 +28,10 @@ const (
 	batchTxnLabelRedo    = "redo"
 )
 
+var (
+	StateCopyDuration time.Duration
+)
+
 type ParallelEVM struct {
 	*tripod.Tripod
 	Solidity *evm.Solidity `tripod:"solidity"`
@@ -47,6 +51,8 @@ func (k *ParallelEVM) Execute(block *types.Block) error {
 	start := time.Now()
 	defer func() {
 		metrics.TxsExecutePerBlockDuration.WithLabelValues().Observe(time.Since(start).Seconds())
+		metrics.StatedbCopyPerBlockDuration.WithLabelValues().Observe(StateCopyDuration.Seconds())
+		StateCopyDuration = 0
 	}()
 	for index, stxn := range stxns {
 		wrCall := stxn.Raw.WrCall
@@ -167,7 +173,7 @@ func (k *ParallelEVM) executeTxnCtxListInConcurrency(originStateDB *state.StateD
 	for i := 0; i < len(list); i++ {
 		copiedStateDBList = append(copiedStateDBList, originStateDB.Copy())
 	}
-	metrics.StatedbCopyDuration.WithLabelValues().Observe(time.Since(start).Seconds())
+	StateCopyDuration += time.Since(start)
 	wg := sync.WaitGroup{}
 	for i, c := range list {
 		wg.Add(1)
