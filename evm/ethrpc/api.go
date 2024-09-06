@@ -1299,9 +1299,9 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction) (c
 
 	if tx.To() == nil {
 		addr := crypto.CreateAddress(from, tx.Nonce())
-		logrus.Infof("Submitted contract creation: Hash=%s, From=%s, Nonce=%v, ContractAdd=%v, Value=%v", tx.Hash().Hex(), from, tx.Nonce(), addr.Hex(), tx.Value())
+		logrus.Debugf("Submitted contract creation: Hash=%s, From=%s, Nonce=%v, ContractAdd=%v, Value=%v", tx.Hash().Hex(), from, tx.Nonce(), addr.Hex(), tx.Value())
 	} else {
-		logrus.Infof("Submitted transaction: Hash=%s, From=%s, Nonce=%v, To=%v, Value=%v", tx.Hash().Hex(), from, tx.Nonce(), tx.To(), tx.Value())
+		logrus.Debugf("Submitted transaction: Hash=%s, From=%s, Nonce=%v, To=%v, Value=%v", tx.Hash().Hex(), from, tx.Nonce(), tx.To(), tx.Value())
 	}
 
 	return tx.Hash(), nil

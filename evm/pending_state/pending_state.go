@@ -14,6 +14,7 @@ type PendingState struct {
 	sCtx   *StateContext
 	state  *state.StateDB
 	sender common.Address
+	logs   []*types.Log
 }
 
 func NewPendingState(sender common.Address, db *state.StateDB) *PendingState {
@@ -21,6 +22,7 @@ func NewPendingState(sender common.Address, db *state.StateDB) *PendingState {
 		sCtx:   NewStateContext(),
 		state:  db,
 		sender: sender,
+		logs:   make([]*types.Log, 0),
 	}
 }
 
@@ -181,6 +183,7 @@ func (s *PendingState) Snapshot() int {
 }
 
 func (s *PendingState) AddLog(log *types.Log) {
+	s.logs = append(s.logs, log)
 	s.state.AddLog(log)
 }
 
@@ -189,7 +192,7 @@ func (s *PendingState) AddPreimage(hash common.Hash, bytes []byte) {
 }
 
 func (s *PendingState) AllLogs() []*types.Log {
-	return s.state.Logs()
+	return s.logs
 }
 
 func (s *PendingState) AllPreimages() map[common.Hash][]byte {

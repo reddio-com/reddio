@@ -46,6 +46,27 @@ var (
 		},
 		[]string{TypeLbl},
 	)
+
+	StatedbCopyPerBlockDuration = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace: "reddio",
+			Subsystem: "batch_txn",
+			Name:      "statedb_copy",
+			Help:      "stateDB copy duration per block distribution.",
+			Buckets:   prometheus.DefBuckets,
+		},
+		[]string{},
+	)
+
+	TxsExecutePerBlockDuration = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace: "reddio",
+			Subsystem: "batch_txn",
+			Name:      "block_txs_duration_seconds",
+			Help:      "Transactions execute duration per block distribution.",
+		},
+		[]string{},
+	)
 )
 
 func init() {
@@ -53,4 +74,6 @@ func init() {
 	prometheus.MustRegister(TxnDuration)
 	prometheus.MustRegister(BatchTxnCounter)
 	prometheus.MustRegister(BatchTxnDuration)
+	prometheus.MustRegister(StatedbCopyPerBlockDuration)
+	prometheus.MustRegister(TxsExecutePerBlockDuration)
 }

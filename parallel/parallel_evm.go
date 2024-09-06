@@ -28,6 +28,10 @@ const (
 	batchTxnLabelRedo    = "redo"
 )
 
+var (
+	StateCopyDuration time.Duration
+)
+
 type ParallelEVM struct {
 	*tripod.Tripod
 	Solidity *evm.Solidity `tripod:"solidity"`
@@ -43,6 +47,13 @@ func (k *ParallelEVM) Execute(block *types.Block) error {
 	stxns := block.Txns
 	receipts := make(map[common.Hash]*types.Receipt)
 	txnCtxList := make([]*txnCtx, 0)
+
+	start := time.Now()
+	defer func() {
+		metrics.TxsExecutePerBlockDuration.WithLabelValues().Observe(time.Since(start).Seconds())
+		metrics.StatedbCopyPerBlockDuration.WithLabelValues().Observe(StateCopyDuration.Seconds())
+		StateCopyDuration = 0
+	}()
 	for index, stxn := range stxns {
 		wrCall := stxn.Raw.WrCall
 		ctx, err := context.NewWriteContext(stxn, block, index)
@@ -79,10 +90,6 @@ func (k *ParallelEVM) Execute(block *types.Block) error {
 	return k.PostExecute(block, receipts)
 }
 
-const (
-	maxConcurrency = 4
-)
-
 func (k *ParallelEVM) SplitTxnCtxList(list []*txnCtx) [][]*txnCtx {
 	cur := 0
 	curList := make([]*txnCtx, 0)
@@ -95,7 +102,7 @@ func (k *ParallelEVM) SplitTxnCtxList(list []*txnCtx) [][]*txnCtx {
 			continue
 		}
 		curList = append(curList, curTxnCtx)
-		if len(curList) >= maxConcurrency {
+		if len(curList) >= config.GetGlobalConfig().MaxConcurrency {
 			got = append(got, curList)
 			curList = make([]*txnCtx, 0)
 		}
@@ -166,6 +173,7 @@ func (k *ParallelEVM) executeTxnCtxListInConcurrency(originStateDB *state.StateD
 	for i := 0; i < len(list); i++ {
 		copiedStateDBList = append(copiedStateDBList, originStateDB.Copy())
 	}
+	StateCopyDuration += time.Since(start)
 	wg := sync.WaitGroup{}
 	for i, c := range list {
 		wg.Add(1)
