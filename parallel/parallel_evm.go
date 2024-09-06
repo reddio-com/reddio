@@ -51,7 +51,7 @@ func (k *ParallelEVM) Execute(block *types.Block) error {
 	start := time.Now()
 	defer func() {
 		metrics.TxsExecutePerBlockDuration.WithLabelValues().Observe(time.Since(start).Seconds())
-		metrics.StatedbCopyDuration.WithLabelValues().Observe(StateCopyDuration.Seconds())
+		metrics.StatedbCopyPerBlockDuration.WithLabelValues().Observe(StateCopyDuration.Seconds())
 		StateCopyDuration = 0
 	}()
 	for index, stxn := range stxns {
