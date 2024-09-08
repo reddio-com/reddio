@@ -243,8 +243,6 @@ func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManag
 					if !isConfirmed {
 						log.Fatalf("SwapETHForExactTokens transaction was not confirmed")
 					}
-					// log.Println("SwapETHForExactTokens transaction confirmed")
-					//time.Sleep(5 * time.Second)
 				}
 				break
 			}
@@ -261,7 +259,7 @@ func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManag
 		}
 
 	}
-	// 获取 swap 以后的 tokenA 兑换 tokenB 的价格
+	// Get the price of tokenA in terms of tokenB after the swap
 	amounts, err := uniswapV2Contract.uniswapV2RouterInstance.GetAmountsOut(nil, big.NewInt(100), []common.Address{uniswapV2Contract.weth9Address, uniswapV2Contract.tokenAAddress})
 	if err != nil {
 		log.Fatalf("Failed to get amounts out: %v", err)
@@ -269,7 +267,7 @@ func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManag
 	tokenAPriceInTokenB := amounts[len(amounts)-1]
 	log.Printf("TokenA price in TokenB: %v", tokenAPriceInTokenB)
 
-	// 获取账户余额
+	// Get account balance
 	tokenABalance, err := uniswapV2Contract.tokenAInstance.BalanceOf(nil, common.HexToAddress(testUser[0].Address))
 	if err != nil {
 		log.Fatalf("Failed to get TokenA balance: %v", err)
@@ -282,54 +280,53 @@ func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManag
 	}
 	log.Printf("Account ETH balance: %v", ethBalance)
 
-	// expect results
-	// 初始状态
+	// Expect results
+	// Initial state
 	tokenAReserve := big.NewInt(1000000)
 	ethReserve := big.NewInt(1000)
 	k := new(big.Int).Mul(tokenAReserve, ethReserve)
 
-	// 用户初始状态
+	// User initial state
 	userEth := big.NewInt(0)
 	userTokenA := big.NewInt(0)
 
-	// 交易次数
+	// Number of swaps
 	numSwaps := 200
 	swapEth := big.NewInt(100)
 	feeMultiplier := big.NewFloat(0.997)
 
 	for i := 0; i < numSwaps; i++ {
-		// 计算有效的 ETH 输入
+		// Calculate effective ETH input
 		swapEthEffective := new(big.Float).Mul(new(big.Float).SetInt(swapEth), feeMultiplier)
 		swapEthEffectiveInt, _ := swapEthEffective.Int(nil)
 
-		// 更新 ETH 储备量
+		// Update ETH reserve
 		newEthReserve := new(big.Int).Add(ethReserve, swapEthEffectiveInt)
 
-		// 计算新的 TokenA 储备量
+		// Calculate new TokenA reserve
 		newTokenAReserve := new(big.Int).Div(k, newEthReserve)
 
-		// 计算用户获得的 TokenA 数量
+		// Calculate the amount of TokenA received by the user
 		tokenAReceived := new(big.Int).Sub(tokenAReserve, newTokenAReserve)
 
-		// 更新储备量
+		// Update reserves
 		tokenAReserve = newTokenAReserve
 		ethReserve = newEthReserve
 
-		// 更新用户余额
+		// Update user balance
 		userEth.Add(userEth, swapEth)
 		userTokenA.Add(userTokenA, tokenAReceived)
 	}
 
-	// 输出结果
-	fmt.Printf("用户账户中的 ETH: %s\n", userEth.String())
-	fmt.Printf("用户账户中的 TokenA: %s\n", userTokenA.String())
-	fmt.Printf("流动性池中的 TokenA 储备量: %s\n", tokenAReserve.String())
-	fmt.Printf("流动性池中的 ETH 储备量: %s\n", ethReserve.String())
+	// Output results
+	fmt.Printf("User's ETH balance: %s\n", userEth.String())
+	fmt.Printf("User's TokenA balance: %s\n", userTokenA.String())
+	fmt.Printf("TokenA reserve in liquidity pool: %s\n", tokenAReserve.String())
+	fmt.Printf("ETH reserve in liquidity pool: %s\n", ethReserve.String())
 
-	// 计算最终的 TokenA 价格
+	// Calculate the final price of TokenA
 	tokenAPrice := new(big.Float).Quo(new(big.Float).SetInt(ethReserve), new(big.Float).SetInt(tokenAReserve))
-	fmt.Printf("流动性池中的 TokenA 价格: %f ETH\n", tokenAPrice)
-
+	fmt.Printf("TokenA price in liquidity pool: %f ETH\n", tokenAPrice)
 	return err
 }
 
