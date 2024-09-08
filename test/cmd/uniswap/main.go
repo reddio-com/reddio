@@ -37,6 +37,7 @@ func main() {
 	}
 	evmConfig := evm.LoadEvmConfig(evmConfigPath)
 	yuCfg := startup.InitDefaultKernelConfig()
+	yuCfg.Txpool.PoolSize = 10000000
 	config := config2.GetGlobalConfig()
 	config.IsParallel = isParallel
 
