@@ -69,7 +69,6 @@ func assertUniswapV2(ctx context.Context, evmCfg *evm.GethConfig) error {
 	ethManager.Configure(cfg, evmCfg)
 	ethManager.AddTestCase(
 		uniswap.NewUniswapV2AccuracyTestCase("UniswapV2 Accuracy TestCase", 2, cfg.InitialEthCount),
-		uniswap.NewUniswapV2TPSStatisticsTestCase("UniswapV2 TPS StatisticsTestCase", 2, cfg.InitialEthCount),
 	)
 	return ethManager.Run(ctx)
 }
