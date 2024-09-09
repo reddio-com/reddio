@@ -52,6 +52,8 @@ func NewUniswapV2AccuracyTestCase(name string, count int, initial uint64) *Unisw
 	}
 }
 
+const swapTimes = 200
+
 func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManager) error {
 	log.Printf("Running %s", ca.CaseName)
 	//create a wallet for contract deployment
@@ -192,7 +194,6 @@ func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManag
 		log.Fatalf("Add liquidity transaction was not confirmed")
 	}
 
-	//amountOut := big.NewInt(99)
 	// Perform  swaps
 	const maxRetries = 300
 	const retryDelay = 10 * time.Millisecond
@@ -201,7 +202,7 @@ func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManag
 		Err   error
 	}
 	//Act
-	for i := 0; i < 200; i++ {
+	for i := 0; i < swapTimes; i++ {
 		log.Printf("Swap %d", i)
 		// Set swap parameters
 		testUserAuth.Value = big.NewInt(100)
@@ -222,7 +223,7 @@ func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManag
 			swapETHForExactTokensTx, err := uniswapV2Contract.uniswapV2RouterInstance.SwapETHForExactTokens(testUserAuth, amountOut, []common.Address{uniswapV2Contract.weth9Address, uniswapV2Contract.tokenAAddress}, common.HexToAddress(testUser[0].Address), big.NewInt(time.Now().Unix()+1000))
 			if err == nil {
 				// Wait for transaction confirmation
-				if i == 199 {
+				if i == (swapTimes - 1) {
 					isConfirmed, err := waitForConfirmation(client, swapETHForExactTokensTx.Hash())
 					if err != nil {
 						log.Fatalf("Failed to confirm swapETHForExactTokensTx transaction: %v", err)
@@ -258,80 +259,56 @@ func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManag
 	if err != nil {
 		log.Fatalf("Failed to get TokenA balance: %v", err)
 	}
-	log.Printf("Account TokenA balance: %v", tokenABalance)
+	log.Printf("testUser TokenA balance: %v", tokenABalance)
 
 	ethBalance, err := client.BalanceAt(context.Background(), common.HexToAddress(testUser[0].Address), nil)
 	if err != nil {
 		log.Fatalf("Failed to get ETH balance: %v", err)
 	}
-	log.Printf("Account ETH balance: %v", ethBalance)
+	log.Printf("testUser ETH balance: %v", ethBalance)
 
 	// Expect results
 	// Initial state
-	tokenAReserve := big.NewInt(1000000)
-	ethReserve := big.NewInt(1000)
+	tokenAReserve := big.NewInt(1e18)
+	ethReserve := big.NewInt(1e18)
 	k := new(big.Int).Mul(tokenAReserve, ethReserve)
 
 	// User initial state
-	userEth := big.NewInt(0)
-	userTokenA := big.NewInt(0)
+	expectedEthBalance := big.NewInt(1e18)
+	expectedTokenABalance := big.NewInt(0)
 
-	// Number of swaps
-	numSwaps := 200
 	swapEth := big.NewInt(100)
-	feeMultiplier := big.NewFloat(0.997)
 
-	for i := 0; i < numSwaps; i++ {
-		// Calculate effective ETH input
-		swapEthEffective := new(big.Float).Mul(new(big.Float).SetInt(swapEth), feeMultiplier)
-		swapEthEffectiveInt, _ := swapEthEffective.Int(nil)
-
-		// Update ETH reserve
-		newEthReserve := new(big.Int).Add(ethReserve, swapEthEffectiveInt)
-
-		// Calculate new TokenA reserve
-		newTokenAReserve := new(big.Int).Div(k, newEthReserve)
-
-		// Calculate the amount of TokenA received by the user
-		tokenAReceived := new(big.Int).Sub(tokenAReserve, newTokenAReserve)
+	for i := 0; i < swapTimes; i++ {
+		eth2tokenAPrice := 99
+		tokenAReceived := big.NewInt(int64(eth2tokenAPrice))
 
 		// Update reserves
-		tokenAReserve = newTokenAReserve
-		ethReserve = newEthReserve
+		ethReserve.Add(ethReserve, swapEth)
+		tokenAReserve.Sub(k, ethReserve)
 
 		// Update user balance
-		userEth.Add(userEth, swapEth)
-		userTokenA.Add(userTokenA, tokenAReceived)
+		expectedEthBalance.Sub(expectedEthBalance, swapEth)
+		expectedTokenABalance.Add(expectedTokenABalance, tokenAReceived)
 	}
 
 	// Output results
-	fmt.Printf("User's ETH balance: %s\n", userEth.String())
-	fmt.Printf("User's TokenA balance: %s\n", userTokenA.String())
+	fmt.Printf("User's ETH balance: %s\n", expectedEthBalance.String())
+	fmt.Printf("User's TokenA balance: %s\n", expectedTokenABalance.String())
 	fmt.Printf("TokenA reserve in liquidity pool: %s\n", tokenAReserve.String())
 	fmt.Printf("ETH reserve in liquidity pool: %s\n", ethReserve.String())
 
-	// Assert that TokenA balance is 19800
-	expectedTokenABalance := big.NewInt(19800)
 	if tokenABalance.Cmp(expectedTokenABalance) != 0 {
-		log.Fatalf("Expected TokenA balance to be %s, but got %s", expectedTokenABalance.String(), userTokenA.String())
+		log.Fatalf("Expected user TokenA balance to be %s, but got %s", expectedTokenABalance.String(), tokenABalance.String())
 	}
 
-	// Assert that ETH balance is 999999999999980000
-	expectedEthBalance := big.NewInt(999999999999980000)
 	if ethBalance.Cmp(expectedEthBalance) != 0 {
-		log.Fatalf("Expected ETH balance to be %s, but got %s", expectedEthBalance.String(), userEth.String())
+		log.Fatalf("Expected user ETH balance to be %s, but got %s", expectedEthBalance.String(), ethBalance.String())
 	}
 	return err
 }
 
 // deploy UniswapV2 Contracts
-/*
-   Deploy token A ("AAAToken", "AAA")
-   Deploy token B ("BBBToken", "BBB")
-   Deploy WETH
-   Deploy UniswapV2Factory (FeeToSetter)
-   Deploy UniswapV2Router01 (WETH addresse, factory addresse)
-*/
 func deployUniswapV2AccuracyContracts(auth *bind.TransactOpts, client *ethclient.Client) (*UniswapV2DeployedAccuracyContracts, error) {
 	var err error
 	deployed := &UniswapV2DeployedAccuracyContracts{}
