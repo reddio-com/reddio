@@ -2,7 +2,6 @@ package uniswap
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"math/big"
 	"time"
@@ -203,7 +202,6 @@ func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManag
 	}
 	//Act
 	for i := 0; i < swapTimes; i++ {
-		log.Printf("Swap %d", i)
 		// Set swap parameters
 		testUserAuth.Value = big.NewInt(100)
 
@@ -293,10 +291,10 @@ func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManag
 	}
 
 	// Output results
-	fmt.Printf("User's ETH balance: %s\n", expectedEthBalance.String())
-	fmt.Printf("User's TokenA balance: %s\n", expectedTokenABalance.String())
-	fmt.Printf("TokenA reserve in liquidity pool: %s\n", tokenAReserve.String())
-	fmt.Printf("ETH reserve in liquidity pool: %s\n", ethReserve.String())
+	log.Printf("User's ETH balance: %s\n", expectedEthBalance.String())
+	log.Printf("User's TokenA balance: %s\n", expectedTokenABalance.String())
+	log.Printf("TokenA reserve in liquidity pool: %s\n", tokenAReserve.String())
+	log.Printf("ETH reserve in liquidity pool: %s\n", ethReserve.String())
 
 	if tokenABalance.Cmp(expectedTokenABalance) != 0 {
 		log.Fatalf("Expected user TokenA balance to be %s, but got %s", expectedTokenABalance.String(), tokenABalance.String())
