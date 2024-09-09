@@ -19,22 +19,21 @@ import (
 )
 
 const (
-	numTestUsers            = 100
-	accountInitialFunds     = 1e18
-	gasLimit                = 6e7
-	maxRetries              = 300
-	retriesInterval         = 2 * time.Second
-	waitForConfirmationTime = 1 * time.Second
-	chainID                 = 50341
-	//gasPrice                 = 1e9
+	nodeUrl                  = "http://localhost:9092"
+	numTestUsers             = 100
+	accountInitialFunds      = 1e18
+	gasLimit                 = 6e7
+	waitForConfirmationTime  = 1 * time.Second
+	chainID                  = 50341
 	accountInitialERC20Token = 1e18
 	approveAmount            = 1e18
 	amountADesired           = 1e15
 	amountBDesired           = 1e15
 	maxSwapAmount            = 1e9
 	stepCount                = 5000
+	maxRetries               = 300
+	retriesInterval          = 2 * time.Second
 	tokenContractNum         = 10
-	nodeUrl                  = "http://localhost:9092"
 )
 
 type ERC20DeployedContract struct {
@@ -141,7 +140,7 @@ func (cd *UniswapV2TPSStatisticsTestCase) Run(ctx context.Context, m *pkg.Wallet
 	if err != nil {
 		log.Fatalf("Failed to parse private key: %v", err)
 	}
-	depolyerAuth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(50341))
+	depolyerAuth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(chainID))
 	if err != nil {
 		log.Fatalf("Failed to create authorized transactor: %v", err)
 	}
@@ -304,77 +303,6 @@ func (cd *UniswapV2TPSStatisticsTestCase) Run(ctx context.Context, m *pkg.Wallet
 			log.Fatalf("Failed to calculate TPS: %v", err)
 		}
 	}
-	// startTime := time.Now()
-	// log.Printf("Start time: %s", startTime.Format(time.RFC3339))
-	// //amountOut := big.NewInt(99)
-	// // Perform  swaps
-	// const maxRetries = 300
-	// const retryDelay = 10 * time.Millisecond
-	// var retryErrors []struct {
-	// 	Nonce int
-	// 	Err   error
-	// }
-	// for i := 0; i < 2000; i++ {
-	// 	log.Printf("Swap %d", i)
-	// 	// Set swap parameters
-	// 	auth.Value = big.NewInt(100)
-
-	// 	//Get output amount
-	// 	amounts, err := uniswapV2Contract.uniswapV2RouterInstance.GetAmountsOut(nil, big.NewInt(100), []common.Address{uniswapV2Contract.weth9Address, uniswapV2Contract.tokenAAddress})
-	// 	if err != nil {
-	// 		log.Fatalf("Failed to get amounts out: %v", err)
-	// 	}
-	// 	amountOut := amounts[len(amounts)-1]
-	// 	log.Printf("TokenA Amount out: %v", amountOut)
-	// 	// Execute swap operation
-	// 	nonce, err := client.PendingNonceAt(context.Background(), common.HexToAddress(wallets[0].Address))
-	// 	if err != nil {
-	// 		log.Fatalf("Failed to get nonce: %v", err)
-	// 	}
-	// 	log.Printf("Nonce: %v", nonce)
-
-	// 	for j := 0; j < maxRetries; j++ {
-	// 		swapETHForExactTokensTx, err := uniswapV2Contract.uniswapV2RouterInstance.SwapETHForExactTokens(auth, amountOut, []common.Address{uniswapV2Contract.weth9Address, uniswapV2Contract.tokenAAddress}, common.HexToAddress(wallets[0].Address), big.NewInt(time.Now().Unix()+1000))
-	// 		if err == nil {
-	// 			log.Printf("SwapETHForExactTokens transaction hash: %s", swapETHForExactTokensTx.Hash().Hex())
-	// 			break
-	// 		}
-	// 		log.Printf("Attempt %d: Failed to swapETHForExactTokensTx transaction: %v", i+1, err)
-	// 		retryErrors = append(retryErrors, struct {
-	// 			Nonce int
-	// 			Err   error
-	// 		}{Nonce: int(nonce), Err: err}) // record和 nonce
-	// 		time.Sleep(retryDelay)
-	// 	}
-
-	// 	if err != nil {
-	// 		log.Fatalf("Failed to swapETHForExactTokensTx transaction after %d attempts: %v", maxRetries, err)
-	// 	}
-
-	// 	// if (i+1)%540 == 0 {
-	// 	// 	amountOut.Sub(amountOut, big.NewInt(1))
-	// 	// 	log.Printf("Decreased amountOut to: %v", amountOut)
-	// 	// }
-	// 	// Wait for transaction confirmation
-	// 	// isConfirmed, err := waitForConfirmation(client, swapETHForExactTokensTx.Hash())
-	// 	// if err != nil {
-	// 	// 	log.Fatalf("Failed to confirm swapETHForExactTokensTx transaction: %v", err)
-	// 	// }
-	// 	// if !isConfirmed {
-	// 	// 	log.Fatalf("SwapETHForExactTokens transaction was not confirmed")
-	// 	// }
-	// 	// log.Println("SwapETHForExactTokens transaction confirmed")
-	// }
-	// endTime := time.Now()
-	// log.Printf("End time: %s", endTime.Format(time.RFC3339))
-
-	// // Calculate TPS
-	// for j, retryErr := range retryErrors {
-	// 	log.Printf("Attempt %d: Nonce %d, Error: %v", j+1, retryErr.Nonce, retryErr.Err)
-	// }
-	// duration := endTime.Sub(startTime).Seconds()
-	// tps := float64(2000) / duration
-	// log.Printf("TPS: %.2f", tps)
 
 	return err
 }

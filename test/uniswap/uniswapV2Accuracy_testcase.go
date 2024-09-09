@@ -59,10 +59,6 @@ func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManag
 	if err != nil {
 		return err
 	}
-	//deployer wallet
-	log.Printf("deployer wallet address: %s", wallets[0].Address)
-	log.Printf("deployer test wallet pk: %s", wallets[0].PK) //Note: private key, should be kept secret on production environment
-
 	client, err := ethclient.Dial("http://localhost:9092")
 	if err != nil {
 		log.Fatalf("Failed to connect to the Ethereum client: %v", err)
@@ -125,8 +121,6 @@ func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManag
 		log.Fatalf("Failed to create approve transaction: %v", err)
 	}
 
-	log.Printf("tokenAApproveTx transaction hash: %s", tokenAApproveTx.Hash().Hex())
-
 	isConfirmed, err := waitForConfirmation(client, tokenAApproveTx.Hash())
 	if err != nil {
 		log.Fatalf("Failed to confirm approve transaction: %v", err)
@@ -139,8 +133,6 @@ func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManag
 		log.Fatalf("Failed to create approve transaction: %v", err)
 	}
 
-	log.Printf("tokenAApproveTx transaction hash: %s", tokenAApproveTx.Hash().Hex())
-
 	isConfirmed, err = waitForConfirmation(client, tokenAApproveTx.Hash())
 	if err != nil {
 		log.Fatalf("Failed to confirm approve transaction: %v", err)
@@ -148,7 +140,6 @@ func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManag
 	if !isConfirmed {
 		log.Fatalf("Approve transaction was not confirmed")
 	}
-	log.Println("testUser tokenAApproveTx transaction confirmed")
 
 	WethAmountApproved := big.NewInt(1e18)
 	WethAApproveTx, err := uniswapV2Contract.weth9Instance.Approve(auth, common.HexToAddress(uniswapV2Contract.uniswapV2Router01Address.Hex()), WethAmountApproved)
@@ -200,7 +191,6 @@ func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManag
 	if !isConfirmed {
 		log.Fatalf("Add liquidity transaction was not confirmed")
 	}
-	log.Println("Add liquidity transaction confirmed")
 
 	//amountOut := big.NewInt(99)
 	// Perform  swaps
@@ -222,18 +212,15 @@ func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManag
 			log.Fatalf("Failed to get amounts out: %v", err)
 		}
 		amountOut := amounts[len(amounts)-1]
-		log.Printf("TokenA Amount out: %v", amountOut)
 		// Execute swap operation
 		nonce, err := client.PendingNonceAt(context.Background(), common.HexToAddress(testUser[0].Address))
 		if err != nil {
 			log.Fatalf("Failed to get nonce: %v", err)
 		}
-		log.Printf("Nonce: %v", nonce)
 
 		for j := 0; j < maxRetries; j++ {
 			swapETHForExactTokensTx, err := uniswapV2Contract.uniswapV2RouterInstance.SwapETHForExactTokens(testUserAuth, amountOut, []common.Address{uniswapV2Contract.weth9Address, uniswapV2Contract.tokenAAddress}, common.HexToAddress(testUser[0].Address), big.NewInt(time.Now().Unix()+1000))
 			if err == nil {
-				log.Printf("SwapETHForExactTokens transaction hash: %s", swapETHForExactTokensTx.Hash().Hex())
 				// Wait for transaction confirmation
 				if i == 199 {
 					isConfirmed, err := waitForConfirmation(client, swapETHForExactTokensTx.Hash())
@@ -246,7 +233,6 @@ func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManag
 				}
 				break
 			}
-			log.Printf("Attempt %d: Failed to swapETHForExactTokensTx transaction: %v", i+1, err)
 			retryErrors = append(retryErrors, struct {
 				Nonce int
 				Err   error
@@ -324,9 +310,17 @@ func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManag
 	fmt.Printf("TokenA reserve in liquidity pool: %s\n", tokenAReserve.String())
 	fmt.Printf("ETH reserve in liquidity pool: %s\n", ethReserve.String())
 
-	// Calculate the final price of TokenA
-	tokenAPrice := new(big.Float).Quo(new(big.Float).SetInt(ethReserve), new(big.Float).SetInt(tokenAReserve))
-	fmt.Printf("TokenA price in liquidity pool: %f ETH\n", tokenAPrice)
+	// Assert that TokenA balance is 19800
+	expectedTokenABalance := big.NewInt(19800)
+	if tokenABalance.Cmp(expectedTokenABalance) != 0 {
+		log.Fatalf("Expected TokenA balance to be %s, but got %s", expectedTokenABalance.String(), userTokenA.String())
+	}
+
+	// Assert that ETH balance is 999999999999980000
+	expectedEthBalance := big.NewInt(999999999999980000)
+	if ethBalance.Cmp(expectedEthBalance) != 0 {
+		log.Fatalf("Expected ETH balance to be %s, but got %s", expectedEthBalance.String(), userEth.String())
+	}
 	return err
 }
 
