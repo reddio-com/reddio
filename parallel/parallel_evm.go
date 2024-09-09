@@ -116,29 +116,18 @@ func (k *ParallelEVM) SplitTxnCtxList(list []*txnCtx) [][]*txnCtx {
 
 func checkAddressConflict(curTxn *txnCtx, curList []*txnCtx) bool {
 	for _, compare := range curList {
-
-		if curTxn.req.Address != nil && compare.req.Address != nil {
-			if *compare.req.Address == *curTxn.req.Address {
-				return true
-			}
+		if *compare.req.Address == *curTxn.req.Address {
+			return true
 		}
-
-		if compare.req.Address != nil {
-			if *compare.req.Address == curTxn.req.Origin {
-				return true
-			}
+		if *compare.req.Address == curTxn.req.Origin {
+			return true
 		}
-
-		if curTxn.req.Address != nil {
-			if compare.req.Origin == *curTxn.req.Address {
-				return true
-			}
+		if compare.req.Origin == *curTxn.req.Address {
+			return true
 		}
-
 		if compare.req.Origin == curTxn.req.Origin {
 			return true
 		}
-
 	}
 	return false
 }
