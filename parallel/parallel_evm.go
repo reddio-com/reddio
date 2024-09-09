@@ -163,16 +163,13 @@ func (k *ParallelEVM) executeTxnCtxListInOrder(originStateDB *state.StateDB, lis
 }
 
 func (k *ParallelEVM) executeTxnCtxListInConcurrency(originStateDB *state.StateDB, list []*txnCtx) []*txnCtx {
-	copiedStateDBList := make([]*state.StateDB, 0)
 	conflict := false
 	start := time.Now()
 	defer func() {
 		end := time.Now()
 		metrics.BatchTxnDuration.WithLabelValues(fmt.Sprintf("%v", conflict)).Observe(end.Sub(start).Seconds())
 	}()
-	for i := 0; i < len(list); i++ {
-		copiedStateDBList = append(copiedStateDBList, originStateDB.Copy())
-	}
+	copiedStateDBList := k.CopyStateDb(originStateDB, list)
 	StateCopyDuration += time.Since(start)
 	wg := sync.WaitGroup{}
 	for i, c := range list {
@@ -209,14 +206,30 @@ func (k *ParallelEVM) executeTxnCtxListInConcurrency(originStateDB *state.StateD
 		return k.executeTxnCtxListInOrder(originStateDB, list, true)
 	}
 	metrics.BatchTxnCounter.WithLabelValues(batchTxnLabelSuccess).Inc()
+	k.mergeStateDB(originStateDB, list)
+	k.Solidity.SetStateDB(originStateDB)
+	return list
+}
+
+func (k *ParallelEVM) mergeStateDB(originStateDB *state.StateDB, list []*txnCtx) {
+	k.Solidity.Lock()
 	for _, tctx := range list {
 		if tctx.err != nil {
 			continue
 		}
 		tctx.ps.MergeInto(originStateDB)
 	}
-	k.Solidity.SetStateDB(originStateDB)
-	return list
+	k.Solidity.Unlock()
+}
+
+func (k *ParallelEVM) CopyStateDb(originStateDB *state.StateDB, list []*txnCtx) []*state.StateDB {
+	copiedStateDBList := make([]*state.StateDB, 0)
+	k.Solidity.Lock()
+	for i := 0; i < len(list); i++ {
+		copiedStateDBList = append(copiedStateDBList, originStateDB.Copy())
+	}
+	k.Solidity.Unlock()
+	return copiedStateDBList
 }
 
 type txnCtx struct {
