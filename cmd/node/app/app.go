@@ -17,7 +17,7 @@ import (
 
 func Start(path string, yuCfg *yuConfig.KernelConf) {
 	poaCfg := poa.DefaultCfg(0)
-	poaCfg.PrettyLog = false
+	poaCfg.PrettyLog = true
 	gethCfg := evm.LoadEvmConfig(path)
 	go startPromServer()
 	StartUpChain(yuCfg, poaCfg, gethCfg)

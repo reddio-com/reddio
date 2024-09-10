@@ -28,8 +28,9 @@ const (
 	amountADesired           = 1e15
 	amountBDesired           = 1e15
 	maxSwapAmount            = 1e9
+	maxBlocks                = 20
 	stepCount                = 5000
-	retriesInterval          = 2 * time.Second
+	retriesInterval          = 3 * time.Second
 	tokenContractNum         = 101
 )
 
@@ -413,7 +414,7 @@ func calculateTPSByTransactionsCount(client *ethclient.Client, transactionCount 
 
 	var blocks []*types.Block
 	totalTransactions := 0
-
+	blockCount := 0
 	for totalTransactions < transactionCount || len(blocks) < 2 {
 		if latestBlockNumber < 0 {
 			errorChan <- fmt.Errorf("invalid block number: %d", blockNumber)
@@ -442,6 +443,11 @@ func calculateTPSByTransactionsCount(client *ethclient.Client, transactionCount 
 		log.Printf("totalTransactions: %d", totalTransactions)
 		blockNumber.Add(blockNumber, big.NewInt(1))
 		log.Printf("latestBlockNumber: %d", latestBlockNumber)
+		blockCount++
+		if blockCount >= maxBlocks && totalTransactions < transactionCount {
+			log.Printf("Reached maximum block count of %d with less than %d transactions. Stopping.", maxBlocks, transactionCount)
+			break
+		}
 	}
 
 	log.Printf("blocks.len: %d", len(blocks))
