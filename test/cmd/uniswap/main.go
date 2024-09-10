@@ -44,9 +44,9 @@ func main() {
 	go func() {
 		log.Printf("Number of goroutines after app.Start: %d", runtime.NumGoroutine())
 		if config.IsParallel {
-			log.Println("start transfer test in parallel")
+			log.Println("start uniswap test in parallel")
 		} else {
-			log.Println("start transfer test in serial")
+			log.Println("start uniswap test in serial")
 		}
 		app.Start(evmConfigPath, yuCfg)
 
