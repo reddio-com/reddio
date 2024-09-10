@@ -92,9 +92,7 @@ func (e *EthAPIBackend) HeaderByNumber(ctx context.Context, number rpc.BlockNumb
 	case rpc.PendingBlockNumber:
 		// FIXME
 		yuBlock, err = e.chain.Chain.GetEndCompactBlock()
-	case rpc.LatestBlockNumber:
-		yuBlock, err = e.chain.Chain.GetEndCompactBlock()
-	case rpc.FinalizedBlockNumber, rpc.SafeBlockNumber:
+	case rpc.LatestBlockNumber, rpc.FinalizedBlockNumber, rpc.SafeBlockNumber:
 		yuBlock, err = e.chain.Chain.LastFinalizedCompact()
 	default:
 		yuBlock, err = e.chain.Chain.GetCompactBlockByHeight(yucommon.BlockNum(number))
