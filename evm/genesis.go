@@ -603,39 +603,52 @@ func DeveloperGenesisBlock(gasLimit uint64, faucet *common.Address) *Genesis {
 	return genesis
 }
 
+type AccountInfo struct {
+	Addr    *big.Int
+	Balance *big.Int
+	Misc    *struct {
+		Nonce uint64
+		Code  []byte
+		Slots []struct {
+			Key common.Hash
+			Val common.Hash
+		}
+	} `rlp:"optional"`
+}
+
 func decodePrealloc(data string) types.GenesisAlloc {
-	var p []struct {
-		Addr    *big.Int
-		Balance *big.Int
-		Misc    *struct {
-			Nonce uint64
-			Code  []byte
-			Slots []struct {
-				Key common.Hash
-				Val common.Hash
-			}
-		} `rlp:"optional"`
-	}
+	var p []AccountInfo
 	if err := rlp.NewStream(strings.NewReader(data), 0).Decode(&p); err != nil {
 		panic(err)
 	}
-	devAccount := struct {
-		Addr    *big.Int
-		Balance *big.Int
-		Misc    *struct {
-			Nonce uint64
-			Code  []byte
-			Slots []struct {
-				Key common.Hash
-				Val common.Hash
-			}
-		} `rlp:"optional"`
-	}{
-		Addr:    common.HexToAddress("0x7Bd36074b61Cfe75a53e1B9DF7678C96E6463b02").Big(),
-		Balance: new(big.Int).Mul(big.NewInt(10000000000), ether),
+	devAccounts := []AccountInfo{
+		{
+			Addr:    common.HexToAddress("0x3E2D75F83e775761890d9ab9389eCF6C9D6017eB").Big(),
+			Balance: new(big.Int).Mul(big.NewInt(100000000000), ether),
+		},
+		{
+			Addr:    common.HexToAddress("0x8c275240c489d177fc10b6d10ffc5a68ef71ee8b").Big(),
+			Balance: new(big.Int).Mul(big.NewInt(100000000000), ether),
+		},
+		{
+			Addr:    common.HexToAddress("0x136277C7F881dA7FD1F229660B5C691BC937F62F").Big(),
+			Balance: new(big.Int).Mul(big.NewInt(100000000000), ether),
+		},
+		{
+			Addr:    common.HexToAddress("0x367589ff9fe0356dd621285f40f9e51f1cb912c4").Big(),
+			Balance: new(big.Int).Mul(big.NewInt(100000000000), ether),
+		},
+		{
+			Addr:    common.HexToAddress("0x821b0B1b166464b37e862507004BdB1425a443e2").Big(),
+			Balance: new(big.Int).Mul(big.NewInt(100000000000), ether),
+		},
+		{
+			Addr:    common.HexToAddress("0x43e0CE2E233DEC0Cb9061FF74Ec19bF590E148Ed").Big(),
+			Balance: new(big.Int).Mul(big.NewInt(100000000000), ether),
+		},
 	}
 
-	p = append(p, devAccount)
+	p = append(p, devAccounts...)
 
 	ga := make(types.GenesisAlloc, len(p))
 	for _, account := range p {
