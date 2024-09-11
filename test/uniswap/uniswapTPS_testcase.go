@@ -80,7 +80,6 @@ func NewUniswapV2TPSStatisticsTestCase(name string, count int, initial uint64) *
 //   - Calculate and report the transactions per second (TPS) achieved during the test
 func (cd *UniswapV2TPSStatisticsTestCase) Run(ctx context.Context, m *pkg.WalletManager) error {
 	var lastTxHash common.Hash
-	log.Printf("Running %s", cd.CaseName)
 	depolyerUser, err := m.GenerateRandomWallet(1, accountInitialFunds)
 	if err != nil {
 		log.Fatalf("Failed to generate deployer user: %v", err)
@@ -91,7 +90,6 @@ func (cd *UniswapV2TPSStatisticsTestCase) Run(ctx context.Context, m *pkg.Wallet
 		log.Fatalf("Failed to generate test users: %v", err)
 		return err
 	}
-	log.Printf("testUsersWallets length: %d", len(testUsersWallets))
 	client, err := ethclient.Dial(nodeUrl)
 	if err != nil {
 		log.Fatalf("Failed to connect to the Ethereum client: %v", err)
@@ -108,7 +106,6 @@ func (cd *UniswapV2TPSStatisticsTestCase) Run(ctx context.Context, m *pkg.Wallet
 	if err != nil {
 		log.Fatalf("Failed to suggest gas price: %v", err)
 	}
-	log.Printf("Gas price: %v", gasPrice)
 
 	// set tx auth
 	privateKey, err := crypto.HexToECDSA(depolyerUser[0].PK)
@@ -132,14 +129,12 @@ func (cd *UniswapV2TPSStatisticsTestCase) Run(ctx context.Context, m *pkg.Wallet
 	if err != nil {
 		log.Fatalf("Failed to deploy contract: %v", err)
 	}
-	log.Printf("UniswapV2 contracts deployed :%s", uniswapV2Contract.uniswapV2Router01Address)
 	//Fixme: add depployNum to the config file
 	ERC20DeployedContracts, err := deployERC20Contracts(depolyerAuth, client, tokenContractNum)
 	if err != nil {
 		log.Fatalf("Failed to deploy ERC20 contracts: %v", err)
 	}
 	lastIndex := len(ERC20DeployedContracts) - 1
-	log.Printf("ERC20 contracts deployed, the last tokenAddress: %s", ERC20DeployedContracts[lastIndex].tokenAddress.Hex())
 	isConfirmed, err := waitForConfirmation(client, ERC20DeployedContracts[lastIndex].tokenTransaction.Hash())
 	if err != nil {
 		log.Fatalf("Failed to confirm approve transaction: %v", err)
@@ -147,8 +142,6 @@ func (cd *UniswapV2TPSStatisticsTestCase) Run(ctx context.Context, m *pkg.Wallet
 	if !isConfirmed {
 		log.Fatalf(" transaction was not confirmed")
 	}
-	log.Printf("wait for ERC20 contract deployment done")
-
 	//interact with the contract
 	///dispatchTestToken
 	// dispatchTestToken([] TokenAddresses,testUsers)
@@ -242,8 +235,6 @@ func (cd *UniswapV2TPSStatisticsTestCase) Run(ctx context.Context, m *pkg.Wallet
 	// }
 	// log.Printf("testNonce: %v", testNonce)
 	// log.Printf("depolyerAuth.Nonce: %v", depolyerAuth.Nonce)
-
-	log.Println("Add liquidity transaction confirmed")
 
 	// randomswap from token A to token A
 	steps := generateRandomSwapSteps(testUsersWallets, tokenPairs, stepCount)
@@ -432,27 +423,18 @@ func calculateTPSByTransactionsCount(client *ethclient.Client, transactionCount 
 				errorChan <- fmt.Errorf("failed to get block %d after %d retries: %v", blockNumber, retries, err)
 				return
 			}
-			log.Printf("Block %d not found, retrying ... (attempt %d/%d)", blockNumber, retries+1, maxRetries)
 			time.Sleep(retriesInterval)
 			retries++
 		}
-		log.Printf("block.Time(): %d,block.Number(): %d", block.Time(), block.Number())
 		blocks = append(blocks, block)
-		log.Printf("blocks.[last]:%d", blocks[len(blocks)-1].Number())
 		totalTransactions += len(block.Transactions())
-		log.Printf("totalTransactions: %d", totalTransactions)
 		blockNumber.Add(blockNumber, big.NewInt(1))
-		log.Printf("latestBlockNumber: %d", latestBlockNumber)
 		blockCount++
 		if blockCount >= maxBlocks && totalTransactions < transactionCount {
-			log.Printf("Reached maximum block count of %d with less than %d transactions. Stopping.", maxBlocks, transactionCount)
+			log.Fatalf("Reached maximum block count of %d with less than %d transactions. Stopping.", maxBlocks, transactionCount)
 			break
 		}
 	}
-
-	log.Printf("blocks.len: %d", len(blocks))
-	log.Printf("blocks[0].Time(): %d,blocks[0].Number(): %d", blocks[0].Time(), blocks[0].Number())
-	log.Printf("blocks[len(blocks)-1].Time(): %d,blocks[len(blocks)-1].Number(): %d", blocks[len(blocks)-1].Time(), blocks[len(blocks)-1].Number())
 
 	timeInterval := blocks[len(blocks)-1].Time() - blocks[0].Time()
 
