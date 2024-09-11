@@ -161,6 +161,7 @@ func (k *ParallelEVM) executeTxnCtxListInOrder(originStateDB *state.StateDB, lis
 		list[index] = tctx
 	}
 	k.Solidity.SetStateDB(currStateDb)
+	k.gcCopiedStateDB(nil, list)
 	return list
 }
 
@@ -202,6 +203,7 @@ func (k *ParallelEVM) executeTxnCtxListInConcurrency(originStateDB *state.StateD
 			break
 		}
 	}
+
 	if conflict {
 		metrics.BatchTxnCounter.WithLabelValues(batchTxnLabelRedo).Inc()
 		return k.executeTxnCtxListInOrder(originStateDB, list, true)
@@ -209,7 +211,16 @@ func (k *ParallelEVM) executeTxnCtxListInConcurrency(originStateDB *state.StateD
 	metrics.BatchTxnCounter.WithLabelValues(batchTxnLabelSuccess).Inc()
 	k.mergeStateDB(originStateDB, list)
 	k.Solidity.SetStateDB(originStateDB)
+	k.gcCopiedStateDB(copiedStateDBList, list)
 	return list
+}
+
+func (k *ParallelEVM) gcCopiedStateDB(copiedStateDBList []*state.StateDB, list []*txnCtx) {
+	copiedStateDBList = nil
+	for _, ctx := range list {
+		ctx.ctx.ExtraInterface = nil
+		ctx.ps = nil
+	}
 }
 
 func (k *ParallelEVM) mergeStateDB(originStateDB *state.StateDB, list []*txnCtx) {
