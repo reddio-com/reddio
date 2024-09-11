@@ -621,7 +621,13 @@ func decodePrealloc(data string) types.GenesisAlloc {
 	if err := rlp.NewStream(strings.NewReader(data), 0).Decode(&p); err != nil {
 		panic(err)
 	}
-	devAccounts := []AccountInfo{
+	
+	devAccount := AccountInfo{
+		Addr:    common.HexToAddress("0x7Bd36074b61Cfe75a53e1B9DF7678C96E6463b02").Big(),
+		Balance: new(big.Int).Mul(big.NewInt(100000000000), ether),
+	}
+
+	devnetAccounts := []AccountInfo{
 		{
 			Addr:    common.HexToAddress("0x3E2D75F83e775761890d9ab9389eCF6C9D6017eB").Big(),
 			Balance: new(big.Int).Mul(big.NewInt(100000000000), ether),
@@ -648,7 +654,7 @@ func decodePrealloc(data string) types.GenesisAlloc {
 		},
 	}
 
-	p = append(p, devAccounts...)
+	p = append(p, devAccount, devnetAccounts...)
 
 	ga := make(types.GenesisAlloc, len(p))
 	for _, account := range p {
