@@ -3,7 +3,6 @@ package uniswap
 import (
 	"context"
 	"fmt"
-	"log"
 	"math/big"
 	"time"
 
@@ -76,7 +75,6 @@ func deployUniswapV2Contracts(auth *bind.TransactOpts, client *ethclient.Client)
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("WETH deployed at address: %s", deployed.weth9Address.Hex())
 	auth.Nonce.Add(auth.Nonce, big.NewInt(1))
 
 	// Deploy UniswapV2Factory
@@ -84,7 +82,6 @@ func deployUniswapV2Contracts(auth *bind.TransactOpts, client *ethclient.Client)
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("UniswapV2Factory deployed at address: %s", deployed.uniswapV2FactoryAddress.Hex())
 	auth.Nonce.Add(auth.Nonce, big.NewInt(1))
 
 	// Deploy UniswapV2Router01
@@ -92,22 +89,18 @@ func deployUniswapV2Contracts(auth *bind.TransactOpts, client *ethclient.Client)
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("UniswapV2Router01 deployed at address: %s", deployed.uniswapV2Router01Address.Hex())
 	auth.Nonce.Add(auth.Nonce, big.NewInt(1))
 
 	return deployed, nil
 }
 
 func waitForConfirmation(client *ethclient.Client, txHash common.Hash) (bool, error) {
-	log.Printf("Waiting for transaction to be confirmed: %s", txHash.Hex())
 	for i := 0; i < maxRetries; i++ {
 		receipt, err := client.TransactionReceipt(context.Background(), txHash)
 		if err == nil {
 			if receipt.Status == types.ReceiptStatusSuccessful {
-				log.Printf("Transaction confirmed: %s", txHash.Hex())
 				return true, nil
 			}
-			log.Printf("Transaction failed: %s", txHash.Hex())
 			return false, fmt.Errorf("transaction failed with status: %v", receipt.Status)
 		}
 		time.Sleep(waitForConfirmationTime)

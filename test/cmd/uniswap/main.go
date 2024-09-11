@@ -44,9 +44,9 @@ func main() {
 	go func() {
 		log.Printf("Number of goroutines after app.Start: %d", runtime.NumGoroutine())
 		if config.IsParallel {
-			log.Println("start transfer test in parallel")
+			log.Println("start uniswap test in parallel")
 		} else {
-			log.Println("start transfer test in serial")
+			log.Println("start uniswap test in serial")
 		}
 		app.Start(evmConfigPath, yuCfg)
 
@@ -69,7 +69,6 @@ func assertUniswapV2(ctx context.Context, evmCfg *evm.GethConfig) error {
 	ethManager.Configure(cfg, evmCfg)
 	ethManager.AddTestCase(
 		uniswap.NewUniswapV2AccuracyTestCase("UniswapV2 Accuracy TestCase", 2, cfg.InitialEthCount),
-		uniswap.NewUniswapV2TPSStatisticsTestCase("UniswapV2 TPS StatisticsTestCase", 2, cfg.InitialEthCount),
 	)
 	return ethManager.Run(ctx)
 }

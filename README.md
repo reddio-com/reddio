@@ -1,6 +1,6 @@
 # reddio
 
-Reddio is a high performance parallel Ethereum-compatible Layer 2, leveraging
+[Reddio](https://www.reddio.com/) is a high performance parallel Ethereum-compatible Layer 2, leveraging
 zero-knowledge technology to achieve unrivaled computation scale with
 Ethereum-level security.
 
