@@ -54,7 +54,6 @@ func NewUniswapV2AccuracyTestCase(name string, count int, initial uint64) *Unisw
 const swapTimes = 200
 
 func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManager) error {
-	log.Printf("Running %s", ca.CaseName)
 	//create a wallet for contract deployment
 	wallets, err := m.GenerateRandomWallet(1, 1e18)
 	if err != nil {
@@ -70,17 +69,11 @@ func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManag
 		log.Fatalf("Failed to Close  the Ethereum client: %v", err)
 	}
 
-	balance, err := client.BalanceAt(ctx, common.HexToAddress(wallets[0].Address), nil)
-	if err != nil {
-		log.Fatalf("Failed to get balance: %v", err)
-	}
-	log.Printf("deployer wallet balance: %s", balance.String())
 	// get gas price
 	gasPrice, err := client.SuggestGasPrice(context.Background())
 	if err != nil {
 		log.Fatalf("Failed to suggest gas price: %v", err)
 	}
-	log.Printf("Gas price: %v", gasPrice)
 
 	// set tx auth
 	privateKey, err := crypto.HexToECDSA(wallets[0].PK)
@@ -148,8 +141,6 @@ func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManag
 		log.Fatalf("Failed to create approve transaction: %v", err)
 	}
 
-	log.Printf("WethAApproveTx transaction hash: %s", WethAApproveTx.Hash().Hex())
-
 	isConfirmed, err = waitForConfirmation(client, WethAApproveTx.Hash())
 	if err != nil {
 		log.Fatalf("Failed to confirm approve transaction: %v", err)
@@ -157,15 +148,12 @@ func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManag
 	if !isConfirmed {
 		log.Fatalf("Approve transaction was not confirmed")
 	}
-	log.Println("WethAApproveTx transaction confirmed")
 
 	WethAApproveTx, err = uniswapV2Contract.weth9Instance.Approve(testUserAuth, common.HexToAddress(uniswapV2Contract.uniswapV2Router01Address.Hex()), WethAmountApproved)
 	if err != nil {
 		log.Fatalf("Failed to create approve transaction: %v", err)
 	}
 
-	log.Printf("WethAApproveTx transaction hash: %s", WethAApproveTx.Hash().Hex())
-
 	isConfirmed, err = waitForConfirmation(client, WethAApproveTx.Hash())
 	if err != nil {
 		log.Fatalf("Failed to confirm approve transaction: %v", err)
@@ -173,7 +161,6 @@ func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManag
 	if !isConfirmed {
 		log.Fatalf("Approve transaction was not confirmed")
 	}
-	log.Println("testUse WethAApproveTx transaction confirmed")
 
 	//add ETH liquidity
 	amountADesired := big.NewInt(1e18)
@@ -183,7 +170,6 @@ func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManag
 	if err != nil {
 		log.Fatalf("Failed to create add liquidity transaction: %v", err)
 	}
-	log.Printf("Add liquidity transaction hash: %s", addLiquidityETHTx.Hash().Hex())
 
 	isConfirmed, err = waitForConfirmation(client, addLiquidityETHTx.Hash())
 	if err != nil {
@@ -244,27 +230,17 @@ func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManag
 		}
 
 	}
-	// Get the price of tokenA in terms of tokenB after the swap
-	amounts, err := uniswapV2Contract.uniswapV2RouterInstance.GetAmountsOut(nil, big.NewInt(100), []common.Address{uniswapV2Contract.weth9Address, uniswapV2Contract.tokenAAddress})
-	if err != nil {
-		log.Fatalf("Failed to get amounts out: %v", err)
-	}
-	tokenAPriceInTokenB := amounts[len(amounts)-1]
-	log.Printf("TokenA price in TokenB: %v", tokenAPriceInTokenB)
 
 	// Get account balance
 	tokenABalance, err := uniswapV2Contract.tokenAInstance.BalanceOf(nil, common.HexToAddress(testUser[0].Address))
 	if err != nil {
 		log.Fatalf("Failed to get TokenA balance: %v", err)
 	}
-	log.Printf("testUser TokenA balance: %v", tokenABalance)
 
 	ethBalance, err := client.BalanceAt(context.Background(), common.HexToAddress(testUser[0].Address), nil)
 	if err != nil {
 		log.Fatalf("Failed to get ETH balance: %v", err)
 	}
-	log.Printf("testUser ETH balance: %v", ethBalance)
-
 	// Expect results
 	// Initial state
 	tokenAReserve := big.NewInt(1e18)
@@ -290,12 +266,6 @@ func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManag
 		expectedTokenABalance.Add(expectedTokenABalance, tokenAReceived)
 	}
 
-	// Output results
-	log.Printf("User's ETH balance: %s\n", expectedEthBalance.String())
-	log.Printf("User's TokenA balance: %s\n", expectedTokenABalance.String())
-	log.Printf("TokenA reserve in liquidity pool: %s\n", tokenAReserve.String())
-	log.Printf("ETH reserve in liquidity pool: %s\n", ethReserve.String())
-
 	if tokenABalance.Cmp(expectedTokenABalance) != 0 {
 		log.Fatalf("Expected user TokenA balance to be %s, but got %s", expectedTokenABalance.String(), tokenABalance.String())
 	}
@@ -316,7 +286,6 @@ func deployUniswapV2AccuracyContracts(auth *bind.TransactOpts, client *ethclient
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("TokenA deployed at address: %s", deployed.tokenAAddress.Hex())
 
 	isConfirmed, err := waitForConfirmation(client, deployed.tokenATransaction.Hash())
 	if err != nil {
@@ -331,7 +300,6 @@ func deployUniswapV2AccuracyContracts(auth *bind.TransactOpts, client *ethclient
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("TokenB deployed at address: %s", deployed.tokenBAddress.Hex())
 
 	isConfirmed, err = waitForConfirmation(client, deployed.tokenBTransaction.Hash())
 	if err != nil {
@@ -346,7 +314,6 @@ func deployUniswapV2AccuracyContracts(auth *bind.TransactOpts, client *ethclient
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("WETH deployed at address: %s", deployed.weth9Address.Hex())
 
 	isConfirmed, err = waitForConfirmation(client, deployed.weth9Transaction.Hash())
 	if err != nil {
@@ -361,7 +328,6 @@ func deployUniswapV2AccuracyContracts(auth *bind.TransactOpts, client *ethclient
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("UniswapV2Factory deployed at address: %s", deployed.uniswapV2FactoryAddress.Hex())
 
 	isConfirmed, err = waitForConfirmation(client, deployed.uniswapV2FactoryTransaction.Hash())
 	if err != nil {
@@ -376,7 +342,6 @@ func deployUniswapV2AccuracyContracts(auth *bind.TransactOpts, client *ethclient
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("UniswapV2Router01 deployed at address: %s", deployed.uniswapV2Router01Address.Hex())
 
 	isConfirmed, err = waitForConfirmation(client, deployed.uniswapV2Router01Transaction.Hash())
 	if err != nil {
