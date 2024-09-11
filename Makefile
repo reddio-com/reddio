@@ -18,14 +18,11 @@ reset:
 		rm -rf reddio_db; \
 	fi
 
-benchmark_test: reset
-	go run ./test/cmd/benchmark/main.go
-
 parallel_benchmark_test: reset
-	./benchmark_test --parallel=true --maxBlock=50 --qps=1000
+	./benchmark_test --parallel=true --maxBlock=50 --qps=1000 --embedded=true
 
 serial_benchmark_test: reset
-	./benchmark_test --parallel=false --maxBlock=50 --qps=1000
+	./benchmark_test --parallel=false --maxBlock=50 --qps=1000 --embedded=true
 
 build_benchmark_test: reset
 	go build -v -o benchmark_test ./test/cmd/benchmark/main.go
