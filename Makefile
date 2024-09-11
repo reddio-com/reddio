@@ -37,7 +37,7 @@ serial_transfer_test: reset
 	./transfer_test --parallel=false
 
 build_uniswap_test: reset
-	go build -v -o uniswap_test ./test/cmd/uniswap/main.go
+	go build -race -v -o uniswap_test ./test/cmd/uniswap/main.go
 
 parallel_uniswap_test: reset build_uniswap_test
 	./uniswap_test --parallel=true

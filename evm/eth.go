@@ -5,7 +5,6 @@ import (
 
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"math/big"
 	"net/http"
 	"sync"
@@ -332,8 +331,7 @@ func (s *Solidity) Call(ctx *context.ReadContext) {
 		return
 	}
 	result := CallResponse{Ret: ret, LeftOverGas: leftOverGas}
-	json, _ := json.Marshal(result)
-	fmt.Printf("[ETH_CALL] eth return result is %v\n", string(json))
+
 	ctx.JsonOk(&result)
 }
 

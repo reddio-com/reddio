@@ -51,8 +51,6 @@ func deployERC20Contracts(auth *bind.TransactOpts, client *ethclient.Client, dep
 		if err != nil {
 			return nil, err
 		}
-		log.Printf("Token deployed at address: %s", deployedToken.tokenAddress.Hex())
-		log.Printf("Token deployed txHash: %s", deployedToken.tokenTransaction.Hash().Hex())
 
 		deployedTokens = append(deployedTokens, deployedToken)
 		auth.Nonce.Add(auth.Nonce, big.NewInt(1))
