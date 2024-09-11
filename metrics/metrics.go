@@ -2,7 +2,10 @@ package metrics
 
 import "github.com/prometheus/client_golang/prometheus"
 
-const TypeLbl = "type"
+const (
+	TypeLbl      = "type"
+	TypeCountLbl = "count"
+)
 
 var (
 	TxnCounter = prometheus.NewCounterVec(
@@ -47,7 +50,7 @@ var (
 		[]string{TypeLbl},
 	)
 
-	StatedbCopyPerBlockDuration = prometheus.NewHistogramVec(
+	BatchTxnStatedbCopyDuration = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace: "reddio",
 			Subsystem: "batch_txn",
@@ -55,17 +58,17 @@ var (
 			Help:      "stateDB copy duration per block distribution.",
 			Buckets:   prometheus.DefBuckets,
 		},
-		[]string{},
+		[]string{TypeCountLbl},
 	)
 
-	TxsExecutePerBlockDuration = prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
+	BatchTxnSplitCounter = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
 			Namespace: "reddio",
 			Subsystem: "batch_txn",
-			Name:      "block_txs_duration_seconds",
-			Help:      "Transactions execute duration per block distribution.",
+			Name:      "split_txn_count",
+			Help:      "split sub batch txn count",
 		},
-		[]string{},
+		[]string{TypeCountLbl},
 	)
 )
 
@@ -74,6 +77,6 @@ func init() {
 	prometheus.MustRegister(TxnDuration)
 	prometheus.MustRegister(BatchTxnCounter)
 	prometheus.MustRegister(BatchTxnDuration)
-	prometheus.MustRegister(StatedbCopyPerBlockDuration)
-	prometheus.MustRegister(TxsExecutePerBlockDuration)
+	prometheus.MustRegister(BatchTxnStatedbCopyDuration)
+	prometheus.MustRegister(BatchTxnSplitCounter)
 }
