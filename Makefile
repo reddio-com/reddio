@@ -5,8 +5,37 @@ default: build
 build:
 	go build -v -o $(PROJECT) ./cmd/node/main.go ./cmd/node/testrequest.go
 
+## for ci
+
 build_transfer_test_race:
 	go build -race -v -o transfer_test ./test/cmd/transfer/main.go
+
+build_uniswap_test_race:
+	go build -race -v -o uniswap_test ./test/cmd/uniswap/main.go
+
+ci_parallel_transfer_test: reset
+	./transfer_test --parallel=true
+
+ci_serial_transfer_test: reset
+	./transfer_test --parallel=false
+
+ci_parallel_uniswap_test: reset
+	./uniswap_test --parallel=true
+
+ci_serial_uniswap_test: reset
+	./uniswap_test --parallel=false
+
+## for local benchmark
+
+build_benchmark_test:
+	go build -v -o benchmark_test ./test/cmd/benchmark/main.go
+
+parallel_benchmark_test:
+	./benchmark_test --parallel=true --maxBlock=50 --qps=1000 --embedded=false
+
+serial_benchmark_test:
+	./benchmark_test --parallel=false --maxBlock=50 --qps=1000 --embedded=false
+
 
 reset:
 	@if [ -d "yu" ]; then \
@@ -17,34 +46,6 @@ reset:
 		echo "Deleting 'reddio_db' directory..."; \
 		rm -rf reddio_db; \
 	fi
-
-benchmark_test: reset
-	go run ./test/cmd/benchmark/main.go
-
-parallel_benchmark_test: reset
-	./benchmark_test --parallel=true --maxBlock=50 --qps=1000
-
-serial_benchmark_test: reset
-	./benchmark_test --parallel=false --maxBlock=50 --qps=1000
-
-build_benchmark_test: reset
-	go build -v -o benchmark_test ./test/cmd/benchmark/main.go
-
-parallel_transfer_test: reset
-	./transfer_test --parallel=true
-
-serial_transfer_test: reset
-	./transfer_test --parallel=false
-
-build_uniswap_test: reset
-	go build -race -v -o uniswap_test ./test/cmd/uniswap/main.go
-
-parallel_uniswap_test: reset build_uniswap_test
-	./uniswap_test --parallel=true
-
-serial_uniswap_test: reset build_uniswap_test
-	./uniswap_test --parallel=false
-
 
 clean:
 	rm -f $(PROJECT)

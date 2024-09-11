@@ -25,6 +25,7 @@ var (
 	maxBlock      int
 	qps           int
 	isParallel    bool
+	embeddedChain bool
 )
 
 func init() {
@@ -33,6 +34,8 @@ func init() {
 	flag.IntVar(&maxBlock, "maxBlock", 50, "")
 	flag.IntVar(&qps, "qps", 1500, "")
 	flag.BoolVar(&isParallel, "parallel", true, "")
+	flag.BoolVar(&embeddedChain, "embedded", false, "")
+
 }
 
 func main() {
@@ -46,16 +49,18 @@ func main() {
 	evmConfig := evm.LoadEvmConfig(evmConfigPath)
 	config := config2.GetGlobalConfig()
 	config.IsParallel = isParallel
-	go func() {
-		if config.IsParallel {
-			log.Println("start reddio in parallel")
-		} else {
-			log.Println("start reddio in serial")
-		}
-		app.Start(evmConfigPath, yuCfg)
-		log.Println("exit reddio")
-	}()
-	time.Sleep(3 * time.Second)
+	if embeddedChain {
+		go func() {
+			if config.IsParallel {
+				log.Println("start reddio in parallel")
+			} else {
+				log.Println("start reddio in serial")
+			}
+			app.Start(evmConfigPath, yuCfg)
+			log.Println("exit reddio")
+		}()
+		time.Sleep(3 * time.Second)
+	}
 	totalCount, err := blockBenchmark(evmConfig, maxBlock, qps)
 	if err != nil {
 		log.Println(err.Error())
