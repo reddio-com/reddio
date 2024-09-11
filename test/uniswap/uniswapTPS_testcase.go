@@ -18,20 +18,21 @@ import (
 )
 
 const (
-	nodeUrl                  = "http://localhost:9092"
-	numTestUsers             = 100
-	accountInitialFunds      = 1e18
-	gasLimit                 = 6e7
-	chainID                  = 50341
-	accountInitialERC20Token = 1e18
-	approveAmount            = 1e18
-	amountADesired           = 1e15
-	amountBDesired           = 1e15
-	maxSwapAmount            = 1e9
-	maxBlocks                = 20
-	stepCount                = 5000
-	retriesInterval          = 3 * time.Second
-	tokenContractNum         = 101
+	nodeUrl                      = "http://localhost:9092"
+	numTestUsers                 = 100
+	accountInitialFunds          = 1e18
+	gasLimit                     = 6e7
+	chainID                      = 50341
+	accountInitialERC20Token     = 1e18
+	approveAmount                = 1e18
+	amountADesired               = 1e15
+	amountBDesired               = 1e15
+	maxSwapAmount                = 1e9
+	maxBlocks                    = 20
+	allowFailedTransactionsCount = 10
+	stepCount                    = 5000
+	retriesInterval              = 3 * time.Second
+	tokenContractNum             = 101
 )
 
 type UniswapV2TPSStatisticsTestCase struct {
@@ -253,7 +254,7 @@ func (cd *UniswapV2TPSStatisticsTestCase) Run(ctx context.Context, m *pkg.Wallet
 	if err != nil {
 		log.Fatalf("Failed to perform swap steps: %v", err)
 	}
-	go calculateTPSByTransactionsCount(client, stepCount, resultChan, errorChan)
+	go calculateTPSByTransactionsCount(client, stepCount-allowFailedTransactionsCount, resultChan, errorChan)
 
 	select {
 	case stats := <-resultChan:
@@ -401,17 +402,13 @@ func calculateTPSByTransactionsCount(client *ethclient.Client, transactionCount 
 		errorChan <- fmt.Errorf("failed to get latest block: %v", err)
 		return
 	}
+	//count from the latest block -1
 	blockNumber := new(big.Int).SetUint64(latestBlockNumber)
 
 	var blocks []*types.Block
 	totalTransactions := 0
 	blockCount := 0
 	for totalTransactions < transactionCount || len(blocks) < 2 {
-		if latestBlockNumber < 0 {
-			errorChan <- fmt.Errorf("invalid block number: %d", blockNumber)
-			return
-		}
-
 		var block *types.Block
 		retries := 0
 		for {
@@ -423,12 +420,17 @@ func calculateTPSByTransactionsCount(client *ethclient.Client, transactionCount 
 				errorChan <- fmt.Errorf("failed to get block %d after %d retries: %v", blockNumber, retries, err)
 				return
 			}
+			//log.Printf("Block %d not found, retrying ... (attempt %d/%d)", latestBlockNumber, retries+1, maxRetries)
+
 			time.Sleep(retriesInterval)
 			retries++
 		}
+		//log.Printf("block.Time(): %d,block.Number(): %d", block.Time(), block.Number())
 		blocks = append(blocks, block)
 		totalTransactions += len(block.Transactions())
+		//log.Printf("totalTransactions: %d", totalTransactions)
 		blockNumber.Add(blockNumber, big.NewInt(1))
+		//log.Printf("latestBlockNumber: %d", blockNumber)
 		blockCount++
 		if blockCount >= maxBlocks && totalTransactions < transactionCount {
 			log.Fatalf("Reached maximum block count of %d with less than %d transactions. Stopping.", maxBlocks, transactionCount)
