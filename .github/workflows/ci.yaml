@@ -34,10 +34,12 @@ jobs:
       - name: Build Test
         run: make build_transfer_test_race
       - name: Parallel Transfer Test
-        run: make parallel_transfer_test
+        run: make ci_parallel_transfer_test
       - name: Serial Transfer Test
-        run: make serial_transfer_test
+        run: make ci_serial_transfer_test
+      - name: Build Uniswap Test
+        run: make build_uniswap_test_race
       - name: Parallel Uniswap Test
-        run: make parallel_uniswap_test
+        run: make ci_parallel_uniswap_test
       - name: Serial Uniswap Test
-        run: make serial_uniswap_test
+        run: make ci_serial_uniswap_test
