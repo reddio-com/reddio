@@ -111,12 +111,6 @@ func (s *Solidity) InitChain(genesisBlock *yu_types.Block) {
 	cfg := s.stateConfig
 	genesis := DefaultGoerliGenesisBlock()
 
-	logrus.Printf("Genesis GethConfig: %+v", genesis.Config)
-	logrus.Println("Genesis Timestamp: ", genesis.Timestamp)
-	logrus.Printf("Genesis ExtraData: %x", genesis.ExtraData)
-	logrus.Println("Genesis GasLimit: ", genesis.GasLimit)
-	logrus.Println("Genesis Difficulty: ", genesis.Difficulty.String())
-
 	var lastStateRoot common.Hash
 	block, err := s.GetCurrentBlock()
 	if err != nil && err != yerror.ErrBlockNotFound {
@@ -133,19 +127,12 @@ func (s *Solidity) InitChain(genesisBlock *yu_types.Block) {
 	s.ethState = ethState
 	s.cfg.State = ethState.stateDB
 
-	chainConfig, _, err := SetupGenesisBlock(ethState, genesis)
+	_, _, err = SetupGenesisBlock(ethState, genesis)
 	if err != nil {
 		logrus.Fatal("SetupGenesisBlock failed: ", err)
 	}
 
 	// s.cfg.ChainConfig = chainConfig
-
-	logrus.Println("Genesis SetupGenesisBlock chainConfig: ", chainConfig)
-	logrus.Println("Genesis NewEthState cfg.DbPath: ", ethState.cfg.DbPath)
-	logrus.Println("Genesis NewEthState ethState.cfg.NameSpace: ", ethState.cfg.NameSpace)
-	logrus.Println("Genesis NewEthState ethState.StateDB.SnapshotCommits: ", ethState.stateDB)
-	logrus.Println("Genesis NewEthState ethState.stateCache: ", ethState.stateCache)
-	logrus.Println("Genesis NewEthState ethState.trieDB: ", ethState.trieDB)
 
 	// commit genesis state
 	genesisStateRoot, err := s.ethState.GenesisCommit()
@@ -315,7 +302,6 @@ func (s *Solidity) Call(ctx *context.ReadContext) {
 		rules    = cfg.ChainConfig.Rules(vmenv.Context.BlockNumber, vmenv.Context.Random != nil, vmenv.Context.Time)
 	)
 
-	logrus.Printf("[StateDB] %v", s.ethState.stateDB == s.cfg.State)
 	vmenv.StateDB = s.ethState.stateDB
 
 	if cfg.EVMConfig.Tracer != nil && cfg.EVMConfig.Tracer.OnTxStart != nil {
@@ -335,8 +321,8 @@ func (s *Solidity) Call(ctx *context.ReadContext) {
 		uint256.MustFromBig(value),
 	)
 
-	logrus.Printf("[Call] Request from = %v, to = %v, gasLimit = %v, value = %v, input = %v", sender.Address().Hex(), address.Hex(), gasLimit, value.Uint64(), hex.EncodeToString(input))
-	logrus.Printf("[Call] Response: Origin Code = %v, Hex Code = %v, String Code = %v, LeftOverGas = %v", ret, hex.EncodeToString(ret), new(big.Int).SetBytes(ret).String(), leftOverGas)
+	logrus.Debugf("[Call] Request from = %v, to = %v, gasLimit = %v, value = %v, input = %v", sender.Address().Hex(), address.Hex(), gasLimit, value.Uint64(), hex.EncodeToString(input))
+	logrus.Debugf("[Call] Response: Origin Code = %v, Hex Code = %v, String Code = %v, LeftOverGas = %v", ret, hex.EncodeToString(ret), new(big.Int).SetBytes(ret).String(), leftOverGas)
 
 	if err != nil {
 		ctx.Json(http.StatusInternalServerError, &CallResponse{Err: err})
@@ -442,7 +428,6 @@ func makeEvmReceipt(ctx *context.WriteContext, vmEvm *vm.EVM, code []byte, signe
 	receipt.BlockNumber = blockNumber
 	receipt.TransactionIndex = uint(ctx.TxnIndex)
 
-	logrus.Printf("[Receipt] log = %v", receipt.Logs)
 	//spew.Dump("[Receipt] log = %v", stateDB.Logs())
 	//logrus.Printf("[Receipt] log is nil = %v", receipt.Logs == nil)
 	if receipt.Logs == nil {
@@ -454,7 +439,7 @@ func makeEvmReceipt(ctx *context.WriteContext, vmEvm *vm.EVM, code []byte, signe
 			receipt.TransactionIndex = uint(idx)
 		}
 	}
-	logrus.Printf("[Receipt] statedb txIndex = %v, actual txIndex = %v", ctx.TxnIndex, receipt.TransactionIndex)
+	// logrus.Printf("[Receipt] statedb txIndex = %v, actual txIndex = %v", ctx.TxnIndex, receipt.TransactionIndex)
 
 	return receipt
 }
@@ -463,7 +448,7 @@ func executeContractCall(ctx *context.WriteContext, txReq *TxRequest, ethState *
 	ethState.Prepare(rules, origin, coinBase, txReq.Address, vm.ActivePrecompiles(rules), nil)
 	ethState.SetNonce(txReq.Origin, ethState.GetNonce(sender.Address())+1)
 
-	logrus.Printf("before transfer: account %s balance %d \n", sender.Address(), ethState.GetBalance(sender.Address()))
+	// logrus.Printf("before transfer: account %s balance %d \n", sender.Address(), ethState.GetBalance(sender.Address()))
 
 	code, leftOverGas, err := vmenv.Call(sender, *txReq.Address, txReq.Input, txReq.GasLimit, uint256.MustFromBig(txReq.Value))
 	//logrus.Printf("after transfer: account %s balance %d \n", sender.Address(), ethState.GetBalance(sender.Address()))
