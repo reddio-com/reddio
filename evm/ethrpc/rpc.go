@@ -107,8 +107,8 @@ func logRequestResponse(next http.Handler) http.Handler {
 
 		rec := &responseRecorder{ResponseWriter: w, body: &bytes.Buffer{}}
 		next.ServeHTTP(rec, r)
-		logrus.Printf("[API] Request:  %s", string(bodyBytes))
-		logrus.Printf("[API] Response: %s", rec.body.String())
+		logrus.Debugf("[API] Request:  %s", string(bodyBytes))
+		logrus.Debugf("[API] Response: %s", rec.body.String())
 	})
 }
 
