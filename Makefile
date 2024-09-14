@@ -50,6 +50,9 @@ reset:
 clean:
 	rm -f $(PROJECT)
 
+clean_tests:
+	rm uniswap_test benchmark_test
+
 check-mod-tidy:
 	@go mod tidy
 	@if [ -n "$$(git status --porcelain)" ]; then \

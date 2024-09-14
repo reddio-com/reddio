@@ -9,6 +9,7 @@ import (
 	"math/big"
 	"net/http"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/ethereum/go-ethereum/ethdb"
@@ -42,6 +43,8 @@ type Solidity struct {
 	ethState    *EthState
 	cfg         *GethConfig
 	stateConfig *yuConfig.Config
+
+	coinbaseReward atomic.Uint64
 }
 
 func (s *Solidity) StateDB() *state.StateDB {
@@ -258,8 +261,9 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 	// deducting gas fee
 	gasFee := new(big.Int).Mul(txReq.GasPrice, new(big.Int).SetUint64(gasUsed))
 	gasFeeU256, _ := uint256.FromBig(gasFee)
-	pd.SubBalance(txReq.Origin, gasFeeU256, tracing.BalanceDecreaseGasBuy)
-	pd.AddBalance(coinbase, gasFeeU256, tracing.BalanceIncreaseRewardTransactionFee)
+	vmenv.StateDB.SubBalance(txReq.Origin, gasFeeU256, tracing.BalanceDecreaseGasBuy)
+	s.coinbaseReward.Add(gasFee.Uint64())
+	// vmenv.StateDB.AddBalance(coinbase, gasFeeU256, tracing.BalanceIncreaseRewardTransactionFee)
 
 	if err != nil {
 		return err
@@ -346,6 +350,11 @@ func (s *Solidity) Call(ctx *context.ReadContext) {
 func (s *Solidity) Commit(block *yu_types.Block) {
 	s.Lock()
 	defer s.Unlock()
+
+	// reward coinbase
+	s.ethState.AddBalance(s.cfg.Coinbase, uint256.NewInt(s.coinbaseReward.Load()), tracing.BalanceIncreaseRewardTransactionFee)
+	s.coinbaseReward.Store(0)
+
 	blockNumber := uint64(block.Height)
 	stateRoot, err := s.ethState.Commit(blockNumber)
 	if err != nil {
@@ -353,6 +362,7 @@ func (s *Solidity) Commit(block *yu_types.Block) {
 		return
 	}
 	block.StateRoot = AdaptHash(stateRoot)
+
 }
 
 func AdaptHash(ethHash common.Hash) yu_common.Hash {
