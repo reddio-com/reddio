@@ -17,6 +17,7 @@ import (
 	"github.com/reddio-com/reddio/test/conf"
 	"github.com/reddio-com/reddio/test/pkg"
 	"github.com/reddio-com/reddio/test/transfer"
+	"github.com/reddio-com/reddio/test/uniswap"
 )
 
 var (
@@ -82,7 +83,9 @@ func blockBenchmark(evmCfg *evm.GethConfig, target int, qps int) (int, error) {
 		return 0, err
 	}
 	limiter := rate.NewLimiter(rate.Limit(qps), qps)
-	ethManager.AddTestCase(transfer.NewRandomBenchmarkTest("[rand_test 100 account, 5000 transfer]", 100, cfg.InitialEthCount, 5000, wallets, limiter))
+	ethManager.AddTestCase(
+		transfer.NewRandomBenchmarkTest("[rand_test 100 account, 5000 transfer]", 100, cfg.InitialEthCount, 5000, wallets, limiter),
+		uniswap.NewUniswapV2TPSStatisticsTestCase("UniswapV2 TPS StatisticsTestCase"))
 	go runBenchmark(ctx, ethManager)
 	totalCount := 0
 	for i := 1; i <= target; {

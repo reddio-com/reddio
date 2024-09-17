@@ -2,6 +2,7 @@
 **/**/yu
 **/**/reddio_db
 
+/test/tmp/
 data
 reddio
 transfer_test

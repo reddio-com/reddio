@@ -36,6 +36,8 @@ parallel_benchmark_test:
 serial_benchmark_test:
 	./benchmark_test --parallel=false --maxBlock=50 --qps=1000 --embedded=false
 
+benchmark_localtest:reset build_benchmark_test
+	./benchmark_test --parallel=false --maxBlock=50 --qps=1000 --embedded=true
 
 reset:
 	@if [ -d "yu" ]; then \
@@ -49,6 +51,12 @@ reset:
 
 clean:
 	rm -f $(PROJECT)
+
+clean_test_data:
+	@if [ -d "test/tmp" ]; then \
+		echo "Deleting 'test/tmp' directory..."; \
+		rm -rf test/tmp; \
+	fi
 
 check-mod-tidy:
 	@go mod tidy

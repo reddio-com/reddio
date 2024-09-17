@@ -1,9 +1,14 @@
 package uniswap
 
 import (
+	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
+	"log"
 	"math/big"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -36,6 +41,11 @@ type UniswapV2DeployedContracts struct {
 	weth9Instance                *contracts.WETH9
 	uniswapV2FactoryInstance     *contracts.UniswapV2Factory
 	uniswapV2RouterInstance      *contracts.UniswapV2Router01
+}
+type TestData struct {
+	TestUsers       []*pkg.EthWallet    `json:"testUsers"`
+	UniswapV2Router common.Address      `json:"uniswapV2Router"`
+	TokenPairs      [][2]common.Address `json:"tokenPairs"`
 }
 
 // deploy Erc20 token contracts
@@ -130,4 +140,47 @@ func generateTestAuth(client *ethclient.Client, user *pkg.EthWallet, chainID int
 	auth.Nonce = big.NewInt(int64(nonce))
 
 	return auth, nil
+}
+func saveTestDataToFile(filename string, data TestData) {
+	dir := filepath.Dir(filename)
+	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
+		log.Fatalf("Failed to create directory: %v", err)
+	}
+	file, err := os.Create(filename)
+	if err != nil {
+		log.Fatalf("Error creating file: %v", err)
+	}
+	defer file.Close()
+
+	writer := bufio.NewWriter(file)
+
+	encoder := json.NewEncoder(writer)
+	if err := encoder.Encode(&data); err != nil {
+		log.Fatalf("Failed to encode data to JSON: %v", err)
+	}
+
+	if err := writer.Flush(); err != nil {
+		log.Fatalf("Failed to flush writer: %v", err)
+	}
+
+	fmt.Println("Data successfully written to", filename)
+}
+
+func loadTestDataFromFile(filename string) (TestData, error) {
+	var data TestData
+
+	file, err := os.Open(filename)
+	if err != nil {
+		return data, fmt.Errorf("error opening file: %v", err)
+	}
+	defer file.Close()
+
+	reader := bufio.NewReader(file)
+
+	decoder := json.NewDecoder(reader)
+	if err := decoder.Decode(&data); err != nil {
+		return data, fmt.Errorf("failed to decode JSON data: %v", err)
+	}
+
+	return data, nil
 }

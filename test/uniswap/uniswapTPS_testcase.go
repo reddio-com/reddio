@@ -6,8 +6,11 @@ import (
 	"log"
 	"math/big"
 	"math/rand"
+	"os"
 	"sync"
 	"time"
+
+	"github.com/reddio-com/reddio/test/contracts"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -32,13 +35,11 @@ const (
 	allowFailedTransactionsCount = 10
 	stepCount                    = 5000
 	retriesInterval              = 3 * time.Second
-	tokenContractNum             = 101
+	tokenContractNum             = 10
 )
 
 type UniswapV2TPSStatisticsTestCase struct {
-	CaseName     string
-	walletCount  int
-	initialCount uint64
+	CaseName string
 }
 
 type TPSStats struct {
@@ -53,11 +54,10 @@ func (cd *UniswapV2TPSStatisticsTestCase) Name() string {
 	return cd.CaseName
 }
 
-func NewUniswapV2TPSStatisticsTestCase(name string, count int, initial uint64) *UniswapV2TPSStatisticsTestCase {
+func NewUniswapV2TPSStatisticsTestCase(name string) *UniswapV2TPSStatisticsTestCase {
+
 	return &UniswapV2TPSStatisticsTestCase{
-		CaseName:     name,
-		walletCount:  count,
-		initialCount: initial,
+		CaseName: name,
 	}
 }
 
@@ -80,17 +80,28 @@ func NewUniswapV2TPSStatisticsTestCase(name string, count int, initial uint64) *
 // 3. Assert
 //   - Calculate and report the transactions per second (TPS) achieved during the test
 func (cd *UniswapV2TPSStatisticsTestCase) Run(ctx context.Context, m *pkg.WalletManager) error {
-	var lastTxHash common.Hash
-	depolyerUser, err := m.GenerateRandomWallet(1, accountInitialFunds)
+	if _, err := os.Stat("test/tmp"); os.IsNotExist(err) {
+		Prepare(m)
+	}
+	err := executeTestAndCalculateTPS(nodeUrl, chainID, gasLimit, stepCount, allowFailedTransactionsCount)
+	if err != nil {
+		log.Fatalf("Failed to execute test and calculate TPS: %v", err)
+	}
+	return err
+}
+func Prepare(m *pkg.WalletManager) error {
+
+	deployerUser, err := m.GenerateRandomWallet(1, accountInitialFunds)
 	if err != nil {
 		log.Fatalf("Failed to generate deployer user: %v", err)
 		return err
 	}
-	testUsersWallets, err := m.GenerateRandomWallet(100, accountInitialFunds)
+	testUsers, err := m.GenerateRandomWallet(100, accountInitialFunds)
 	if err != nil {
 		log.Fatalf("Failed to generate test users: %v", err)
 		return err
 	}
+	var lastTxHash common.Hash
 	client, err := ethclient.Dial(nodeUrl)
 	if err != nil {
 		log.Fatalf("Failed to connect to the Ethereum client: %v", err)
@@ -103,13 +114,11 @@ func (cd *UniswapV2TPSStatisticsTestCase) Run(ctx context.Context, m *pkg.Wallet
 
 	// get gas price
 	gasPrice, err := client.SuggestGasPrice(context.Background())
-
 	if err != nil {
 		log.Fatalf("Failed to suggest gas price: %v", err)
 	}
-
 	// set tx auth
-	privateKey, err := crypto.HexToECDSA(depolyerUser[0].PK)
+	privateKey, err := crypto.HexToECDSA(deployerUser[0].PK)
 	if err != nil {
 		log.Fatalf("Failed to parse private key: %v", err)
 	}
@@ -119,7 +128,7 @@ func (cd *UniswapV2TPSStatisticsTestCase) Run(ctx context.Context, m *pkg.Wallet
 	}
 	depolyerAuth.GasPrice = gasPrice
 	depolyerAuth.GasLimit = uint64(6e7)
-	depolyerNonce, err := client.PendingNonceAt(context.Background(), common.HexToAddress(depolyerUser[0].Address))
+	depolyerNonce, err := client.PendingNonceAt(context.Background(), common.HexToAddress(deployerUser[0].Address))
 	if err != nil {
 		log.Fatalf("Failed to get nonce: %v", err)
 	}
@@ -130,7 +139,6 @@ func (cd *UniswapV2TPSStatisticsTestCase) Run(ctx context.Context, m *pkg.Wallet
 	if err != nil {
 		log.Fatalf("Failed to deploy contract: %v", err)
 	}
-	//Fixme: add depployNum to the config file
 	ERC20DeployedContracts, err := deployERC20Contracts(depolyerAuth, client, tokenContractNum)
 	if err != nil {
 		log.Fatalf("Failed to deploy ERC20 contracts: %v", err)
@@ -146,7 +154,7 @@ func (cd *UniswapV2TPSStatisticsTestCase) Run(ctx context.Context, m *pkg.Wallet
 	//interact with the contract
 	///dispatchTestToken
 	// dispatchTestToken([] TokenAddresses,testUsers)
-	err = dispatchTestToken(client, depolyerAuth, ERC20DeployedContracts, testUsersWallets, big.NewInt(accountInitialERC20Token))
+	err = dispatchTestToken(client, depolyerAuth, ERC20DeployedContracts, testUsers, big.NewInt(accountInitialERC20Token))
 	if err != nil {
 		log.Fatalf("Failed to dispatch test tokens: %v", err)
 	}
@@ -158,14 +166,14 @@ func (cd *UniswapV2TPSStatisticsTestCase) Run(ctx context.Context, m *pkg.Wallet
 	for _, contract := range ERC20DeployedContracts {
 		_, err := contract.tokenInstance.Approve(depolyerAuth, uniswapV2Contract.uniswapV2Router01Address, big.NewInt(approveAmount))
 		if err != nil {
-			log.Fatalf("Failed to create approve transaction for user %s: %v", depolyerUser[0].Address, err)
+			log.Fatalf("Failed to create approve transaction for user %s: %v", deployerUser[0].Address, err)
 		}
 
 		depolyerAuth.Nonce = depolyerAuth.Nonce.Add(depolyerAuth.Nonce, big.NewInt(1))
 		if err != nil {
-			return fmt.Errorf("failed to generate test auth for user %s: %v", depolyerUser[0].Address, err)
+			return fmt.Errorf("failed to generate test auth for user %s: %v", deployerUser[0].Address, err)
 		}
-		for _, user := range testUsersWallets {
+		for _, user := range testUsers {
 			testAuth, err := generateTestAuth(client, user, chainID, gasPrice, gasLimit)
 			if err != nil {
 				return fmt.Errorf("failed to generate test auth for user %s: %v", user.Address, err)
@@ -201,7 +209,7 @@ func (cd *UniswapV2TPSStatisticsTestCase) Run(ctx context.Context, m *pkg.Wallet
 			big.NewInt(amountBDesired),
 			big.NewInt(0),
 			big.NewInt(0),
-			common.HexToAddress(depolyerUser[0].Address),
+			common.HexToAddress(deployerUser[0].Address),
 			big.NewInt(time.Now().Unix()+1000),
 		)
 		if err != nil {
@@ -229,30 +237,64 @@ func (cd *UniswapV2TPSStatisticsTestCase) Run(ctx context.Context, m *pkg.Wallet
 	if !isConfirmed {
 		log.Fatalf("Add liquidity transaction was not confirmed")
 	}
-	//check is nonce right
-	// testNonce, err := client.PendingNonceAt(context.Background(), common.HexToAddress(depolyerUser[0].Address))
-	// if err != nil {
-	// 	log.Fatalf("Failed to get nonce: %v", err)
-	// }
-	// log.Printf("testNonce: %v", testNonce)
-	// log.Printf("depolyerAuth.Nonce: %v", depolyerAuth.Nonce)
 
+	preparedTestData := TestData{
+		TestUsers:       testUsers,
+		UniswapV2Router: uniswapV2Contract.uniswapV2Router01Address,
+		TokenPairs:      tokenPairs,
+	}
+
+	saveTestDataToFile("test/tmp/prepared_test_data.json", preparedTestData)
+	return err
+
+}
+
+func executeTestAndCalculateTPS(nodeUrl string, chainID int64, gasLimit uint64, stepCount int, allowFailedTransactionsCount int) error {
+	loadedTestData, err := loadTestDataFromFile("test/tmp/prepared_test_data.json")
+	if err != nil {
+		log.Fatalf("Failed to load test data: %v", err)
+		return err
+	}
 	// randomswap from token A to token A
-	steps := generateRandomSwapSteps(testUsersWallets, tokenPairs, stepCount)
+	steps := generateRandomSwapSteps(loadedTestData.TestUsers, loadedTestData.TokenPairs, stepCount)
 
 	time.Sleep(5 * time.Second)
 	//get recent block number
 	//lastBlockNumber, err := client.BlockNumber(context.Background())
 	if err != nil {
 		log.Fatalf("Failed to get block number: %v", err)
-	}
+		return err
 
+	}
+	client, err := ethclient.Dial(nodeUrl)
+	if err != nil {
+		log.Fatalf("Failed to connect to the Ethereum client: %v", err)
+		return err
+
+	}
+	// get gas price
+	// gasPrice, err := client.SuggestGasPrice(context.Background())
+	// if err != nil {
+	// 	log.Fatalf("Failed to suggest gas price: %v", err)
+	// }
+
+	//FixME: should use gasPrice from the chain
+	gasPrice := new(big.Int).SetUint64(2000000000)
 	resultChan := make(chan *TPSStats)
 	errorChan := make(chan error)
 
-	err = executeSwapSteps(client, uniswapV2Contract, steps, chainID, gasPrice, gasLimit)
+	uniswapV2RouterInstance, err := contracts.NewUniswapV2Router01(loadedTestData.UniswapV2Router, client)
+	if err != nil {
+		log.Fatalf("Failed to create Uniswap V2 Router instance: %v", err)
+		return err
+
+	}
+
+	err = executeSwapSteps(client, uniswapV2RouterInstance, steps, chainID, gasPrice, gasLimit)
 	if err != nil {
 		log.Fatalf("Failed to perform swap steps: %v", err)
+		return err
+
 	}
 	go calculateTPSByTransactionsCount(client, stepCount-allowFailedTransactionsCount, resultChan, errorChan)
 
@@ -270,8 +312,8 @@ func (cd *UniswapV2TPSStatisticsTestCase) Run(ctx context.Context, m *pkg.Wallet
 			log.Fatalf("Failed to calculate TPS: %v", err)
 		}
 	}
-
 	return err
+
 }
 
 func dispatchTestToken(client *ethclient.Client, ownerAuth *bind.TransactOpts, ERC20DeployedContracts []*ERC20DeployedContract, testUsers []*pkg.EthWallet, accountInitialERC20Token *big.Int) error {
@@ -352,12 +394,12 @@ func generateRandomSwapSteps(testUsers []*pkg.EthWallet, tokenPairs [][2]common.
 	return steps
 }
 
-func executeSwapSteps(client *ethclient.Client, uniswapV2Contract *UniswapV2DeployedContracts, steps []SwapStep, chainID int64, gasPrice *big.Int, gasLimit uint64) error {
+func executeSwapSteps(client *ethclient.Client, uniswapV2RouterInstance *contracts.UniswapV2Router01, steps []SwapStep, chainID int64, gasPrice *big.Int, gasLimit uint64) error {
 	var wg sync.WaitGroup
 	results := make(chan error, len(steps))
 	for _, step := range steps {
 		wg.Add(1)
-		go executeSwapStep(client, uniswapV2Contract, step, chainID, gasPrice, gasLimit, &wg, results)
+		go executeSwapStep(client, uniswapV2RouterInstance, step, chainID, gasPrice, gasLimit, &wg, results)
 	}
 
 	wg.Wait()
@@ -366,7 +408,7 @@ func executeSwapSteps(client *ethclient.Client, uniswapV2Contract *UniswapV2Depl
 	return nil
 }
 
-func executeSwapStep(client *ethclient.Client, uniswapV2Contract *UniswapV2DeployedContracts, step SwapStep, chainID int64, gasPrice *big.Int, gasLimit uint64, wg *sync.WaitGroup, results chan<- error) {
+func executeSwapStep(client *ethclient.Client, uniswapV2RouterInstance *contracts.UniswapV2Router01, step SwapStep, chainID int64, gasPrice *big.Int, gasLimit uint64, wg *sync.WaitGroup, results chan<- error) {
 	defer wg.Done()
 
 	auth, err := generateTestAuth(client, step.User, chainID, gasPrice, gasLimit)
@@ -375,7 +417,7 @@ func executeSwapStep(client *ethclient.Client, uniswapV2Contract *UniswapV2Deplo
 		return
 	}
 
-	_, err = uniswapV2Contract.uniswapV2RouterInstance.SwapExactTokensForTokens(
+	_, err = uniswapV2RouterInstance.SwapExactTokensForTokens(
 		auth,
 		step.AmountIn,
 		big.NewInt(0),
@@ -420,17 +462,17 @@ func calculateTPSByTransactionsCount(client *ethclient.Client, transactionCount 
 				errorChan <- fmt.Errorf("failed to get block %d after %d retries: %v", blockNumber, retries, err)
 				return
 			}
-			//log.Printf("Block %d not found, retrying ... (attempt %d/%d)", latestBlockNumber, retries+1, maxRetries)
+			log.Printf("Block %d not found, retrying ... (attempt %d/%d)", latestBlockNumber, retries+1, maxRetries)
 
 			time.Sleep(retriesInterval)
 			retries++
 		}
-		//log.Printf("block.Time(): %d,block.Number(): %d", block.Time(), block.Number())
+		log.Printf("block.Time(): %d,block.Number(): %d", block.Time(), block.Number())
 		blocks = append(blocks, block)
 		totalTransactions += len(block.Transactions())
-		//log.Printf("totalTransactions: %d", totalTransactions)
+		log.Printf("totalTransactions: %d", totalTransactions)
 		blockNumber.Add(blockNumber, big.NewInt(1))
-		//log.Printf("latestBlockNumber: %d", blockNumber)
+		log.Printf("latestBlockNumber: %d", blockNumber)
 		blockCount++
 		if blockCount >= maxBlocks && totalTransactions < transactionCount {
 			log.Fatalf("Reached maximum block count of %d with less than %d transactions. Stopping.", maxBlocks, transactionCount)
