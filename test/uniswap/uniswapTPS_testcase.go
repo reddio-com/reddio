@@ -35,7 +35,7 @@ const (
 	allowFailedTransactionsCount = 10
 	stepCount                    = 5000
 	retriesInterval              = 3 * time.Second
-	tokenContractNum             = 10
+	tokenContractNum             = 100
 )
 
 type UniswapV2TPSStatisticsTestCase struct {
