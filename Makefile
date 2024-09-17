@@ -36,8 +36,8 @@ parallel_benchmark_test:
 serial_benchmark_test:
 	./benchmark_test --parallel=false --maxBlock=50 --qps=1000 --embedded=false
 
-benchmark_localtest:reset build_benchmark_test
-	./benchmark_test --parallel=false --maxBlock=50 --qps=1000 --embedded=true
+benchmark_localtest:reset clean_test_data build_benchmark_test
+	./benchmark_test --parallel=true --maxBlock=500 --qps=1000 --embedded=true
 
 reset:
 	@if [ -d "yu" ]; then \

@@ -305,7 +305,7 @@ func executeTestAndCalculateTPS(nodeUrl string, chainID int64, gasLimit uint64, 
 			log.Printf("Starting block number: %s", stats.StartBlockNumber.String())
 			log.Printf("TPS: %.2f", stats.TPS)
 			log.Printf("Time interval: %d seconds", stats.TimeInterval)
-			log.Printf("Number of blocks: %d", stats.BlockCount)
+			log.Printf("Processed blocks: %d", stats.BlockCount)
 		}
 	case err := <-errorChan:
 		if err != nil {
@@ -462,17 +462,14 @@ func calculateTPSByTransactionsCount(client *ethclient.Client, transactionCount 
 				errorChan <- fmt.Errorf("failed to get block %d after %d retries: %v", blockNumber, retries, err)
 				return
 			}
-			log.Printf("Block %d not found, retrying ... (attempt %d/%d)", latestBlockNumber, retries+1, maxRetries)
+			//log.Printf("Block %d not found, retrying ... (attempt %d/%d)", latestBlockNumber, retries+1, maxRetries)
 
 			time.Sleep(retriesInterval)
 			retries++
 		}
-		log.Printf("block.Time(): %d,block.Number(): %d", block.Time(), block.Number())
 		blocks = append(blocks, block)
 		totalTransactions += len(block.Transactions())
-		log.Printf("totalTransactions: %d", totalTransactions)
 		blockNumber.Add(blockNumber, big.NewInt(1))
-		log.Printf("latestBlockNumber: %d", blockNumber)
 		blockCount++
 		if blockCount >= maxBlocks && totalTransactions < transactionCount {
 			log.Fatalf("Reached maximum block count of %d with less than %d transactions. Stopping.", maxBlocks, transactionCount)
