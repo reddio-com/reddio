@@ -36,6 +36,17 @@ parallel_benchmark_test:
 serial_benchmark_test:
 	./benchmark_test --parallel=false --maxBlock=50 --qps=1000 --embedded=false
 
+build_uniswap_benchmark_test:
+	go build -v -o uniswap_benchmark_test ./test/cmd/uniswap_benchmark/main.go
+
+parallel_benchmark_test:
+	./uniswap_benchmark_test --parallel=true --maxBlock=50 --qps=1000 --embedded=false
+
+serial_benchmark_test:
+	./uniswap_benchmark_test --parallel=false --maxBlock=50 --qps=1000 --embedded=false
+
+uniswap_benchmark_localtest:reset clean_test_data build_uniswap_benchmark_test
+	./uniswap_benchmark_test --parallel=true --maxBlock=500 --qps=1000 --embedded=true
 
 reset:
 	@if [ -d "yu" ]; then \
@@ -52,6 +63,12 @@ clean:
 
 clean_tests:
 	rm uniswap_test benchmark_test
+
+clean_test_data:
+	@if [ -d "test/tmp" ]; then \
+		echo "Deleting 'test/tmp' directory..."; \
+		rm -rf test/tmp; \
+	fi
 
 check-mod-tidy:
 	@go mod tidy

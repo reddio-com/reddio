@@ -2,8 +2,10 @@
 **/**/yu
 **/**/reddio_db
 
+/test/tmp/
 data
 reddio
 transfer_test
 benchmark_test
 uniswap_test
+uniswap_benchmark_test
