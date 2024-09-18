@@ -63,7 +63,6 @@ func main() {
 }
 
 func assertUniswapV2(ctx context.Context, evmCfg *evm.GethConfig) error {
-	log.Println("start asserting transfer eth")
 	ethManager := &transfer.EthManager{}
 	cfg := conf.Config.EthCaseConf
 	ethManager.Configure(cfg, evmCfg)
