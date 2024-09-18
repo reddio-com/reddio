@@ -6,17 +6,17 @@ import (
 	"log"
 	"math/big"
 	"math/rand"
-	"sync"
 	"time"
 
-	"github.com/reddio-com/reddio/test/contracts"
 	"golang.org/x/time/rate"
+
+	"github.com/reddio-com/reddio/test/contracts"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+
 	"github.com/reddio-com/reddio/test/pkg"
 )
 
@@ -82,7 +82,7 @@ func NewUniswapV2TPSStatisticsTestCase(name string, rm *rate.Limiter) *UniswapV2
 // 3. Assert
 //   - Calculate and report the transactions per second (TPS) achieved during the test
 func (cd *UniswapV2TPSStatisticsTestCase) Run(ctx context.Context, m *pkg.WalletManager) error {
-	err := executeTestAndCalculateTPS(nodeUrl, chainID, gasLimit, stepCount, allowFailedTransactionsCount)
+	err := cd.executeTestAndCalculateTPS(nodeUrl, chainID, gasLimit, stepCount, allowFailedTransactionsCount)
 	if err != nil {
 		log.Fatalf("Failed to execute test and calculate TPS: %v", err)
 	}
@@ -247,7 +247,7 @@ func (cd *UniswapV2TPSStatisticsTestCase) Prepare(ctx context.Context, m *pkg.Wa
 
 }
 
-func executeTestAndCalculateTPS(nodeUrl string, chainID int64, gasLimit uint64, stepCount int, allowFailedTransactionsCount int) error {
+func (cd *UniswapV2TPSStatisticsTestCase) executeTestAndCalculateTPS(nodeUrl string, chainID int64, gasLimit uint64, stepCount int, allowFailedTransactionsCount int) error {
 	loadedTestData, err := loadTestDataFromFile("test/tmp/prepared_test_data.json")
 	if err != nil {
 		log.Fatalf("Failed to load test data: %v", err)
@@ -255,62 +255,26 @@ func executeTestAndCalculateTPS(nodeUrl string, chainID int64, gasLimit uint64, 
 	}
 	// randomswap from token A to token A
 	steps := generateRandomSwapSteps(loadedTestData.TestUsers, loadedTestData.TokenPairs, stepCount)
-
-	time.Sleep(5 * time.Second)
-	//get recent block number
-	//lastBlockNumber, err := client.BlockNumber(context.Background())
-	if err != nil {
-		log.Fatalf("Failed to get block number: %v", err)
-		return err
-
-	}
 	client, err := ethclient.Dial(nodeUrl)
 	if err != nil {
 		log.Fatalf("Failed to connect to the Ethereum client: %v", err)
 		return err
-
 	}
-	// get gas price
-	// gasPrice, err := client.SuggestGasPrice(context.Background())
-	// if err != nil {
-	// 	log.Fatalf("Failed to suggest gas price: %v", err)
-	// }
 
 	//FixME: should use gasPrice from the chain
 	gasPrice := new(big.Int).SetUint64(2000000000)
-	resultChan := make(chan *TPSStats)
-	errorChan := make(chan error)
-
 	uniswapV2RouterInstance, err := contracts.NewUniswapV2Router01(loadedTestData.UniswapV2Router, client)
 	if err != nil {
 		log.Fatalf("Failed to create Uniswap V2 Router instance: %v", err)
 		return err
 
 	}
-
-	err = executeSwapSteps(client, uniswapV2RouterInstance, steps, chainID, gasPrice, gasLimit)
+	err = cd.executeSwapSteps(client, uniswapV2RouterInstance, steps, chainID, gasPrice, gasLimit)
 	if err != nil {
 		log.Fatalf("Failed to perform swap steps: %v", err)
 		return err
-
 	}
-	go calculateTPSByTransactionsCount(client, stepCount-allowFailedTransactionsCount, resultChan, errorChan)
-
-	select {
-	case stats := <-resultChan:
-		if stats != nil {
-			log.Printf("Statistics for the last %d transactions starting from the current block :", stats.TransactionCount)
-			log.Printf("Starting block number: %s", stats.StartBlockNumber.String())
-			log.Printf("TPS: %.2f", stats.TPS)
-			log.Printf("Time interval: %d seconds", stats.TimeInterval)
-			log.Printf("Processed blocks: %d", stats.BlockCount)
-		}
-	case err := <-errorChan:
-		if err != nil {
-			log.Fatalf("Failed to calculate TPS: %v", err)
-		}
-	}
-	return err
+	return nil
 
 }
 
@@ -392,27 +356,21 @@ func generateRandomSwapSteps(testUsers []*pkg.EthWallet, tokenPairs [][2]common.
 	return steps
 }
 
-func executeSwapSteps(client *ethclient.Client, uniswapV2RouterInstance *contracts.UniswapV2Router01, steps []SwapStep, chainID int64, gasPrice *big.Int, gasLimit uint64) error {
-	var wg sync.WaitGroup
-	results := make(chan error, len(steps))
+func (cd *UniswapV2TPSStatisticsTestCase) executeSwapSteps(client *ethclient.Client, uniswapV2RouterInstance *contracts.UniswapV2Router01, steps []SwapStep, chainID int64, gasPrice *big.Int, gasLimit uint64) error {
 	for _, step := range steps {
-		wg.Add(1)
-		go executeSwapStep(client, uniswapV2RouterInstance, step, chainID, gasPrice, gasLimit, &wg, results)
+		if err := cd.rm.Wait(context.Background()); err == nil {
+			if err := executeSwapStep(client, uniswapV2RouterInstance, step, chainID, gasPrice, gasLimit); err != nil {
+				log.Println(fmt.Sprintf("execute swap step err:%v", err.Error()))
+			}
+		}
 	}
-
-	wg.Wait()
-	close(results)
-
 	return nil
 }
 
-func executeSwapStep(client *ethclient.Client, uniswapV2RouterInstance *contracts.UniswapV2Router01, step SwapStep, chainID int64, gasPrice *big.Int, gasLimit uint64, wg *sync.WaitGroup, results chan<- error) {
-	defer wg.Done()
-
+func executeSwapStep(client *ethclient.Client, uniswapV2RouterInstance *contracts.UniswapV2Router01, step SwapStep, chainID int64, gasPrice *big.Int, gasLimit uint64) error {
 	auth, err := generateTestAuth(client, step.User, chainID, gasPrice, gasLimit)
 	if err != nil {
-		results <- fmt.Errorf("failed to generate auth for user %s: %v", step.User.Address, err)
-		return
+		return fmt.Errorf("failed to generate auth for user %s: %v", step.User.Address, err)
 	}
 
 	_, err = uniswapV2RouterInstance.SwapExactTokensForTokens(
@@ -424,71 +382,7 @@ func executeSwapStep(client *ethclient.Client, uniswapV2RouterInstance *contract
 		big.NewInt(time.Now().Unix()+1000),
 	)
 	if err != nil {
-		results <- fmt.Errorf("failed to create swap transaction for user %s: %v", step.User.Address, err)
-		return
+		return fmt.Errorf("failed to create swap transaction for user %s: %v", step.User.Address, err)
 	}
-
-	results <- nil
-}
-
-// calculateTPSByTransactionsCount calculates the transactions per second (TPS) for the last `transactionCount` transactions,
-// starting from the current block minus `startOffset`.
-func calculateTPSByTransactionsCount(client *ethclient.Client, transactionCount int, resultChan chan<- *TPSStats, errorChan chan<- error) {
-	defer close(resultChan)
-	defer close(errorChan)
-
-	latestBlockNumber, err := client.BlockNumber(context.Background())
-	if err != nil {
-		errorChan <- fmt.Errorf("failed to get latest block: %v", err)
-		return
-	}
-	//count from the latest block -1
-	blockNumber := new(big.Int).SetUint64(latestBlockNumber)
-
-	var blocks []*types.Block
-	totalTransactions := 0
-	blockCount := 0
-	for totalTransactions < transactionCount || len(blocks) < 2 {
-		var block *types.Block
-		retries := 0
-		for {
-			block, err = client.BlockByNumber(context.Background(), blockNumber)
-			if err == nil {
-				break
-			}
-			if retries >= maxRetries {
-				errorChan <- fmt.Errorf("failed to get block %d after %d retries: %v", blockNumber, retries, err)
-				return
-			}
-			//log.Printf("Block %d not found, retrying ... (attempt %d/%d)", latestBlockNumber, retries+1, maxRetries)
-
-			time.Sleep(retriesInterval)
-			retries++
-		}
-		blocks = append(blocks, block)
-		totalTransactions += len(block.Transactions())
-		blockNumber.Add(blockNumber, big.NewInt(1))
-		blockCount++
-		if blockCount >= maxBlocks && totalTransactions < transactionCount {
-			log.Fatalf("Reached maximum block count of %d with less than %d transactions. Stopping.", maxBlocks, transactionCount)
-			break
-		}
-	}
-
-	timeInterval := blocks[len(blocks)-1].Time() - blocks[0].Time()
-
-	if timeInterval == 0 {
-		errorChan <- fmt.Errorf("time interval is zero, cannot calculate TPS")
-		return
-	}
-	tps := float64(totalTransactions) / float64(timeInterval)
-
-	stats := &TPSStats{
-		TPS:              tps,
-		BlockCount:       len(blocks),
-		TimeInterval:     timeInterval,
-		TransactionCount: totalTransactions,
-		StartBlockNumber: blocks[len(blocks)-1].Number(),
-	}
-	resultChan <- stats
+	return nil
 }
