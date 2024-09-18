@@ -16,7 +16,7 @@ import (
 	"github.com/reddio-com/reddio/evm"
 	"github.com/reddio-com/reddio/test/conf"
 	"github.com/reddio-com/reddio/test/pkg"
-	"github.com/reddio-com/reddio/test/transfer"
+	"github.com/reddio-com/reddio/test/uniswap"
 )
 
 var (
@@ -31,7 +31,7 @@ var (
 func init() {
 	flag.StringVar(&configPath, "configPath", "", "")
 	flag.StringVar(&evmConfigPath, "evmConfigPath", "./conf/evm_cfg.toml", "")
-	flag.IntVar(&maxBlock, "maxBlock", 50, "")
+	flag.IntVar(&maxBlock, "maxBlock", 500, "")
 	flag.IntVar(&qps, "qps", 1500, "")
 	flag.BoolVar(&isParallel, "parallel", true, "")
 	flag.BoolVar(&embeddedChain, "embedded", false, "")
@@ -74,15 +74,16 @@ func blockBenchmark(evmCfg *evm.GethConfig, target int, qps int) (int, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	bm := pkg.GetDefaultBlockManager()
-	ethManager := &transfer.EthManager{}
+	ethManager := &uniswap.EthManager{}
 	cfg := conf.Config.EthCaseConf
-	ethManager.Configure(cfg, evmCfg)
-	wallets, err := ethManager.PreCreateWallets(100, cfg.InitialEthCount)
-	if err != nil {
-		return 0, err
-	}
 	limiter := rate.NewLimiter(rate.Limit(qps), qps)
-	ethManager.AddTestCase(transfer.NewRandomBenchmarkTest("[rand_test 100 account, 5000 transfer]", 100, cfg.InitialEthCount, 5000, wallets, limiter))
+
+	ethManager.Configure(cfg, evmCfg)
+	ethManager.AddTestCase(
+		uniswap.NewUniswapV2TPSStatisticsTestCase("UniswapV2 TPS StatisticsTestCase", limiter))
+	if _, err := os.Stat("test/tmp"); os.IsNotExist(err) {
+		prepareBenchmark(ctx, ethManager)
+	}
 	go runBenchmark(ctx, ethManager)
 	totalCount := 0
 	for i := 1; i <= target; {
@@ -102,7 +103,11 @@ func blockBenchmark(evmCfg *evm.GethConfig, target int, qps int) (int, error) {
 	return totalCount, nil
 }
 
-func runBenchmark(ctx context.Context, manager *transfer.EthManager) {
+func prepareBenchmark(ctx context.Context, manager *uniswap.EthManager) {
+	manager.Prepare(ctx)
+
+}
+func runBenchmark(ctx context.Context, manager *uniswap.EthManager) {
 	for {
 		select {
 		case <-ctx.Done():

@@ -6,11 +6,11 @@ import (
 	"log"
 	"math/big"
 	"math/rand"
-	"os"
 	"sync"
 	"time"
 
 	"github.com/reddio-com/reddio/test/contracts"
+	"golang.org/x/time/rate"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -35,10 +35,11 @@ const (
 	allowFailedTransactionsCount = 10
 	stepCount                    = 5000
 	retriesInterval              = 3 * time.Second
-	tokenContractNum             = 100
+	tokenContractNum             = 10
 )
 
 type UniswapV2TPSStatisticsTestCase struct {
+	rm       *rate.Limiter
 	CaseName string
 }
 
@@ -54,10 +55,11 @@ func (cd *UniswapV2TPSStatisticsTestCase) Name() string {
 	return cd.CaseName
 }
 
-func NewUniswapV2TPSStatisticsTestCase(name string) *UniswapV2TPSStatisticsTestCase {
+func NewUniswapV2TPSStatisticsTestCase(name string, rm *rate.Limiter) *UniswapV2TPSStatisticsTestCase {
 
 	return &UniswapV2TPSStatisticsTestCase{
 		CaseName: name,
+		rm:       rm,
 	}
 }
 
@@ -80,17 +82,13 @@ func NewUniswapV2TPSStatisticsTestCase(name string) *UniswapV2TPSStatisticsTestC
 // 3. Assert
 //   - Calculate and report the transactions per second (TPS) achieved during the test
 func (cd *UniswapV2TPSStatisticsTestCase) Run(ctx context.Context, m *pkg.WalletManager) error {
-	if _, err := os.Stat("test/tmp"); os.IsNotExist(err) {
-		Prepare(m)
-	}
 	err := executeTestAndCalculateTPS(nodeUrl, chainID, gasLimit, stepCount, allowFailedTransactionsCount)
 	if err != nil {
 		log.Fatalf("Failed to execute test and calculate TPS: %v", err)
 	}
 	return err
 }
-func Prepare(m *pkg.WalletManager) error {
-
+func (cd *UniswapV2TPSStatisticsTestCase) Prepare(ctx context.Context, m *pkg.WalletManager) error {
 	deployerUser, err := m.GenerateRandomWallet(1, accountInitialFunds)
 	if err != nil {
 		log.Fatalf("Failed to generate deployer user: %v", err)

@@ -36,8 +36,17 @@ parallel_benchmark_test:
 serial_benchmark_test:
 	./benchmark_test --parallel=false --maxBlock=50 --qps=1000 --embedded=false
 
-benchmark_localtest:reset clean_test_data build_benchmark_test
-	./benchmark_test --parallel=true --maxBlock=500 --qps=1000 --embedded=true
+build_uniswap_benchmark_test:
+	go build -v -o uniswap_benchmark_test ./test/cmd/uniswap_benchmark/main.go
+
+parallel_benchmark_test:
+	./uniswap_benchmark_test --parallel=true --maxBlock=50 --qps=1000 --embedded=false
+
+serial_benchmark_test:
+	./uniswap_benchmark_test --parallel=false --maxBlock=50 --qps=1000 --embedded=false
+
+uniswap_benchmark_localtest:reset clean_test_data build_uniswap_benchmark_test
+	./uniswap_benchmark_test --parallel=true --maxBlock=500 --qps=1000 --embedded=true
 
 reset:
 	@if [ -d "yu" ]; then \
