@@ -16,6 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+
 	"github.com/reddio-com/reddio/test/contracts"
 	"github.com/reddio-com/reddio/test/pkg"
 )
@@ -43,7 +44,11 @@ type UniswapV2DeployedContracts struct {
 	uniswapV2RouterInstance      *contracts.UniswapV2Router01
 }
 type TestData struct {
-	TestUsers       []*pkg.EthWallet    `json:"testUsers"`
+	TestUsers     []*pkg.EthWallet `json:"testUsers"`
+	TestContracts []TestContract
+}
+
+type TestContract struct {
 	UniswapV2Router common.Address      `json:"uniswapV2Router"`
 	TokenPairs      [][2]common.Address `json:"tokenPairs"`
 }
