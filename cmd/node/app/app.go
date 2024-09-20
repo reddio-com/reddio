@@ -10,15 +10,20 @@ import (
 	"github.com/yu-org/yu/core/kernel"
 	"github.com/yu-org/yu/core/startup"
 
+	"github.com/reddio-com/reddio/config"
 	"github.com/reddio-com/reddio/evm"
 	"github.com/reddio-com/reddio/evm/ethrpc"
 	"github.com/reddio-com/reddio/parallel"
 )
 
-func Start(evmPath, yuPath, poaPath string) {
+func Start(evmPath, yuPath, poaPath, configPath string) {
 	yuCfg := startup.InitKernelConfigFromPath(yuPath)
 	poaCfg := poa.LoadCfgFromPath(poaPath)
 	evmCfg := evm.LoadEvmConfig(evmPath)
+	err := config.LoadConfig(configPath)
+	if err != nil {
+		panic(err)
+	}
 	go startPromServer()
 	StartUpChain(yuCfg, poaCfg, evmCfg)
 }

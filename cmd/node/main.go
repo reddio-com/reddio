@@ -5,5 +5,5 @@ import (
 )
 
 func main() {
-	app.Start("./conf/evm.toml", "./conf/yu.toml", "./conf/poa.toml")
+	app.Start("./conf/evm.toml", "./conf/yu.toml", "./conf/poa.toml", "./conf/config.toml")
 }
