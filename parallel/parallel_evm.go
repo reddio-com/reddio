@@ -47,12 +47,8 @@ func (k *ParallelEVM) Execute(block *types.Block) error {
 		metrics.BlockExecuteTxnDuration.WithLabelValues().Observe(time.Since(start).Seconds())
 	}()
 	txnCtxList, receipts := k.prepareTxnList(block)
-	got := k.SplitTxnCtxList(txnCtxList)
-
-	for index, subList := range got {
-		k.executeTxnCtxList(subList)
-		got[index] = subList
-	}
+	got := k.splitTxnCtxList(txnCtxList)
+	got = k.executeAllTxn(got)
 	for _, subList := range got {
 		for _, c := range subList {
 			receipts[c.txn.TxnHash] = c.receipt
@@ -60,64 +56,61 @@ func (k *ParallelEVM) Execute(block *types.Block) error {
 	}
 	commitStart := time.Now()
 	defer func() {
-		metrics.BatchTxnCommitDuration.WithLabelValues().Observe(time.Since(commitStart).Seconds())
+		metrics.BlockTxnCommitDuration.WithLabelValues().Observe(time.Since(commitStart).Seconds())
 	}()
 	return k.PostExecute(block, receipts)
+}
+
+func (k *ParallelEVM) executeAllTxn(got [][]*txnCtx) [][]*txnCtx {
+	start := time.Now()
+	defer func() {
+		metrics.BatchTxnAllExecuteDuration.WithLabelValues().Observe(time.Now().Sub(start).Seconds())
+	}()
+	for index, subList := range got {
+		k.executeTxnCtxList(subList)
+		got[index] = subList
+	}
+	return got
 }
 
 func (k *ParallelEVM) prepareTxnList(block *types.Block) ([]*txnCtx, map[common.Hash]*types.Receipt) {
 	start := time.Now()
 	defer func() {
-		metrics.BatchTxnPrepareDuration.WithLabelValues().Observe(time.Since(start).Seconds())
+		metrics.BlockTxnPrepareDuration.WithLabelValues().Observe(time.Since(start).Seconds())
 	}()
 	stxns := block.Txns
-	txnCtxList := make([]*txnCtx, len(stxns), len(stxns))
-	wg := sync.WaitGroup{}
-	for i, subTxn := range stxns {
-		wg.Add(1)
-		go func(index int, stxn *types.SignedTxn) {
-			defer wg.Done()
-			stxnCtx := &txnCtx{}
-			wrCall := stxn.Raw.WrCall
-			ctx, err := context.NewWriteContext(stxn, block, index)
-			if err != nil {
-				stxnCtx.receipt = k.handleTxnError(err, ctx, block, stxn)
-			} else {
-				req := &evm.TxRequest{}
-				if err := ctx.BindJson(req); err != nil {
-					stxnCtx.receipt = k.handleTxnError(err, ctx, block, stxn)
-				} else {
-					writing, _ := k.Land.GetWriting(wrCall.TripodName, wrCall.FuncName)
-					stxnCtx = &txnCtx{
-						ctx:     ctx,
-						txn:     stxn,
-						writing: writing,
-						req:     req,
-					}
-				}
-			}
-			txnCtxList[index] = stxnCtx
-		}(i, subTxn)
-	}
-	wg.Wait()
 	receipts := make(map[common.Hash]*types.Receipt)
-	preparedTxnCtxList := make([]*txnCtx, len(stxns), len(stxns))
-	successTxnCount := 0
-	for _, subTxnCtx := range txnCtxList {
-		if subTxnCtx.receipt == nil {
-			preparedTxnCtxList[successTxnCount] = subTxnCtx
-			successTxnCount++
-		} else {
-			receipts[subTxnCtx.txn.TxnHash] = subTxnCtx.receipt
+	txnCtxList := make([]*txnCtx, len(stxns), len(stxns))
+	for index, stxn := range stxns {
+		wrCall := stxn.Raw.WrCall
+		ctx, err := context.NewWriteContext(stxn, block, index)
+		if err != nil {
+			receipt := k.handleTxnError(err, ctx, block, stxn)
+			receipts[stxn.TxnHash] = receipt
+			continue
 		}
+		req := &evm.TxRequest{}
+		if err := ctx.BindJson(req); err != nil {
+			receipt := k.handleTxnError(err, ctx, block, stxn)
+			receipts[stxn.TxnHash] = receipt
+			continue
+		}
+		writing, _ := k.Land.GetWriting(wrCall.TripodName, wrCall.FuncName)
+		stxnCtx := &txnCtx{
+			ctx:     ctx,
+			txn:     stxn,
+			writing: writing,
+			req:     req,
+		}
+		txnCtxList[index] = stxnCtx
 	}
-	return preparedTxnCtxList[:successTxnCount], receipts
+	return txnCtxList, receipts
 }
 
-func (k *ParallelEVM) SplitTxnCtxList(list []*txnCtx) [][]*txnCtx {
+func (k *ParallelEVM) splitTxnCtxList(list []*txnCtx) [][]*txnCtx {
 	start := time.Now()
 	defer func() {
-		metrics.BatchTxnSplitDuration.WithLabelValues().Observe(time.Since(start).Seconds())
+		metrics.BlockTxnSplitDuration.WithLabelValues().Observe(time.Since(start).Seconds())
 	}()
 	cur := 0
 	curList := make([]*txnCtx, 0)
