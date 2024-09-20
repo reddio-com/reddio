@@ -25,7 +25,7 @@ var (
 )
 
 func init() {
-	flag.StringVar(&configPath, "configPath", "", "")
+	flag.StringVar(&configPath, "configPath", "./conf/config.toml", "")
 	flag.StringVar(&evmConfigPath, "evmConfigPath", "./conf/evm.toml", "")
 	flag.StringVar(&yuConfigPath, "yuConfigPath", "./conf/yu.toml", "")
 	flag.StringVar(&poaConfigPath, "poaConfigPath", "./conf/poa.toml", "")
@@ -48,8 +48,7 @@ func main() {
 		} else {
 			log.Println("start uniswap test in serial")
 		}
-		app.Start(evmConfigPath, yuConfigPath, poaConfigPath)
-
+		app.Start(evmConfigPath, yuConfigPath, poaConfigPath, "")
 	}()
 	time.Sleep(5 * time.Second)
 	log.Println("finish start reddio")
