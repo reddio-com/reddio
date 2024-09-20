@@ -21,12 +21,16 @@ import (
 var (
 	configPath    string
 	evmConfigPath string
+	yuConfigPath  string
+	poaConfigPath string
 	isParallel    bool
 )
 
 func init() {
 	flag.StringVar(&configPath, "configPath", "", "")
 	flag.StringVar(&evmConfigPath, "evmConfigPath", "./conf/evm.toml", "")
+	flag.StringVar(&yuConfigPath, "yuConfigPath", "./conf/yu.toml", "")
+	flag.StringVar(&poaConfigPath, "poaConfigPath", "./conf/poa.toml", "")
 	flag.BoolVar(&isParallel, "parallel", true, "")
 }
 
@@ -48,7 +52,7 @@ func main() {
 		} else {
 			log.Println("start uniswap test in serial")
 		}
-		app.Start(evmConfigPath, yuCfg)
+		app.Start(evmConfigPath, yuConfigPath, poaConfigPath)
 
 	}()
 	time.Sleep(5 * time.Second)
