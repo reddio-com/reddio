@@ -2,6 +2,7 @@ package parallel
 
 import (
 	"fmt"
+	"log"
 	"strconv"
 	"sync"
 	"time"
@@ -44,7 +45,9 @@ func (k *ParallelEVM) Execute(block *types.Block) error {
 	start := time.Now()
 	metrics.BlockExecuteTxnCountGauge.WithLabelValues().Set(float64(len(block.Txns)))
 	defer func() {
-		metrics.BlockExecuteTxnDuration.WithLabelValues().Observe(time.Since(start).Seconds())
+		cost := time.Since(start)
+		log.Printf("execute block cost %v txnCount:%v", cost.String(), len(block.Txns))
+		metrics.BlockExecuteTxnDurationGauge.WithLabelValues().Set(cost.Seconds())
 	}()
 	txnCtxList, receipts := k.prepareTxnList(block)
 	got := k.splitTxnCtxList(txnCtxList)
@@ -56,7 +59,7 @@ func (k *ParallelEVM) Execute(block *types.Block) error {
 	}
 	commitStart := time.Now()
 	defer func() {
-		metrics.BlockTxnCommitDuration.WithLabelValues().Observe(time.Since(commitStart).Seconds())
+		metrics.BlockTxnCommitDurationGauge.WithLabelValues().Set(time.Since(commitStart).Seconds())
 	}()
 	return k.PostExecute(block, receipts)
 }
@@ -64,7 +67,7 @@ func (k *ParallelEVM) Execute(block *types.Block) error {
 func (k *ParallelEVM) executeAllTxn(got [][]*txnCtx) [][]*txnCtx {
 	start := time.Now()
 	defer func() {
-		metrics.BatchTxnAllExecuteDuration.WithLabelValues().Observe(time.Now().Sub(start).Seconds())
+		metrics.BlockTxnAllExecuteDurationGauge.WithLabelValues().Set(time.Now().Sub(start).Seconds())
 	}()
 	for index, subList := range got {
 		k.executeTxnCtxList(subList)
@@ -76,7 +79,7 @@ func (k *ParallelEVM) executeAllTxn(got [][]*txnCtx) [][]*txnCtx {
 func (k *ParallelEVM) prepareTxnList(block *types.Block) ([]*txnCtx, map[common.Hash]*types.Receipt) {
 	start := time.Now()
 	defer func() {
-		metrics.BlockTxnPrepareDuration.WithLabelValues().Observe(time.Since(start).Seconds())
+		metrics.BlockTxnPrepareDurationGauge.WithLabelValues().Set(time.Since(start).Seconds())
 	}()
 	stxns := block.Txns
 	receipts := make(map[common.Hash]*types.Receipt)
@@ -108,10 +111,6 @@ func (k *ParallelEVM) prepareTxnList(block *types.Block) ([]*txnCtx, map[common.
 }
 
 func (k *ParallelEVM) splitTxnCtxList(list []*txnCtx) [][]*txnCtx {
-	start := time.Now()
-	defer func() {
-		metrics.BlockTxnSplitDuration.WithLabelValues().Observe(time.Since(start).Seconds())
-	}()
 	cur := 0
 	curList := make([]*txnCtx, 0)
 	got := make([][]*txnCtx, 0)
@@ -165,8 +164,8 @@ func checkAddressConflict(curTxn *txnCtx, curList []*txnCtx) bool {
 }
 
 func (k *ParallelEVM) executeTxnCtxList(list []*txnCtx) []*txnCtx {
-	metrics.BatchTxnSplitCounter.WithLabelValues(strconv.FormatInt(int64(len(list)), 10)).Inc()
 	if config.GetGlobalConfig().IsParallel {
+		metrics.BatchTxnSplitCounter.WithLabelValues(strconv.FormatInt(int64(len(list)), 10)).Inc()
 		return k.executeTxnCtxListInConcurrency(k.Solidity.StateDB(), list)
 	}
 	return k.executeTxnCtxListInOrder(k.Solidity.StateDB(), list, false)
