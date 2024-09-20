@@ -1336,6 +1336,18 @@ func (s *TransactionAPI) SendRawTransaction(ctx context.Context, input hexutil.B
 	return
 }
 
+func (s *TransactionAPI) SendBatchRawTransactions(ctx context.Context, inputs []hexutil.Bytes) (txHashes []common.Hash, err error) {
+	for _, input := range inputs {
+		var txHash common.Hash
+		txHash, err = s.SendRawTransaction(ctx, input)
+		if err != nil {
+			return
+		}
+		txHashes = append(txHashes, txHash)
+	}
+	return
+}
+
 // Sign calculates an ECDSA signature for:
 // keccak256("\x19Ethereum Signed Message:\n" + len(message) + message).
 //
