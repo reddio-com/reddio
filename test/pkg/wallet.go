@@ -3,7 +3,6 @@ package pkg
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/reddio-com/reddio/evm/ethrpc"
 	"log"
 	"math/big"
 	"strconv"
@@ -16,6 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 
 	"github.com/reddio-com/reddio/evm"
+	"github.com/reddio-com/reddio/evm/ethrpc"
 )
 
 const (
