@@ -41,6 +41,10 @@ func NewParallelEVM() *ParallelEVM {
 }
 
 func (k *ParallelEVM) Execute(block *types.Block) error {
+	start := time.Now()
+	defer func() {
+		metrics.BlockExecuteTxnDuration.WithLabelValues().Observe(time.Since(start).Seconds())
+	}()
 	stxns := block.Txns
 	receipts := make(map[common.Hash]*types.Receipt)
 	txnCtxList := make([]*txnCtx, 0)

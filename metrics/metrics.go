@@ -70,6 +70,17 @@ var (
 		},
 		[]string{TypeCountLbl},
 	)
+
+	BlockExecuteTxnDuration = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace: "reddio",
+			Subsystem: "block",
+			Name:      "execute_duration_seconds",
+			Help:      "block execute txn duration",
+			Buckets:   prometheus.DefBuckets,
+		},
+		[]string{},
+	)
 )
 
 func init() {
@@ -79,4 +90,5 @@ func init() {
 	prometheus.MustRegister(BatchTxnDuration)
 	prometheus.MustRegister(BatchTxnStatedbCopyDuration)
 	prometheus.MustRegister(BatchTxnSplitCounter)
+	prometheus.MustRegister(BlockExecuteTxnDuration)
 }
