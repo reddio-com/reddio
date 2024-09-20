@@ -1345,7 +1345,7 @@ func (s *TransactionAPI) SendBatchRawTransactions(ctx context.Context, inputs he
 	batchTx := new(BatchTx)
 	err = json.Unmarshal(inputs, batchTx)
 	if err != nil {
-		return nil, err
+		return
 	}
 	for _, input := range batchTx.TxsBytes {
 		var txHash common.Hash
