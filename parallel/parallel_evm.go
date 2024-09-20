@@ -82,6 +82,10 @@ func (k *ParallelEVM) Execute(block *types.Block) error {
 			receipts[c.txn.TxnHash] = c.r
 		}
 	}
+	commitStart := time.Now()
+	defer func() {
+		metrics.BatchTxnCommitDuration.WithLabelValues().Observe(time.Since(commitStart).Seconds())
+	}()
 	return k.PostExecute(block, receipts)
 }
 

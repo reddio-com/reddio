@@ -39,6 +39,17 @@ var (
 		[]string{TypeLbl},
 	)
 
+	BatchTxnCommitDuration = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace: "reddio",
+			Subsystem: "batch_txn",
+			Name:      "commit_duration_seconds",
+			Help:      "txn commit duration distribution.",
+			Buckets:   prometheus.DefBuckets,
+		},
+		[]string{},
+	)
+
 	BatchTxnDuration = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace: "reddio",
@@ -100,4 +111,5 @@ func init() {
 	prometheus.MustRegister(BatchTxnSplitCounter)
 	prometheus.MustRegister(BlockExecuteTxnDuration)
 	prometheus.MustRegister(BlockExecuteTxnCountGauge)
+	prometheus.MustRegister(BatchTxnCommitDuration)
 }
