@@ -81,6 +81,14 @@ var (
 		},
 		[]string{},
 	)
+
+	BlockExecuteTxnCountGauge = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "reddio",
+			Subsystem: "block",
+			Name:      "execute_txn_count",
+			Help:      "txn count for each block",
+		}, []string{})
 )
 
 func init() {
@@ -91,4 +99,5 @@ func init() {
 	prometheus.MustRegister(BatchTxnStatedbCopyDuration)
 	prometheus.MustRegister(BatchTxnSplitCounter)
 	prometheus.MustRegister(BlockExecuteTxnDuration)
+	prometheus.MustRegister(BlockExecuteTxnCountGauge)
 }
