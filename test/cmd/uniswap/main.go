@@ -8,8 +8,6 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/yu-org/yu/core/startup"
-
 	"github.com/reddio-com/reddio/cmd/node/app"
 	config2 "github.com/reddio-com/reddio/config"
 	"github.com/reddio-com/reddio/evm"
@@ -40,8 +38,6 @@ func main() {
 		panic(err)
 	}
 	evmConfig := evm.LoadEvmConfig(evmConfigPath)
-	yuCfg := startup.InitDefaultKernelConfig()
-	yuCfg.Txpool.PoolSize = 10000000
 	config := config2.GetGlobalConfig()
 	config.IsParallel = isParallel
 
