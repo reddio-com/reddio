@@ -3,6 +3,7 @@ package ethrpc
 import (
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -1333,6 +1334,27 @@ func (s *TransactionAPI) SendRawTransaction(ctx context.Context, input hexutil.B
 		return
 	}
 	txHash, err = SubmitTransaction(ctx, s.b, tx)
+	return
+}
+
+type BatchTx struct {
+	TxsBytes []hexutil.Bytes `json:"txs_bytes"`
+}
+
+func (s *TransactionAPI) SendBatchRawTransactions(ctx context.Context, inputs hexutil.Bytes) (txHashes []common.Hash, err error) {
+	batchTx := new(BatchTx)
+	err = json.Unmarshal(inputs, batchTx)
+	if err != nil {
+		return
+	}
+	for _, input := range batchTx.TxsBytes {
+		var txHash common.Hash
+		txHash, err = s.SendRawTransaction(ctx, input)
+		if err != nil {
+			return
+		}
+		txHashes = append(txHashes, txHash)
+	}
 	return
 }
 
