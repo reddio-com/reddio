@@ -35,7 +35,7 @@ func sendRequest(hostAddress string, dataString string) ([]byte, error) {
 	}
 	log.Println(fmt.Sprintf("send request got Err:%v", err))
 	for {
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(10 * time.Millisecond)
 		resp, err = sendSingleRequest(hostAddress, dataString)
 		if err == nil {
 			break
