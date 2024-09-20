@@ -46,40 +46,16 @@ func (k *ParallelEVM) Execute(block *types.Block) error {
 	defer func() {
 		metrics.BlockExecuteTxnDuration.WithLabelValues().Observe(time.Since(start).Seconds())
 	}()
-	stxns := block.Txns
-	receipts := make(map[common.Hash]*types.Receipt)
-	txnCtxList := make([]*txnCtx, 0)
-	for index, stxn := range stxns {
-		wrCall := stxn.Raw.WrCall
-		ctx, err := context.NewWriteContext(stxn, block, index)
-		if err != nil {
-			receipt := k.handleTxnError(err, ctx, block, stxn)
-			receipts[stxn.TxnHash] = receipt
-			continue
-		}
-		req := &evm.TxRequest{}
-		if err := ctx.BindJson(req); err != nil {
-			receipt := k.handleTxnError(err, ctx, block, stxn)
-			receipts[stxn.TxnHash] = receipt
-			continue
-		}
-		writing, _ := k.Land.GetWriting(wrCall.TripodName, wrCall.FuncName)
-		stxnCtx := &txnCtx{
-			ctx:     ctx,
-			txn:     stxn,
-			writing: writing,
-			req:     req,
-		}
-		txnCtxList = append(txnCtxList, stxnCtx)
-	}
+	txnCtxList, receipts := k.prepareTxnList(block)
 	got := k.SplitTxnCtxList(txnCtxList)
+
 	for index, subList := range got {
 		k.executeTxnCtxList(subList)
 		got[index] = subList
 	}
 	for _, subList := range got {
 		for _, c := range subList {
-			receipts[c.txn.TxnHash] = c.r
+			receipts[c.txn.TxnHash] = c.receipt
 		}
 	}
 	commitStart := time.Now()
@@ -89,7 +65,60 @@ func (k *ParallelEVM) Execute(block *types.Block) error {
 	return k.PostExecute(block, receipts)
 }
 
+func (k *ParallelEVM) prepareTxnList(block *types.Block) ([]*txnCtx, map[common.Hash]*types.Receipt) {
+	start := time.Now()
+	defer func() {
+		metrics.BatchTxnPrepareDuration.WithLabelValues().Observe(time.Since(start).Seconds())
+	}()
+	stxns := block.Txns
+	txnCtxList := make([]*txnCtx, len(stxns), len(stxns))
+	wg := sync.WaitGroup{}
+	for i, subTxn := range stxns {
+		wg.Add(1)
+		go func(index int, stxn *types.SignedTxn) {
+			defer wg.Done()
+			stxnCtx := &txnCtx{}
+			wrCall := stxn.Raw.WrCall
+			ctx, err := context.NewWriteContext(stxn, block, index)
+			if err != nil {
+				stxnCtx.receipt = k.handleTxnError(err, ctx, block, stxn)
+			} else {
+				req := &evm.TxRequest{}
+				if err := ctx.BindJson(req); err != nil {
+					stxnCtx.receipt = k.handleTxnError(err, ctx, block, stxn)
+				} else {
+					writing, _ := k.Land.GetWriting(wrCall.TripodName, wrCall.FuncName)
+					stxnCtx = &txnCtx{
+						ctx:     ctx,
+						txn:     stxn,
+						writing: writing,
+						req:     req,
+					}
+				}
+			}
+			txnCtxList[index] = stxnCtx
+		}(i, subTxn)
+	}
+	wg.Wait()
+	receipts := make(map[common.Hash]*types.Receipt)
+	preparedTxnCtxList := make([]*txnCtx, len(stxns), len(stxns))
+	successTxnCount := 0
+	for _, subTxnCtx := range txnCtxList {
+		if subTxnCtx.receipt == nil {
+			preparedTxnCtxList[successTxnCount] = subTxnCtx
+			successTxnCount++
+		} else {
+			receipts[subTxnCtx.txn.TxnHash] = subTxnCtx.receipt
+		}
+	}
+	return preparedTxnCtxList[:successTxnCount], receipts
+}
+
 func (k *ParallelEVM) SplitTxnCtxList(list []*txnCtx) [][]*txnCtx {
+	start := time.Now()
+	defer func() {
+		metrics.BatchTxnSplitDuration.WithLabelValues().Observe(time.Since(start).Seconds())
+	}()
 	cur := 0
 	curList := make([]*txnCtx, 0)
 	got := make([][]*txnCtx, 0)
@@ -161,9 +190,9 @@ func (k *ParallelEVM) executeTxnCtxListInOrder(originStateDB *state.StateDB, lis
 		err := tctx.writing(tctx.ctx)
 		if err != nil {
 			tctx.err = err
-			tctx.r = k.handleTxnError(err, tctx.ctx, tctx.ctx.Block, tctx.txn)
+			tctx.receipt = k.handleTxnError(err, tctx.ctx, tctx.ctx.Block, tctx.txn)
 		} else {
-			tctx.r = k.handleTxnEvent(tctx.ctx, tctx.ctx.Block, tctx.txn, isRedo)
+			tctx.receipt = k.handleTxnEvent(tctx.ctx, tctx.ctx.Block, tctx.txn, isRedo)
 			tctx.ps = tctx.ctx.ExtraInterface.(*pending_state.PendingState)
 			currStateDb = tctx.ps.GetStateDB()
 		}
@@ -193,9 +222,9 @@ func (k *ParallelEVM) executeTxnCtxListInConcurrency(originStateDB *state.StateD
 			err := tctx.writing(tctx.ctx)
 			if err != nil {
 				tctx.err = err
-				tctx.r = k.handleTxnError(err, tctx.ctx, tctx.ctx.Block, tctx.txn)
+				tctx.receipt = k.handleTxnError(err, tctx.ctx, tctx.ctx.Block, tctx.txn)
 			} else {
-				tctx.r = k.handleTxnEvent(tctx.ctx, tctx.ctx.Block, tctx.txn, false)
+				tctx.receipt = k.handleTxnEvent(tctx.ctx, tctx.ctx.Block, tctx.txn, false)
 				tctx.ps = tctx.ctx.ExtraInterface.(*pending_state.PendingState)
 			}
 			list[index] = tctx
@@ -260,11 +289,11 @@ func (k *ParallelEVM) CopyStateDb(originStateDB *state.StateDB, list []*txnCtx) 
 type txnCtx struct {
 	ctx     *context.WriteContext
 	txn     *types.SignedTxn
-	r       *types.Receipt
 	writing dev.Writing
 	req     *evm.TxRequest
 	err     error
 	ps      *pending_state.PendingState
+	receipt *types.Receipt
 }
 
 func (k *ParallelEVM) handleTxnError(err error, ctx *context.WriteContext, block *types.Block, stxn *types.SignedTxn) *types.Receipt {
