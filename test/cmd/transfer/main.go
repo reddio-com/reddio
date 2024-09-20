@@ -15,7 +15,6 @@ import (
 )
 
 var (
-	configPath    string
 	evmConfigPath string
 	yuConfigPath  string
 	poaConfigPath string
@@ -23,7 +22,6 @@ var (
 )
 
 func init() {
-	flag.StringVar(&configPath, "configPath", "./conf/config.toml", "")
 	flag.StringVar(&evmConfigPath, "evmConfigPath", "./conf/evm.toml", "")
 	flag.StringVar(&yuConfigPath, "yuConfigPath", "./conf/yu.toml", "")
 	flag.StringVar(&poaConfigPath, "poaConfigPath", "./conf/poa.toml", "")
@@ -32,9 +30,6 @@ func init() {
 
 func main() {
 	flag.Parse()
-	if err := conf.LoadConfig(configPath); err != nil {
-		panic(err)
-	}
 	evmConfig := evm.LoadEvmConfig(evmConfigPath)
 	config := config2.GetGlobalConfig()
 	config.IsParallel = isParallel
