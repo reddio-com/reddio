@@ -15,12 +15,12 @@ import (
 	"github.com/reddio-com/reddio/parallel"
 )
 
-func Start(path string, yuCfg *yuConfig.KernelConf) {
-	poaCfg := poa.DefaultCfg(0)
-	poaCfg.PrettyLog = false
-	gethCfg := evm.LoadEvmConfig(path)
+func Start(evmPath, yuPath, poaPath string) {
+	yuCfg := startup.InitKernelConfigFromPath(yuPath)
+	poaCfg := poa.LoadCfgFromPath(poaPath)
+	evmCfg := evm.LoadEvmConfig(evmPath)
 	go startPromServer()
-	StartUpChain(yuCfg, poaCfg, gethCfg)
+	StartUpChain(yuCfg, poaCfg, evmCfg)
 }
 
 func StartUpChain(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm.GethConfig) {

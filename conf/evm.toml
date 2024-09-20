@@ -1,0 +1,3 @@
+enable_eth_rpc = true
+eth_host = "0.0.0.0"
+eth_port = "9092"

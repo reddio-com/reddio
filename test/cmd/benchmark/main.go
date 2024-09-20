@@ -25,7 +25,7 @@ var (
 
 func init() {
 	flag.StringVar(&configPath, "configPath", "", "")
-	flag.StringVar(&evmConfigPath, "evmConfigPath", "./conf/evm_cfg.toml", "")
+	flag.StringVar(&evmConfigPath, "evmConfigPath", "./conf/evm.toml", "")
 	flag.IntVar(&qps, "qps", 1500, "")
 	flag.DurationVar(&duration, "duration", 5*time.Minute, "")
 	flag.StringVar(&action, "action", "prepare", "")

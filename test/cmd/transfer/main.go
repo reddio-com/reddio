@@ -7,8 +7,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/yu-org/yu/core/startup"
-
 	"github.com/reddio-com/reddio/cmd/node/app"
 	config2 "github.com/reddio-com/reddio/config"
 	"github.com/reddio-com/reddio/evm"
@@ -19,12 +17,16 @@ import (
 var (
 	configPath    string
 	evmConfigPath string
+	yuConfigPath  string
+	poaConfigPath string
 	isParallel    bool
 )
 
 func init() {
 	flag.StringVar(&configPath, "configPath", "", "")
-	flag.StringVar(&evmConfigPath, "evmConfigPath", "./conf/evm_cfg.toml", "")
+	flag.StringVar(&evmConfigPath, "evmConfigPath", "./conf/evm.toml", "")
+	flag.StringVar(&yuConfigPath, "yuConfigPath", "./conf/yu.toml", "")
+	flag.StringVar(&poaConfigPath, "poaConfigPath", "./conf/poa.toml", "")
 	flag.BoolVar(&isParallel, "parallel", true, "")
 }
 
@@ -34,7 +36,6 @@ func main() {
 		panic(err)
 	}
 	evmConfig := evm.LoadEvmConfig(evmConfigPath)
-	yuCfg := startup.InitDefaultKernelConfig()
 	config := config2.GetGlobalConfig()
 	config.IsParallel = isParallel
 	go func() {
@@ -43,7 +44,7 @@ func main() {
 		} else {
 			log.Println("start transfer test in serial")
 		}
-		app.Start(evmConfigPath, yuCfg)
+		app.Start(evmConfigPath, yuConfigPath, poaConfigPath)
 	}()
 	time.Sleep(5 * time.Second)
 	log.Println("finish start reddio")
