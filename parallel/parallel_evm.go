@@ -41,9 +41,46 @@ func NewParallelEVM() *ParallelEVM {
 }
 
 func (k *ParallelEVM) Execute(block *types.Block) error {
+	start := time.Now()
+	metrics.BlockExecuteTxnCountGauge.WithLabelValues().Set(float64(len(block.Txns)))
+	defer func() {
+		metrics.BlockExecuteTxnDuration.WithLabelValues().Observe(time.Since(start).Seconds())
+	}()
+	txnCtxList, receipts := k.prepareTxnList(block)
+	got := k.splitTxnCtxList(txnCtxList)
+	got = k.executeAllTxn(got)
+	for _, subList := range got {
+		for _, c := range subList {
+			receipts[c.txn.TxnHash] = c.receipt
+		}
+	}
+	commitStart := time.Now()
+	defer func() {
+		metrics.BlockTxnCommitDuration.WithLabelValues().Observe(time.Since(commitStart).Seconds())
+	}()
+	return k.PostExecute(block, receipts)
+}
+
+func (k *ParallelEVM) executeAllTxn(got [][]*txnCtx) [][]*txnCtx {
+	start := time.Now()
+	defer func() {
+		metrics.BatchTxnAllExecuteDuration.WithLabelValues().Observe(time.Now().Sub(start).Seconds())
+	}()
+	for index, subList := range got {
+		k.executeTxnCtxList(subList)
+		got[index] = subList
+	}
+	return got
+}
+
+func (k *ParallelEVM) prepareTxnList(block *types.Block) ([]*txnCtx, map[common.Hash]*types.Receipt) {
+	start := time.Now()
+	defer func() {
+		metrics.BlockTxnPrepareDuration.WithLabelValues().Observe(time.Since(start).Seconds())
+	}()
 	stxns := block.Txns
 	receipts := make(map[common.Hash]*types.Receipt)
-	txnCtxList := make([]*txnCtx, 0)
+	txnCtxList := make([]*txnCtx, len(stxns), len(stxns))
 	for index, stxn := range stxns {
 		wrCall := stxn.Raw.WrCall
 		ctx, err := context.NewWriteContext(stxn, block, index)
@@ -65,22 +102,16 @@ func (k *ParallelEVM) Execute(block *types.Block) error {
 			writing: writing,
 			req:     req,
 		}
-		txnCtxList = append(txnCtxList, stxnCtx)
+		txnCtxList[index] = stxnCtx
 	}
-	got := k.SplitTxnCtxList(txnCtxList)
-	for index, subList := range got {
-		k.executeTxnCtxList(subList)
-		got[index] = subList
-	}
-	for _, subList := range got {
-		for _, c := range subList {
-			receipts[c.txn.TxnHash] = c.r
-		}
-	}
-	return k.PostExecute(block, receipts)
+	return txnCtxList, receipts
 }
 
-func (k *ParallelEVM) SplitTxnCtxList(list []*txnCtx) [][]*txnCtx {
+func (k *ParallelEVM) splitTxnCtxList(list []*txnCtx) [][]*txnCtx {
+	start := time.Now()
+	defer func() {
+		metrics.BlockTxnSplitDuration.WithLabelValues().Observe(time.Since(start).Seconds())
+	}()
 	cur := 0
 	curList := make([]*txnCtx, 0)
 	got := make([][]*txnCtx, 0)
@@ -152,9 +183,9 @@ func (k *ParallelEVM) executeTxnCtxListInOrder(originStateDB *state.StateDB, lis
 		err := tctx.writing(tctx.ctx)
 		if err != nil {
 			tctx.err = err
-			tctx.r = k.handleTxnError(err, tctx.ctx, tctx.ctx.Block, tctx.txn)
+			tctx.receipt = k.handleTxnError(err, tctx.ctx, tctx.ctx.Block, tctx.txn)
 		} else {
-			tctx.r = k.handleTxnEvent(tctx.ctx, tctx.ctx.Block, tctx.txn, isRedo)
+			tctx.receipt = k.handleTxnEvent(tctx.ctx, tctx.ctx.Block, tctx.txn, isRedo)
 			tctx.ps = tctx.ctx.ExtraInterface.(*pending_state.PendingState)
 			currStateDb = tctx.ps.GetStateDB()
 		}
@@ -184,9 +215,9 @@ func (k *ParallelEVM) executeTxnCtxListInConcurrency(originStateDB *state.StateD
 			err := tctx.writing(tctx.ctx)
 			if err != nil {
 				tctx.err = err
-				tctx.r = k.handleTxnError(err, tctx.ctx, tctx.ctx.Block, tctx.txn)
+				tctx.receipt = k.handleTxnError(err, tctx.ctx, tctx.ctx.Block, tctx.txn)
 			} else {
-				tctx.r = k.handleTxnEvent(tctx.ctx, tctx.ctx.Block, tctx.txn, false)
+				tctx.receipt = k.handleTxnEvent(tctx.ctx, tctx.ctx.Block, tctx.txn, false)
 				tctx.ps = tctx.ctx.ExtraInterface.(*pending_state.PendingState)
 			}
 			list[index] = tctx
@@ -251,11 +282,11 @@ func (k *ParallelEVM) CopyStateDb(originStateDB *state.StateDB, list []*txnCtx) 
 type txnCtx struct {
 	ctx     *context.WriteContext
 	txn     *types.SignedTxn
-	r       *types.Receipt
 	writing dev.Writing
 	req     *evm.TxRequest
 	err     error
 	ps      *pending_state.PendingState
+	receipt *types.Receipt
 }
 
 func (k *ParallelEVM) handleTxnError(err error, ctx *context.WriteContext, block *types.Block, stxn *types.SignedTxn) *types.Receipt {

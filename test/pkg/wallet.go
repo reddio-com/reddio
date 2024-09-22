@@ -15,6 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 
 	"github.com/reddio-com/reddio/evm"
+	"github.com/reddio-com/reddio/evm/ethrpc"
 )
 
 const (
@@ -159,6 +160,63 @@ func (m *WalletManager) sendRawTx(privateKeyHex string, toAddress string, amount
 		"method": "eth_sendRawTransaction",
 		"params": ["0x%x"] 
 	}`, rawTxBytes)
+	_, err = sendRequest(m.hostAddress, requestBody)
+	return err
+}
+
+type RawTxReq struct {
+	privateKeyHex string
+	toAddress     string
+	amount        uint64
+	data          []byte
+	nonce         uint64
+}
+
+func (m *WalletManager) sendBatchRawTxs(rawTxs []*RawTxReq) error {
+	batchTx := new(ethrpc.BatchTx)
+	for _, rawTx := range rawTxs {
+		to := common.HexToAddress(rawTx.toAddress)
+		gasLimit := uint64(21000)
+		gasPrice := big.NewInt(0)
+
+		tx := types.NewTx(&types.LegacyTx{
+			Nonce:    rawTx.nonce,
+			GasPrice: gasPrice,
+			Gas:      gasLimit,
+			To:       &to,
+			Value:    big.NewInt(int64(rawTx.amount)),
+			Data:     rawTx.data,
+		})
+
+		privateKey, err := crypto.HexToECDSA(rawTx.privateKeyHex)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		chainID := m.cfg.ChainConfig.ChainID
+		signedTx, err := types.SignTx(tx, types.NewEIP155Signer(chainID), privateKey)
+		if err != nil {
+			log.Fatal(err)
+		}
+		rawTxBytes, err := rlp.EncodeToBytes(signedTx)
+		if err != nil {
+			log.Fatal(err)
+		}
+		batchTx.TxsBytes = append(batchTx.TxsBytes, rawTxBytes)
+	}
+
+	batchTxBytes, err := json.Marshal(batchTx)
+	if err != nil {
+		return err
+	}
+
+	requestBody := fmt.Sprintf(
+		`	{
+		"jsonrpc": "2.0",
+		"id": 0,
+		"method": "eth_sendRawTransaction",
+		"params": ["0x%x"] 
+	}`, batchTxBytes)
 	_, err = sendRequest(m.hostAddress, requestBody)
 	return err
 }

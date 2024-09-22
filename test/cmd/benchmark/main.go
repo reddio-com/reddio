@@ -2,17 +2,13 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
-	"fmt"
-	"log"
 	"os"
 	"time"
 
-	"github.com/yu-org/yu/core/startup"
 	"golang.org/x/time/rate"
 
-	"github.com/reddio-com/reddio/cmd/node/app"
-	config2 "github.com/reddio-com/reddio/config"
 	"github.com/reddio-com/reddio/evm"
 	"github.com/reddio-com/reddio/test/conf"
 	"github.com/reddio-com/reddio/test/pkg"
@@ -22,20 +18,17 @@ import (
 var (
 	configPath    string
 	evmConfigPath string
-	maxBlock      int
 	qps           int
-	isParallel    bool
-	embeddedChain bool
+	duration      time.Duration
+	action        string
 )
 
 func init() {
 	flag.StringVar(&configPath, "configPath", "", "")
-	flag.StringVar(&evmConfigPath, "evmConfigPath", "./conf/evm_cfg.toml", "")
-	flag.IntVar(&maxBlock, "maxBlock", 50, "")
+	flag.StringVar(&evmConfigPath, "evmConfigPath", "./conf/evm.toml", "")
 	flag.IntVar(&qps, "qps", 1500, "")
-	flag.BoolVar(&isParallel, "parallel", true, "")
-	flag.BoolVar(&embeddedChain, "embedded", false, "")
-
+	flag.DurationVar(&duration, "duration", 5*time.Minute, "")
+	flag.StringVar(&action, "action", "prepare", "")
 }
 
 func main() {
@@ -43,72 +36,70 @@ func main() {
 	if err := conf.LoadConfig(configPath); err != nil {
 		panic(err)
 	}
-	yuCfg := startup.InitDefaultKernelConfig()
-	yuCfg.IsAdmin = true
-	yuCfg.Txpool.PoolSize = 10000000
 	evmConfig := evm.LoadEvmConfig(evmConfigPath)
-	config := config2.GetGlobalConfig()
-	config.IsParallel = isParallel
-	if embeddedChain {
-		go func() {
-			if config.IsParallel {
-				log.Println("start reddio in parallel")
-			} else {
-				log.Println("start reddio in serial")
-			}
-			app.Start(evmConfigPath, yuCfg)
-			log.Println("exit reddio")
-		}()
-		time.Sleep(3 * time.Second)
+	switch action {
+	case "prepare":
+		prepareBenchmark(evmConfig)
+	case "run":
+		blockBenchmark(evmConfig, qps)
 	}
-	totalCount, err := blockBenchmark(evmConfig, maxBlock, qps)
-	if err != nil {
-		log.Println(err.Error())
-		os.Exit(1)
-	}
-	log.Println(fmt.Sprintf("totalTxn Count %v", totalCount))
-	os.Exit(0)
 }
 
-func blockBenchmark(evmCfg *evm.GethConfig, target int, qps int) (int, error) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	bm := pkg.GetDefaultBlockManager()
+func prepareBenchmark(evmCfg *evm.GethConfig) error {
 	ethManager := &transfer.EthManager{}
 	cfg := conf.Config.EthCaseConf
 	ethManager.Configure(cfg, evmCfg)
 	wallets, err := ethManager.PreCreateWallets(100, cfg.InitialEthCount)
 	if err != nil {
-		return 0, err
+		return err
 	}
-	limiter := rate.NewLimiter(rate.Limit(qps), qps)
-	ethManager.AddTestCase(transfer.NewRandomBenchmarkTest("[rand_test 100 account, 5000 transfer]", 100, cfg.InitialEthCount, 5000, wallets, limiter))
-	go runBenchmark(ctx, ethManager)
-	totalCount := 0
-	for i := 1; i <= target; {
-		finish, txnCount, err := bm.GetBlockTxnCountByIndex(i)
-		if err != nil {
-			log.Println(fmt.Sprintf("GetBlockTxnCountByIndex Err:%v", err))
-			continue
-		}
-		if finish {
-			i++
-			totalCount += txnCount
-			continue
-		}
-		time.Sleep(3 * time.Second)
+	file, err := os.Create("eth_benchmark_data.json")
+	if err != nil {
+		return err
 	}
-	bm.StopBlockChain()
-	return totalCount, nil
+	defer file.Close()
+	d, err := json.Marshal(wallets)
+	if err != nil {
+		return err
+	}
+	_, err = file.Write(d)
+	return err
 }
 
-func runBenchmark(ctx context.Context, manager *transfer.EthManager) {
+func loadWallets() ([]*pkg.EthWallet, error) {
+	d, err := os.ReadFile("eth_benchmark_data.json")
+	if err != nil {
+		return nil, err
+	}
+	exp := make([]*pkg.EthWallet, 0)
+	if err := json.Unmarshal(d, &exp); err != nil {
+		return nil, err
+	}
+	return exp, nil
+}
+
+func blockBenchmark(evmCfg *evm.GethConfig, qps int) error {
+	wallets, err := loadWallets()
+	if err != nil {
+		return err
+	}
+	ethManager := &transfer.EthManager{}
+	cfg := conf.Config.EthCaseConf
+	ethManager.Configure(cfg, evmCfg)
+	limiter := rate.NewLimiter(rate.Limit(qps), qps)
+	ethManager.AddTestCase(transfer.NewRandomBenchmarkTest("[rand_test 100 account, 5000 transfer]", 100, cfg.InitialEthCount, 5000, wallets, limiter))
+	runBenchmark(ethManager)
+	return nil
+}
+
+func runBenchmark(manager *transfer.EthManager) {
+	after := time.After(duration)
 	for {
 		select {
-		case <-ctx.Done():
+		case <-after:
 			return
 		default:
 		}
-		manager.Run(ctx)
+		manager.Run(context.Background())
 	}
 }

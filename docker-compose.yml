@@ -12,7 +12,7 @@ services:
       -  8887:8887
       -  7999:7999
       -  8999:8999
-      # starknet port
+      # ETH RPC port
       -  9092:9092
       # pprof port
       -  8080:8080

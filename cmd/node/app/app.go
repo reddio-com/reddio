@@ -10,17 +10,22 @@ import (
 	"github.com/yu-org/yu/core/kernel"
 	"github.com/yu-org/yu/core/startup"
 
+	"github.com/reddio-com/reddio/config"
 	"github.com/reddio-com/reddio/evm"
 	"github.com/reddio-com/reddio/evm/ethrpc"
 	"github.com/reddio-com/reddio/parallel"
 )
 
-func Start(path string, yuCfg *yuConfig.KernelConf) {
-	poaCfg := poa.DefaultCfg(0)
-	poaCfg.PrettyLog = false
-	gethCfg := evm.LoadEvmConfig(path)
+func Start(evmPath, yuPath, poaPath, configPath string) {
+	yuCfg := startup.InitKernelConfigFromPath(yuPath)
+	poaCfg := poa.LoadCfgFromPath(poaPath)
+	evmCfg := evm.LoadEvmConfig(evmPath)
+	err := config.LoadConfig(configPath)
+	if err != nil {
+		panic(err)
+	}
 	go startPromServer()
-	StartUpChain(yuCfg, poaCfg, gethCfg)
+	StartUpChain(yuCfg, poaCfg, evmCfg)
 }
 
 func StartUpChain(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm.GethConfig) {

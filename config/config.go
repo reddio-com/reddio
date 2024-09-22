@@ -1,10 +1,15 @@
 package config
 
-import "runtime"
+import (
+	"os"
+	"runtime"
+
+	"github.com/BurntSushi/toml"
+)
 
 type Config struct {
-	IsParallel     bool
-	MaxConcurrency int
+	IsParallel     bool `yaml:"isParallel"`
+	MaxConcurrency int  `yaml:"maxConcurrency"`
 }
 
 func defaultConfig() *Config {
@@ -22,4 +27,21 @@ func init() {
 
 func GetGlobalConfig() *Config {
 	return GlobalConfig
+}
+
+func LoadConfig(path string) error {
+	if path == "" {
+		return nil
+	}
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	c := &Config{}
+	err = toml.Unmarshal(content, c)
+	if err != nil {
+		return err
+	}
+	GlobalConfig = c
+	return nil
 }
