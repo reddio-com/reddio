@@ -39,13 +39,12 @@ var (
 		[]string{TypeLbl},
 	)
 
-	BlockTxnCommitDuration = prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
+	BlockTxnCommitDurationGauge = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
 			Namespace: "reddio",
 			Subsystem: "block_txn",
 			Name:      "commit_duration_seconds",
-			Help:      "txn commit duration distribution.",
-			Buckets:   prometheus.DefBuckets,
+			Help:      "txn commit duration seconds",
 		},
 		[]string{},
 	)
@@ -82,13 +81,12 @@ var (
 		[]string{TypeCountLbl},
 	)
 
-	BlockExecuteTxnDuration = prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
+	BlockExecuteTxnDurationGauge = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
 			Namespace: "reddio",
 			Subsystem: "block",
 			Name:      "execute_duration_seconds",
 			Help:      "block execute txn duration",
-			Buckets:   prometheus.DefBuckets,
 		},
 		[]string{},
 	)
@@ -101,35 +99,22 @@ var (
 			Help:      "txn count for each block",
 		}, []string{})
 
-	BlockTxnSplitDuration = prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Namespace: "reddio",
-			Subsystem: "block_txn",
-			Name:      "split_txn_duration_seconds",
-			Help:      "split batch txn duration",
-			Buckets:   prometheus.DefBuckets,
-		},
-		[]string{},
-	)
-
-	BlockTxnPrepareDuration = prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
+	BlockTxnPrepareDurationGauge = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
 			Namespace: "reddio",
 			Subsystem: "block_txn",
 			Name:      "prepare_txn_duration_seconds",
 			Help:      "split batch txn duration",
-			Buckets:   prometheus.DefBuckets,
 		},
 		[]string{},
 	)
 
-	BatchTxnAllExecuteDuration = prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
+	BlockTxnAllExecuteDurationGauge = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
 			Namespace: "reddio",
-			Subsystem: "batch_txn",
-			Name:      "all_execute_duration_seconds",
+			Subsystem: "block_txn",
+			Name:      "execute_all_duration_seconds",
 			Help:      "split batch txn duration",
-			Buckets:   prometheus.DefBuckets,
 		},
 		[]string{},
 	)
@@ -140,15 +125,15 @@ func init() {
 	prometheus.MustRegister(TxnDuration)
 
 	prometheus.MustRegister(BlockExecuteTxnCountGauge)
-	prometheus.MustRegister(BlockTxnPrepareDuration)
-	prometheus.MustRegister(BlockTxnSplitDuration)
-	prometheus.MustRegister(BatchTxnAllExecuteDuration)
-	prometheus.MustRegister(BlockTxnCommitDuration)
-
-	prometheus.MustRegister(BlockExecuteTxnDuration)
+	prometheus.MustRegister(BlockTxnPrepareDurationGauge)
+	prometheus.MustRegister(BlockTxnAllExecuteDurationGauge)
+	prometheus.MustRegister(BlockTxnCommitDurationGauge)
+	prometheus.MustRegister(BlockExecuteTxnDurationGauge)
 
 	prometheus.MustRegister(BatchTxnCounter)
 	prometheus.MustRegister(BatchTxnSplitCounter)
 	prometheus.MustRegister(BatchTxnDuration)
 	prometheus.MustRegister(BatchTxnStatedbCopyDuration)
 }
+
+var TxnBuckets = []float64{.05, .1, .25, .5, 1, 2.5, 5, 10, 20, 40, 100}
