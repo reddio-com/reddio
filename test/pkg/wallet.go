@@ -214,7 +214,7 @@ func (m *WalletManager) sendBatchRawTxs(rawTxs []*RawTxReq) error {
 		`	{
 		"jsonrpc": "2.0",
 		"id": 0,
-		"method": "eth_sendRawTransaction",
+		"method": "eth_sendBatchRawTransactions",
 		"params": ["0x%x"] 
 	}`, batchTxBytes)
 	_, err = sendRequest(m.hostAddress, requestBody)
