@@ -100,6 +100,6 @@ func runBenchmark(manager *transfer.EthManager) {
 			return
 		default:
 		}
-		manager.Run(context.Background())
+		manager.BatchRun(context.Background())
 	}
 }

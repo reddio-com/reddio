@@ -17,7 +17,7 @@ type ConflictTransfer struct {
 }
 
 func (c *ConflictTransfer) Run(ctx context.Context, m *pkg.WalletManager) error {
-	wallets, err := m.GenerateRandomWallet(c.walletCount, c.initialCount)
+	wallets, err := m.GenerateRandomWallets(c.walletCount, c.initialCount)
 	if err != nil {
 		return err
 	}
@@ -25,6 +25,10 @@ func (c *ConflictTransfer) Run(ctx context.Context, m *pkg.WalletManager) error 
 	cwallets := pkg.GenerateCaseWallets(c.initialCount, wallets)
 	transferCase := c.tm.GenerateSameTargetTransferSteps(c.steps, cwallets, cwallets[0])
 	return runAndAssert(transferCase, m, wallets)
+}
+
+func (c *ConflictTransfer) BatchRun(ctx context.Context, m *pkg.WalletManager) error {
+	panic("implement me!")
 }
 
 func (c *ConflictTransfer) Name() string {
