@@ -46,7 +46,7 @@ func NewWalletManager(cfg *evm.GethConfig, hostAddress string) *WalletManager {
 	}
 }
 
-func (m *WalletManager) GenerateRandomWallet(count int, initialEthCount uint64) ([]*EthWallet, error) {
+func (m *WalletManager) GenerateRandomWallets(count int, initialEthCount uint64) ([]*EthWallet, error) {
 	wallets := make([]*EthWallet, 0)
 	for i := 0; i < count; i++ {
 		wallet, err := m.createEthWallet(initialEthCount)
@@ -58,6 +58,25 @@ func (m *WalletManager) GenerateRandomWallet(count int, initialEthCount uint64) 
 	// wait block ready
 	time.Sleep(4 * time.Second)
 	return wallets, nil
+}
+
+func (m *WalletManager) BatchGenerateRandomWallets(count int, initialEthCount uint64) ([]*EthWallet, error) {
+	var wallets []*EthWallet
+	var txs []*RawTxReq
+	for i := 0; i < count; i++ {
+		privateKey, address := generatePrivateKey()
+		wallets = append(wallets, &EthWallet{
+			PK:      privateKey,
+			Address: address,
+		})
+		txs = append(txs, &RawTxReq{
+			privateKeyHex: GenesisPrivateKey,
+			toAddress:     address,
+			amount:        initialEthCount,
+		})
+	}
+	err := m.batchTransferEth(txs)
+	return wallets, err
 }
 
 func (m *WalletManager) createEthWallet(initialEthCount uint64) (*EthWallet, error) {
@@ -75,6 +94,18 @@ func (m *WalletManager) TransferEth(from, to *EthWallet, amount uint64) error {
 		return err
 	}
 	return nil
+}
+
+func (m *WalletManager) BatchTransferETH(steps []*Step) error {
+	var batch []*RawTxReq
+	for _, step := range steps {
+		batch = append(batch, &RawTxReq{
+			privateKeyHex: step.From.PK,
+			toAddress:     step.To.Address,
+			amount:        step.Count,
+		})
+	}
+	return m.batchTransferEth(batch)
 }
 
 func (m *WalletManager) QueryEth(wallet *EthWallet) (uint64, error) {
@@ -113,6 +144,10 @@ type queryResponse struct {
 
 func (m *WalletManager) transferEth(privateKeyHex string, toAddress string, amount uint64) error {
 	return m.sendRawTx(privateKeyHex, toAddress, amount, nil, 0)
+}
+
+func (m *WalletManager) batchTransferEth(rawTxs []*RawTxReq) error {
+	return m.sendBatchRawTxs(rawTxs)
 }
 
 func (m *WalletManager) CreateContract(privateKeyHex string, amount uint64, data []byte, nonce uint64) error {
