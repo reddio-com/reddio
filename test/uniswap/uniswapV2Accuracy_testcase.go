@@ -55,7 +55,7 @@ const swapTimes = 200
 
 func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManager) error {
 	//create a wallet for contract deployment
-	wallets, err := m.GenerateRandomWallet(1, 1e18)
+	wallets, err := m.GenerateRandomWallets(1, 1e18)
 	if err != nil {
 		return err
 	}
@@ -94,7 +94,7 @@ func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManag
 	}
 
 	//Arrange :
-	testUser, err := m.GenerateRandomWallet(1, 1e18)
+	testUser, err := m.GenerateRandomWallets(1, 1e18)
 	if err != nil {
 		return err
 	}
@@ -274,6 +274,10 @@ func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManag
 		log.Fatalf("Expected user ETH balance to be %s, but got %s", expectedEthBalance.String(), ethBalance.String())
 	}
 	return err
+}
+
+func (ca *UniswapV2AccuracyTestCase) BatchRun(ctx context.Context, m *pkg.WalletManager) error {
+	panic("implement me")
 }
 
 // deploy UniswapV2 Contracts

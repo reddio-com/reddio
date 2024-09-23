@@ -82,6 +82,10 @@ func (tc *TransferCase) Run(m *WalletManager) error {
 	return nil
 }
 
+func (tc *TransferCase) BatchRun(m *WalletManager) error {
+	return m.BatchTransferETH(tc.Steps)
+}
+
 func (tc *TransferCase) AssertExpect(m *WalletManager, wallets []*EthWallet) (map[string]*CaseEthWallet, bool, error) {
 	got := make(map[string]*CaseEthWallet)
 	for _, w := range wallets {
