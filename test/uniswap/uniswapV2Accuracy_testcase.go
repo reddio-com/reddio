@@ -276,6 +276,10 @@ func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManag
 	return err
 }
 
+func (ca *UniswapV2AccuracyTestCase) BatchRun(ctx context.Context, m *pkg.WalletManager) error {
+	panic("implement me")
+}
+
 // deploy UniswapV2 Contracts
 func deployUniswapV2AccuracyContracts(auth *bind.TransactOpts, client *ethclient.Client) (*UniswapV2DeployedAccuracyContracts, error) {
 	var err error
