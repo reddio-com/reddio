@@ -44,6 +44,7 @@ type Solidity struct {
 	cfg         *GethConfig
 	stateConfig *yuConfig.Config
 
+	gasPool        *core.GasPool
 	coinbaseReward atomic.Uint64
 }
 
@@ -171,6 +172,7 @@ func (s *Solidity) StartBlock(block *yu_types.Block) {
 	s.Lock()
 	defer s.Unlock()
 	s.cfg.BlockNumber = big.NewInt(int64(block.Height))
+	s.gasPool = new(core.GasPool).AddGas(block.LeiLimit)
 	//s.cfg.GasLimit =
 	s.cfg.Time = block.Timestamp
 	s.cfg.Difficulty = big.NewInt(int64(block.Difficulty))
@@ -348,6 +350,16 @@ func (s *Solidity) Commit(block *yu_types.Block) {
 		return
 	}
 	block.StateRoot = AdaptHash(stateRoot)
+	s.gasPool.SetGas(0)
+}
+
+func (s *Solidity) buyGas(state state.StateDB, req *TxRequest) {
+	gasFee := new(big.Int).Mul(req.GasPrice, new(big.Int).SetUint64(req.GasLimit))
+	gasFeeU256, _ := uint256.FromBig(gasFee)
+	state.SubBalance(req.Origin, gasFeeU256, tracing.BalanceDecreaseGasBuy)
+}
+
+func (s *Solidity) refundGas(remainingGas, gasPrice *big.Int) {
 
 }
 
