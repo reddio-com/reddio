@@ -42,6 +42,7 @@ func NewParallelEVM() *ParallelEVM {
 }
 
 func (k *ParallelEVM) Execute(block *types.Block) error {
+	log.Println("block.Txns count = ", len(block.Txns))
 	start := time.Now()
 	metrics.BlockExecuteTxnCountGauge.WithLabelValues().Set(float64(len(block.Txns)))
 	defer func() {
