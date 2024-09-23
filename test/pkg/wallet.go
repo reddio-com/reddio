@@ -245,6 +245,8 @@ func (m *WalletManager) sendBatchRawTxs(rawTxs []*RawTxReq) error {
 		return err
 	}
 
+	log.Println("send batch tx len = ", len(rawTxs))
+
 	requestBody := fmt.Sprintf(
 		`	{
 		"jsonrpc": "2.0",

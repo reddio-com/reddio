@@ -16,8 +16,14 @@ build_uniswap_test_race:
 ci_parallel_transfer_test: reset
 	./transfer_test --parallel=true
 
+ci_parallel_batch_transfer_test: reset
+	./transfer_test --parallel=true --batch=true
+
 ci_serial_transfer_test: reset
 	./transfer_test --parallel=false
+
+ci_serial_batch_transfer_test: reset
+	./transfer_test --parallel=false --batch=true
 
 ci_parallel_uniswap_test: reset
 	./uniswap_test --parallel=true

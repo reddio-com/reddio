@@ -19,6 +19,7 @@ var (
 	yuConfigPath  string
 	poaConfigPath string
 	isParallel    bool
+	isBatch       bool
 )
 
 func init() {
@@ -26,6 +27,7 @@ func init() {
 	flag.StringVar(&yuConfigPath, "yuConfigPath", "./conf/yu.toml", "")
 	flag.StringVar(&poaConfigPath, "poaConfigPath", "./conf/poa.toml", "")
 	flag.BoolVar(&isParallel, "parallel", true, "")
+	flag.BoolVar(&isBatch, "batch", false, "")
 }
 
 func main() {
@@ -61,5 +63,9 @@ func assertEthTransfer(ctx context.Context, evmCfg *evm.GethConfig) error {
 		transfer.NewRandomTest("[rand_test 20 account, 100 transfer]", 20, cfg.InitialEthCount, 100),
 		transfer.NewConflictTest("[conflict_test 20 account, 50 transfer]", 20, cfg.InitialEthCount, 50),
 	)
-	return ethManager.Run(ctx)
+	if isBatch {
+		return ethManager.BatchRun(ctx)
+	} else {
+		return ethManager.Run(ctx)
+	}
 }

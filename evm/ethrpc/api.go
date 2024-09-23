@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"math/big"
 	"strings"
 	"time"
@@ -1308,6 +1309,39 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction) (c
 	return tx.Hash(), nil
 }
 
+func SubmitBatchTx(ctx context.Context, b Backend, txs []*types.Transaction) ([]common.Hash, error) {
+	var txsHash []common.Hash
+	// Print a log with full tx details for manual investigations and interventions
+	head := b.CurrentBlock()
+	signer := types.MakeSigner(b.ChainConfig(), head.Number, head.Time)
+	for _, tx := range txs {
+		if err := checkTxFee(tx.GasPrice(), tx.Gas(), b.RPCTxFeeCap()); err != nil {
+			return nil, err
+		}
+		if !b.UnprotectedAllowed() && !tx.Protected() {
+			// Ensure only eip155 signed transactions are submitted if EIP155Required is set.
+			return nil, errors.New("only replay-protected (EIP-155) transactions allowed over RPC")
+		}
+		if err := b.SendTx(ctx, tx); err != nil {
+			return nil, err
+		}
+		from, err := types.Sender(signer, tx)
+		if err != nil {
+			return nil, err
+		}
+
+		if tx.To() == nil {
+			addr := crypto.CreateAddress(from, tx.Nonce())
+			logrus.Debugf("Submitted contract creation: Hash=%s, From=%s, Nonce=%v, ContractAdd=%v, Value=%v", tx.Hash().Hex(), from, tx.Nonce(), addr.Hex(), tx.Value())
+		} else {
+			logrus.Debugf("Submitted transaction: Hash=%s, From=%s, Nonce=%v, To=%v, Value=%v", tx.Hash().Hex(), from, tx.Nonce(), tx.To(), tx.Value())
+		}
+		txsHash = append(txsHash, tx.Hash())
+	}
+
+	return txsHash, nil
+}
+
 // SendTransaction creates a transaction for the given argument, sign it and submit it to the
 // transaction pool.
 func (s *TransactionAPI) SendTransaction(ctx context.Context, args TransactionArgs) (common.Hash, error) {
@@ -1347,15 +1381,18 @@ func (s *TransactionAPI) SendBatchRawTransactions(ctx context.Context, inputs he
 	if err != nil {
 		return
 	}
+
+	log.Println("chain.SendBatchRawTransactions len = ", len(batchTx.TxsBytes))
+
+	var txs []*types.Transaction
 	for _, input := range batchTx.TxsBytes {
-		var txHash common.Hash
-		txHash, err = s.SendRawTransaction(ctx, input)
-		if err != nil {
+		tx := new(types.Transaction)
+		if err = tx.UnmarshalBinary(input); err != nil {
 			return
 		}
-		txHashes = append(txHashes, txHash)
+		txs = append(txs, tx)
 	}
-	return
+	return SubmitBatchTx(ctx, s.b, txs)
 }
 
 // Sign calculates an ECDSA signature for:
