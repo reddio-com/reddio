@@ -2,6 +2,7 @@ package parallel
 
 import (
 	"fmt"
+	"log"
 	"strconv"
 	"sync"
 	"time"
@@ -44,7 +45,11 @@ func (k *ParallelEVM) Execute(block *types.Block) error {
 	start := time.Now()
 	metrics.BlockExecuteTxnCountGauge.WithLabelValues().Set(float64(len(block.Txns)))
 	defer func() {
-		metrics.BlockExecuteTxnDuration.WithLabelValues().Observe(time.Since(start).Seconds())
+		end := time.Now()
+		if config.GetGlobalConfig().IsBenchmarkMode {
+			log.Printf("execute block %v txn cost %v", len(block.Txns), end.Sub(start).String())
+		}
+		metrics.BlockExecuteTxnDuration.WithLabelValues().Observe(end.Sub(start).Seconds())
 	}()
 	txnCtxList, receipts := k.prepareTxnList(block)
 	got := k.splitTxnCtxList(txnCtxList)
@@ -108,10 +113,6 @@ func (k *ParallelEVM) prepareTxnList(block *types.Block) ([]*txnCtx, map[common.
 }
 
 func (k *ParallelEVM) splitTxnCtxList(list []*txnCtx) [][]*txnCtx {
-	start := time.Now()
-	defer func() {
-		metrics.BlockTxnSplitDuration.WithLabelValues().Observe(time.Since(start).Seconds())
-	}()
 	cur := 0
 	curList := make([]*txnCtx, 0)
 	got := make([][]*txnCtx, 0)
@@ -267,11 +268,9 @@ func (k *ParallelEVM) mergeStateDB(originStateDB *state.StateDB, list []*txnCtx)
 
 func (k *ParallelEVM) CopyStateDb(originStateDB *state.StateDB, list []*txnCtx) []*state.StateDB {
 	copiedStateDBList := make([]*state.StateDB, 0)
-	start := time.Now()
 	k.Solidity.Lock()
 	defer func() {
 		k.Solidity.Unlock()
-		metrics.BatchTxnStatedbCopyDuration.WithLabelValues(strconv.FormatInt(int64(len(list)), 10)).Observe(time.Now().Sub(start).Seconds())
 	}()
 	for i := 0; i < len(list); i++ {
 		copiedStateDBList = append(copiedStateDBList, originStateDB.Copy())

@@ -2,6 +2,7 @@ package transfer
 
 import (
 	"context"
+	"log"
 
 	"golang.org/x/time/rate"
 
@@ -36,11 +37,11 @@ func (tc *RandomBenchmarkTest) Name() string {
 
 func (tc *RandomBenchmarkTest) Run(ctx context.Context, m *pkg.WalletManager) error {
 	transferCase := tc.tm.GenerateRandomTransferSteps(tc.steps, pkg.GenerateCaseWallets(tc.initialCount, tc.wallets))
-	for _, step := range transferCase.Steps {
-		if err := tc.rm.Wait(ctx); err != nil {
-			return err
-		}
-		m.TransferEth(step.From, step.To, step.Count)
+	if err := tc.rm.WaitN(ctx, tc.steps); err != nil {
+		return err
+	}
+	if err := m.BatchTransferEth(transferCase.Steps); err != nil {
+		log.Printf("send batch txn request failed, err:%v", err.Error())
 	}
 	return nil
 }

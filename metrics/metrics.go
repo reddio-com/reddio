@@ -24,7 +24,7 @@ var (
 			Subsystem: "txn",
 			Name:      "execute_duration_seconds",
 			Help:      "txn execute duration distribution.",
-			Buckets:   prometheus.DefBuckets,
+			Buckets:   TxnBuckets,
 		},
 		[]string{},
 	)
@@ -56,20 +56,9 @@ var (
 			Subsystem: "batch_txn",
 			Name:      "execute_duration_seconds",
 			Help:      "txn execute duration distribution.",
-			Buckets:   prometheus.DefBuckets,
+			Buckets:   TxnBuckets,
 		},
 		[]string{TypeLbl},
-	)
-
-	BatchTxnStatedbCopyDuration = prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Namespace: "reddio",
-			Subsystem: "batch_txn",
-			Name:      "statedb_copy_seconds",
-			Help:      "stateDB copy duration per block distribution.",
-			Buckets:   prometheus.DefBuckets,
-		},
-		[]string{TypeCountLbl},
 	)
 
 	BatchTxnSplitCounter = prometheus.NewCounterVec(
@@ -101,17 +90,6 @@ var (
 			Help:      "txn count for each block",
 		}, []string{})
 
-	BlockTxnSplitDuration = prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Namespace: "reddio",
-			Subsystem: "block_txn",
-			Name:      "split_txn_duration_seconds",
-			Help:      "split batch txn duration",
-			Buckets:   prometheus.DefBuckets,
-		},
-		[]string{},
-	)
-
 	BlockTxnPrepareDuration = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace: "reddio",
@@ -141,7 +119,6 @@ func init() {
 
 	prometheus.MustRegister(BlockExecuteTxnCountGauge)
 	prometheus.MustRegister(BlockTxnPrepareDuration)
-	prometheus.MustRegister(BlockTxnSplitDuration)
 	prometheus.MustRegister(BatchTxnAllExecuteDuration)
 	prometheus.MustRegister(BlockTxnCommitDuration)
 
@@ -150,5 +127,6 @@ func init() {
 	prometheus.MustRegister(BatchTxnCounter)
 	prometheus.MustRegister(BatchTxnSplitCounter)
 	prometheus.MustRegister(BatchTxnDuration)
-	prometheus.MustRegister(BatchTxnStatedbCopyDuration)
 }
+
+var TxnBuckets = []float64{.00005, .0001, .00025, .0005, .001, .0025, .005, .01, .025, .05, .1}

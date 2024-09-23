@@ -77,6 +77,19 @@ func (m *WalletManager) TransferEth(from, to *EthWallet, amount uint64) error {
 	return nil
 }
 
+func (m *WalletManager) BatchTransferEth(steps []*Step) error {
+	txReqs := make([]*RawTxReq, 0)
+	for _, step := range steps {
+		txReqs = append(txReqs, &RawTxReq{
+			privateKeyHex: step.From.PK,
+			toAddress:     step.To.Address,
+			amount:        step.Count,
+		})
+
+	}
+	return m.sendBatchRawTxs(txReqs)
+}
+
 func (m *WalletManager) QueryEth(wallet *EthWallet) (uint64, error) {
 	requestBody := fmt.Sprintf(
 		`	{
