@@ -1,2 +1,3 @@
 isParallel=true
 maxConcurrency=4
+isBenchmarkMode=true

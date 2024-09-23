@@ -46,7 +46,9 @@ func (k *ParallelEVM) Execute(block *types.Block) error {
 	metrics.BlockExecuteTxnCountGauge.WithLabelValues().Set(float64(len(block.Txns)))
 	defer func() {
 		cost := time.Since(start)
-		log.Printf("execute block cost %v txnCount:%v", cost.String(), len(block.Txns))
+		if config.GetGlobalConfig().IsBenchmarkMode {
+			log.Printf("execute block cost %v txnCount:%v", cost.String(), len(block.Txns))
+		}
 		metrics.BlockExecuteTxnDurationGauge.WithLabelValues().Set(cost.Seconds())
 	}()
 	txnCtxList, receipts := k.prepareTxnList(block)
@@ -266,11 +268,9 @@ func (k *ParallelEVM) mergeStateDB(originStateDB *state.StateDB, list []*txnCtx)
 
 func (k *ParallelEVM) CopyStateDb(originStateDB *state.StateDB, list []*txnCtx) []*state.StateDB {
 	copiedStateDBList := make([]*state.StateDB, 0)
-	start := time.Now()
 	k.Solidity.Lock()
 	defer func() {
 		k.Solidity.Unlock()
-		metrics.BatchTxnStatedbCopyDuration.WithLabelValues(strconv.FormatInt(int64(len(list)), 10)).Observe(time.Now().Sub(start).Seconds())
 	}()
 	for i := 0; i < len(list); i++ {
 		copiedStateDBList = append(copiedStateDBList, originStateDB.Copy())

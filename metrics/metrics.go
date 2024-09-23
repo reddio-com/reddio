@@ -24,7 +24,7 @@ var (
 			Subsystem: "txn",
 			Name:      "execute_duration_seconds",
 			Help:      "txn execute duration distribution.",
-			Buckets:   prometheus.DefBuckets,
+			Buckets:   TxnBuckets,
 		},
 		[]string{},
 	)
@@ -55,20 +55,9 @@ var (
 			Subsystem: "batch_txn",
 			Name:      "execute_duration_seconds",
 			Help:      "txn execute duration distribution.",
-			Buckets:   prometheus.DefBuckets,
+			Buckets:   TxnBuckets,
 		},
 		[]string{TypeLbl},
-	)
-
-	BatchTxnStatedbCopyDuration = prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Namespace: "reddio",
-			Subsystem: "batch_txn",
-			Name:      "statedb_copy_seconds",
-			Help:      "stateDB copy duration per block distribution.",
-			Buckets:   prometheus.DefBuckets,
-		},
-		[]string{TypeCountLbl},
 	)
 
 	BatchTxnSplitCounter = prometheus.NewCounterVec(
@@ -133,7 +122,6 @@ func init() {
 	prometheus.MustRegister(BatchTxnCounter)
 	prometheus.MustRegister(BatchTxnSplitCounter)
 	prometheus.MustRegister(BatchTxnDuration)
-	prometheus.MustRegister(BatchTxnStatedbCopyDuration)
 }
 
-var TxnBuckets = []float64{.05, .1, .25, .5, 1, 2.5, 5, 10, 20, 40, 100}
+var TxnBuckets = []float64{.00005, .0001, .00025, .0005, .001, .0025, .005, 0.01, 0.025, 0.05, 0.1}
