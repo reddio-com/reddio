@@ -41,8 +41,3 @@ func (tc *RandomBenchmarkTest) Run(ctx context.Context, m *pkg.WalletManager) er
 	}
 	return m.BatchTransferETH(transferCase.Steps)
 }
-
-func (tc *RandomBenchmarkTest) BatchRun(ctx context.Context, m *pkg.WalletManager) error {
-	transferCase := tc.tm.GenerateRandomTransferSteps(tc.steps, pkg.GenerateCaseWallets(tc.initialCount, tc.wallets))
-	return m.BatchTransferETH(transferCase.Steps)
-}

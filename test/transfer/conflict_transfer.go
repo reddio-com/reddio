@@ -27,10 +27,6 @@ func (c *ConflictTransfer) Run(ctx context.Context, m *pkg.WalletManager) error 
 	return runAndAssert(transferCase, m, wallets)
 }
 
-func (c *ConflictTransfer) BatchRun(ctx context.Context, m *pkg.WalletManager) error {
-	panic("implement me!")
-}
-
 func (c *ConflictTransfer) Name() string {
 	return c.CaseName
 }
