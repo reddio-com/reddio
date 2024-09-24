@@ -3,6 +3,9 @@ package pkg
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/reddio-com/reddio/parallel"
+	"github.com/yu-org/yu/config"
+	"github.com/yu-org/yu/core/startup"
 	"log"
 	"math/big"
 	"strconv"
@@ -36,12 +39,14 @@ func (e *EthWallet) Copy() *EthWallet {
 
 type WalletManager struct {
 	cfg         *evm.GethConfig
+	yuCfg       *config.KernelConf
 	hostAddress string
 }
 
-func NewWalletManager(cfg *evm.GethConfig, hostAddress string) *WalletManager {
+func NewWalletManager(cfg *evm.GethConfig, yuCfg *config.KernelConf, hostAddress string) *WalletManager {
 	return &WalletManager{
 		cfg:         cfg,
+		yuCfg:       yuCfg,
 		hostAddress: hostAddress,
 	}
 }
@@ -147,7 +152,8 @@ func (m *WalletManager) transferEth(privateKeyHex string, toAddress string, amou
 }
 
 func (m *WalletManager) batchTransferEth(rawTxs []*RawTxReq) error {
-	return m.sendBatchRawTxs(rawTxs)
+	// return m.sendBatchRawTxs(rawTxs)
+	return m.sendTxToLocalEVM(rawTxs)
 }
 
 func (m *WalletManager) CreateContract(privateKeyHex string, amount uint64, data []byte, nonce uint64) error {
@@ -156,6 +162,25 @@ func (m *WalletManager) CreateContract(privateKeyHex string, amount uint64, data
 
 func (m *WalletManager) InvokeContract(privateKeyHex string, toAddress string, amount uint64, data []byte, nonce uint64) error {
 	return m.sendRawTx(privateKeyHex, toAddress, amount, data, nonce)
+}
+
+func (m *WalletManager) sendTxToLocalEVM(rawTxs []*RawTxReq) error {
+	var txs []*types.Transaction
+	for _, rawTx := range rawTxs {
+		tx, err := parallel.MakeEthTX(rawTx.privateKeyHex, rawTx.toAddress, rawTx.amount, rawTx.data, rawTx.nonce)
+		if err != nil {
+			return err
+		}
+		txs = append(txs, tx)
+	}
+	parallelTri := parallel.NewParallelEVM()
+	solidityTri := evm.NewSolidity(m.cfg)
+	startup.InitKernel(m.yuCfg, solidityTri, parallelTri).InitBlockChain()
+	block, err := parallel.SimulateBlock(txs)
+	if err != nil {
+		return err
+	}
+	return parallelTri.Execute(block)
 }
 
 // sendRawTx is used by transferring and contract creation/invocation.

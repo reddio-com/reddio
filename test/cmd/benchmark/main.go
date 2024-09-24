@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"flag"
+	"github.com/yu-org/yu/config"
+	"github.com/yu-org/yu/core/startup"
 	"os"
 	"time"
 
@@ -18,6 +20,7 @@ import (
 var (
 	configPath    string
 	evmConfigPath string
+	yuConfigPath  string
 	qps           int
 	duration      time.Duration
 	action        string
@@ -26,6 +29,7 @@ var (
 func init() {
 	flag.StringVar(&configPath, "configPath", "", "")
 	flag.StringVar(&evmConfigPath, "evmConfigPath", "./conf/evm.toml", "")
+	flag.StringVar(&yuConfigPath, "yuConfigPath", "./conf/yu.toml", "")
 	flag.IntVar(&qps, "qps", 10000, "")
 	flag.DurationVar(&duration, "duration", 5*time.Minute, "")
 	flag.StringVar(&action, "action", "run", "")
@@ -37,18 +41,19 @@ func main() {
 		panic(err)
 	}
 	evmConfig := evm.LoadEvmConfig(evmConfigPath)
+	yuConfig := startup.InitKernelConfigFromPath(yuConfigPath)
 	switch action {
 	case "prepare":
-		prepareBenchmark(evmConfig)
+		prepareBenchmark(evmConfig, yuConfig)
 	case "run":
-		blockBenchmark(evmConfig, qps)
+		blockBenchmark(evmConfig, yuConfig, qps)
 	}
 }
 
-func prepareBenchmark(evmCfg *evm.GethConfig) error {
+func prepareBenchmark(evmCfg *evm.GethConfig, yuCfg *config.KernelConf) error {
 	ethManager := &transfer.EthManager{}
 	cfg := conf.Config.EthCaseConf
-	ethManager.Configure(cfg, evmCfg)
+	ethManager.Configure(cfg, evmCfg, yuCfg)
 	wallets, err := ethManager.PreCreateWallets(100, cfg.InitialEthCount)
 	if err != nil {
 		return err
@@ -82,14 +87,14 @@ func loadWallets() ([]*pkg.EthWallet, error) {
 	return exp, nil
 }
 
-func blockBenchmark(evmCfg *evm.GethConfig, qps int) error {
+func blockBenchmark(evmCfg *evm.GethConfig, yuCfg *config.KernelConf, qps int) error {
 	wallets, err := loadWallets()
 	if err != nil {
 		return err
 	}
 	ethManager := &transfer.EthManager{}
 	cfg := conf.Config.EthCaseConf
-	ethManager.Configure(cfg, evmCfg)
+	ethManager.Configure(cfg, evmCfg, yuCfg)
 	limiter := rate.NewLimiter(rate.Limit(qps), qps)
 	ethManager.AddTestCase(transfer.NewRandomBenchmarkTest("[rand_test 100 account, 1000 transfer]", 100, cfg.InitialEthCount, 50, wallets, limiter))
 	runBenchmark(ethManager)

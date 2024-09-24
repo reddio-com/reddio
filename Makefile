@@ -30,8 +30,11 @@ ci_serial_uniswap_test: reset
 build_benchmark_test:
 	go build -v -o benchmark_test ./test/cmd/benchmark/main.go
 
+prepare_benchmark: reset
+	./benchmark_test --action=prepare
+
 parallel_benchmark_test:
-	./benchmark_test --parallel=true --maxBlock=50 --qps=1000 --embedded=false
+	./benchmark_test
 
 serial_benchmark_test:
 	./benchmark_test --parallel=false --maxBlock=50 --qps=1000 --embedded=false

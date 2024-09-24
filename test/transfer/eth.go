@@ -3,6 +3,7 @@ package transfer
 import (
 	"context"
 	"fmt"
+	"github.com/yu-org/yu/config"
 	"log"
 
 	"github.com/reddio-com/reddio/evm"
@@ -12,16 +13,18 @@ import (
 
 type EthManager struct {
 	evmCfg *evm.GethConfig
+	yuCfg  *config.KernelConf
 	config *conf.EthCaseConf
 	wm     *pkg.WalletManager
 	//tm     *pkg.TransferManager
 	testcases []TestCase
 }
 
-func (m *EthManager) Configure(cfg *conf.EthCaseConf, evmCfg *evm.GethConfig) {
+func (m *EthManager) Configure(cfg *conf.EthCaseConf, evmCfg *evm.GethConfig, yuCfg *config.KernelConf) {
 	m.config = cfg
 	m.evmCfg = evmCfg
-	m.wm = pkg.NewWalletManager(m.evmCfg, m.config.HostUrl)
+	m.yuCfg = yuCfg
+	m.wm = pkg.NewWalletManager(m.evmCfg, m.yuCfg, m.config.HostUrl)
 	m.testcases = []TestCase{}
 }
 

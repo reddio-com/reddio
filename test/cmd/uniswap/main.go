@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"flag"
+	"github.com/yu-org/yu/config"
+	"github.com/yu-org/yu/core/startup"
 	"log"
 	"os"
 	"runtime"
@@ -47,7 +49,8 @@ func main() {
 	}()
 	time.Sleep(5 * time.Second)
 	log.Println("finish start reddio")
-	if err := assertUniswapV2(context.Background(), evmConfig); err != nil {
+	yuCfg := startup.InitKernelConfigFromPath(yuConfigPath)
+	if err := assertUniswapV2(context.Background(), evmConfig, yuCfg); err != nil {
 		log.Println(err)
 		os.Exit(1)
 	}
@@ -56,10 +59,10 @@ func main() {
 
 }
 
-func assertUniswapV2(ctx context.Context, evmCfg *evm.GethConfig) error {
+func assertUniswapV2(ctx context.Context, evmCfg *evm.GethConfig, yuCfg *config.KernelConf) error {
 	ethManager := &transfer.EthManager{}
 	cfg := conf.Config.EthCaseConf
-	ethManager.Configure(cfg, evmCfg)
+	ethManager.Configure(cfg, evmCfg, yuCfg)
 	ethManager.AddTestCase(
 		uniswap.NewUniswapV2AccuracyTestCase("UniswapV2 Accuracy TestCase", 2, cfg.InitialEthCount),
 	)
