@@ -41,13 +41,25 @@ type WalletManager struct {
 	cfg         *evm.GethConfig
 	yuCfg       *config.KernelConf
 	hostAddress string
+	e2eMode     bool
+
+	localEVM *parallel.ParallelEVM
 }
 
-func NewWalletManager(cfg *evm.GethConfig, yuCfg *config.KernelConf, hostAddress string) *WalletManager {
+func NewWalletManager(cfg *evm.GethConfig, yuCfg *config.KernelConf, hostAddress string, e2eMode bool) *WalletManager {
+	var parallelTri *parallel.ParallelEVM
+	if !e2eMode {
+		parallelTri = parallel.NewParallelEVM()
+		solidityTri := evm.NewSolidity(cfg)
+		startup.InitKernel(yuCfg, solidityTri, parallelTri).InitBlockChain()
+	}
+
 	return &WalletManager{
 		cfg:         cfg,
 		yuCfg:       yuCfg,
 		hostAddress: hostAddress,
+		e2eMode:     e2eMode,
+		localEVM:    parallelTri,
 	}
 }
 
@@ -173,14 +185,14 @@ func (m *WalletManager) sendTxToLocalEVM(rawTxs []*RawTxReq) error {
 		}
 		txs = append(txs, tx)
 	}
-	parallelTri := parallel.NewParallelEVM()
-	solidityTri := evm.NewSolidity(m.cfg)
-	startup.InitKernel(m.yuCfg, solidityTri, parallelTri).InitBlockChain()
+	//parallelTri := parallel.NewParallelEVM()
+	//solidityTri := evm.NewSolidity(m.cfg)
+	//startup.InitKernel(m.yuCfg, solidityTri, parallelTri).InitBlockChain()
 	block, err := parallel.SimulateBlock(txs)
 	if err != nil {
 		return err
 	}
-	return parallelTri.Execute(block)
+	return m.localEVM.Execute(block)
 }
 
 // sendRawTx is used by transferring and contract creation/invocation.

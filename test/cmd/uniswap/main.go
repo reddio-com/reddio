@@ -23,6 +23,7 @@ var (
 	yuConfigPath  string
 	poaConfigPath string
 	isParallel    bool
+	e2eMode       bool
 )
 
 func init() {
@@ -30,6 +31,7 @@ func init() {
 	flag.StringVar(&yuConfigPath, "yuConfigPath", "./conf/yu.toml", "")
 	flag.StringVar(&poaConfigPath, "poaConfigPath", "./conf/poa.toml", "")
 	flag.BoolVar(&isParallel, "parallel", true, "")
+	flag.BoolVar(&e2eMode, "e2e", true, "")
 }
 
 func main() {
@@ -62,7 +64,7 @@ func main() {
 func assertUniswapV2(ctx context.Context, evmCfg *evm.GethConfig, yuCfg *config.KernelConf) error {
 	ethManager := &transfer.EthManager{}
 	cfg := conf.Config.EthCaseConf
-	ethManager.Configure(cfg, evmCfg, yuCfg)
+	ethManager.Configure(cfg, evmCfg, yuCfg, e2eMode)
 	ethManager.AddTestCase(
 		uniswap.NewUniswapV2AccuracyTestCase("UniswapV2 Accuracy TestCase", 2, cfg.InitialEthCount),
 	)

@@ -24,6 +24,7 @@ var (
 	qps           int
 	duration      time.Duration
 	action        string
+	e2eMode       bool
 )
 
 func init() {
@@ -31,8 +32,9 @@ func init() {
 	flag.StringVar(&evmConfigPath, "evmConfigPath", "./conf/evm.toml", "")
 	flag.StringVar(&yuConfigPath, "yuConfigPath", "./conf/yu.toml", "")
 	flag.IntVar(&qps, "qps", 10000, "")
-	flag.DurationVar(&duration, "duration", 5*time.Minute, "")
+	flag.DurationVar(&duration, "duration", 30*time.Second, "")
 	flag.StringVar(&action, "action", "run", "")
+	flag.BoolVar(&e2eMode, "e2e", true, "")
 }
 
 func main() {
@@ -47,13 +49,15 @@ func main() {
 		prepareBenchmark(evmConfig, yuConfig)
 	case "run":
 		blockBenchmark(evmConfig, yuConfig, qps)
+	case "prepareAndRun":
+		prepareAndRun(evmConfig, yuConfig, qps)
 	}
 }
 
 func prepareBenchmark(evmCfg *evm.GethConfig, yuCfg *config.KernelConf) error {
 	ethManager := &transfer.EthManager{}
 	cfg := conf.Config.EthCaseConf
-	ethManager.Configure(cfg, evmCfg, yuCfg)
+	ethManager.Configure(cfg, evmCfg, yuCfg, e2eMode)
 	wallets, err := ethManager.PreCreateWallets(100, cfg.InitialEthCount)
 	if err != nil {
 		return err
@@ -94,7 +98,7 @@ func blockBenchmark(evmCfg *evm.GethConfig, yuCfg *config.KernelConf, qps int) e
 	}
 	ethManager := &transfer.EthManager{}
 	cfg := conf.Config.EthCaseConf
-	ethManager.Configure(cfg, evmCfg, yuCfg)
+	ethManager.Configure(cfg, evmCfg, yuCfg, e2eMode)
 	limiter := rate.NewLimiter(rate.Limit(qps), qps)
 	ethManager.AddTestCase(transfer.NewRandomBenchmarkTest("[rand_test 100 account, 1000 transfer]", 100, cfg.InitialEthCount, 50, wallets, limiter))
 	runBenchmark(ethManager)
@@ -111,4 +115,36 @@ func runBenchmark(manager *transfer.EthManager) {
 		}
 		manager.Run(context.Background())
 	}
+}
+
+func prepareAndRun(evmCfg *evm.GethConfig, yuCfg *config.KernelConf, qps int) error {
+	ethManager := &transfer.EthManager{}
+	cfg := conf.Config.EthCaseConf
+	ethManager.Configure(cfg, evmCfg, yuCfg, e2eMode)
+	wallets, err := ethManager.PreCreateWallets(100, cfg.InitialEthCount)
+	if err != nil {
+		return err
+	}
+	_, err = os.Stat("eth_benchmark_data.json")
+	if err == nil {
+		os.Remove("eth_benchmark_data.json")
+	}
+	file, err := os.Create("eth_benchmark_data.json")
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	d, err := json.Marshal(wallets)
+	if err != nil {
+		return err
+	}
+	_, err = file.Write(d)
+	if err != nil {
+		return err
+	}
+
+	limiter := rate.NewLimiter(rate.Limit(qps), qps)
+	ethManager.AddTestCase(transfer.NewRandomBenchmarkTest("[rand_test 100 account, 1000 transfer]", 100, cfg.InitialEthCount, 50, wallets, limiter))
+	runBenchmark(ethManager)
+	return nil
 }

@@ -20,6 +20,7 @@ var (
 	evmConfigPath string
 	yuConfigPath  string
 	poaConfigPath string
+	e2eMode       bool
 	isParallel    bool
 )
 
@@ -28,6 +29,7 @@ func init() {
 	flag.StringVar(&yuConfigPath, "yuConfigPath", "./conf/yu.toml", "")
 	flag.StringVar(&poaConfigPath, "poaConfigPath", "./conf/poa.toml", "")
 	flag.BoolVar(&isParallel, "parallel", true, "")
+	flag.BoolVar(&e2eMode, "e2e", true, "")
 }
 
 func main() {
@@ -60,7 +62,7 @@ func assertEthTransfer(ctx context.Context, evmCfg *evm.GethConfig, yuCfg *confi
 	log.Println("start asserting transfer eth")
 	ethManager := &transfer.EthManager{}
 	cfg := conf.Config.EthCaseConf
-	ethManager.Configure(cfg, evmCfg, yuCfg)
+	ethManager.Configure(cfg, evmCfg, yuCfg, e2eMode)
 	ethManager.AddTestCase(
 		transfer.NewRandomTest("[rand_test 2 account, 1 transfer]", 2, cfg.InitialEthCount, 1),
 		transfer.NewRandomTest("[rand_test 20 account, 100 transfer]", 20, cfg.InitialEthCount, 100),

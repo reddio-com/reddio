@@ -36,6 +36,9 @@ prepare_benchmark: reset
 parallel_benchmark_test:
 	./benchmark_test
 
+prepare_and_benchmark: reset
+	./benchmark_test --action=prepareAndRun --e2e=false
+
 serial_benchmark_test:
 	./benchmark_test --parallel=false --maxBlock=50 --qps=1000 --embedded=false
 

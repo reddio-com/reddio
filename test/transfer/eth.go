@@ -20,11 +20,11 @@ type EthManager struct {
 	testcases []TestCase
 }
 
-func (m *EthManager) Configure(cfg *conf.EthCaseConf, evmCfg *evm.GethConfig, yuCfg *config.KernelConf) {
+func (m *EthManager) Configure(cfg *conf.EthCaseConf, evmCfg *evm.GethConfig, yuCfg *config.KernelConf, e2eMode bool) {
 	m.config = cfg
 	m.evmCfg = evmCfg
 	m.yuCfg = yuCfg
-	m.wm = pkg.NewWalletManager(m.evmCfg, m.yuCfg, m.config.HostUrl)
+	m.wm = pkg.NewWalletManager(m.evmCfg, m.yuCfg, m.config.HostUrl, e2eMode)
 	m.testcases = []TestCase{}
 }
 
