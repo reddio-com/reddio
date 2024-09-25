@@ -2,10 +2,14 @@ package uniswap
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"math/big"
+	"strings"
 	"time"
 
+	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -114,6 +118,97 @@ func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManag
 	if err != nil {
 		log.Fatalf("Failed to create approve transaction: %v", err)
 	}
+
+	// // 定义事件接收通道
+	// eventChan := make(chan *contracts.TokenApproval)
+	// // 设置监听选项
+	// watchOpts := &bind.WatchOpts{
+	// 	Context: context.Background(),
+	// 	Start:   nil, // 起始区块
+	// }
+	// sub, err := uniswapV2Contract.tokenAInstance.WatchApproval(watchOpts, eventChan, nil, nil)
+	// if err != nil {
+	// 	log.Fatalf("Failed to watch Approval event: %v", err)
+	// }
+	// // 使用 goroutine 处理事件
+	// go func() {
+	// 	for {
+	// 		select {
+	// 		case event := <-eventChan:
+	// 			fmt.Printf("Approval event: %+v\n", event)
+	// 		case err := <-sub.Err():
+	// 			log.Fatalf("Subscription error: %v", err)
+	// 			sub.Unsubscribe()
+
+	// 		}
+	// 	}
+	// }()
+
+	// 定义事件签名
+	contractAbi, err := abi.JSON(strings.NewReader(contracts.TokenABI))
+	eventSignatureHash := contractAbi.Events["Approval"].ID
+	fmt.Printf("eventSignatureHash: %s\n", eventSignatureHash.Hex())
+	// 使用 goroutine 处理事件日志
+	go func() {
+		ticker := time.NewTicker(2 * time.Second)
+		defer ticker.Stop()
+
+		for range ticker.C {
+			// 获取最新区块号
+			header, err := client.HeaderByNumber(context.Background(), nil)
+			if err != nil {
+				log.Fatalf("Failed to get latest block header: %v", err)
+			}
+			latestBlock := header.Number
+
+			// 设置过滤器查询
+			query := ethereum.FilterQuery{
+				FromBlock: latestBlock, // 起始区块
+				ToBlock:   latestBlock, // 结束区块
+				Addresses: []common.Address{
+					uniswapV2Contract.tokenAAddress,
+				},
+				Topics: [][]common.Hash{
+					{eventSignatureHash},
+				},
+			}
+
+			// 获取事件日志
+			logs, err := client.FilterLogs(context.Background(), query)
+			if err != nil {
+				log.Fatalf("Failed to filter logs: %v", err)
+			}
+			// 处理事件日志
+			for _, vLog := range logs {
+				fmt.Printf("Log block number: %d\n", vLog.BlockNumber)
+				// approvalEvent, err := uniswapV2Contract.tokenAInstance.ParseApproval(vLog)
+				// if err != nil {
+				// 	log.Fatalf("Failed to parse log: %v", err)
+				// }
+				// 解析日志数据
+				var approvalEvent struct {
+					Owner   common.Address
+					Spender common.Address
+					Value   *big.Int
+				}
+				fmt.Printf("Log DATA: %s\n", vLog.Data)
+				fmt.Printf("Log TOPICS: %s\n", vLog.Topics)
+				if len(vLog.Data) == 0 {
+					log.Println("Log data is empty, skipping...")
+					continue
+				}
+				err := contractAbi.UnpackIntoInterface(&approvalEvent, "Approval", vLog.Data)
+				if err != nil {
+					log.Fatalf("Failed to unpack log data: %v", err)
+				}
+
+				// 解析索引字段
+				approvalEvent.Owner = common.HexToAddress(vLog.Topics[1].Hex())
+				approvalEvent.Spender = common.HexToAddress(vLog.Topics[2].Hex())
+				fmt.Printf("Approval event: Owner=%s, Spender=%s, Value=%d\n", approvalEvent.Owner.Hex(), approvalEvent.Spender.Hex(), approvalEvent.Value)
+			}
+		}
+	}()
 
 	isConfirmed, err := waitForConfirmation(client, tokenAApproveTx.Hash())
 	if err != nil {

@@ -13,6 +13,7 @@ import (
 	"github.com/reddio-com/reddio/evm"
 	"github.com/reddio-com/reddio/evm/ethrpc"
 	"github.com/reddio-com/reddio/parallel"
+	"github.com/reddio-com/reddio/watcher"
 )
 
 func Start(path string, yuCfg *yuConfig.KernelConf) {
@@ -29,6 +30,9 @@ func StartUpChain(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm
 	chain := InitReddio(yuCfg, poaCfg, evmCfg)
 
 	ethrpc.StartupEthRPC(chain, evmCfg)
+
+	// event watcher
+	watcher.StartupEventWatcher(evmCfg)
 
 	chain.Startup()
 

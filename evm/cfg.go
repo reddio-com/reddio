@@ -1,6 +1,9 @@
 package evm
 
 import (
+	"math/big"
+	"time"
+
 	"github.com/BurntSushi/toml"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
@@ -9,8 +12,6 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	yuConfig "github.com/reddio-com/reddio/evm/config"
 	"github.com/sirupsen/logrus"
-	"math/big"
-	"time"
 )
 
 type GethConfig struct {
@@ -47,6 +48,13 @@ type GethConfig struct {
 	EnableEthRPC bool   `toml:"enable_eth_rpc"`
 	EthHost      string `toml:"eth_host"`
 	EthPort      string `toml:"eth_port"`
+
+	// EventWatcher configs
+	EnableEventWatcher         bool   `toml:"enable_event_watcher"`
+	L1ClientAddress            string `toml:"l1_client_address"`
+	L2ClientAddress            string `toml:"l2_client_address"`
+	ParentLayerContractAddress string `toml:"parentlayer_contract_address"`
+	ChildLayerContractAddress  string `toml:"childlayer_contract_address"`
 }
 
 func (gc *GethConfig) Copy() *GethConfig {
