@@ -8,6 +8,8 @@ ws_port = "8999"
 log_level = "info"
 log_output = "yu/yu.log"
 lei_limit = 50000
+statedb_type="no"
+
 is_admin = false
 max_block_num = 0
 enable_pprof = true
