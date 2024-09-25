@@ -27,8 +27,14 @@ ci_serial_uniswap_test: reset
 
 ## for local benchmark
 
+build_evm_benchmark:
+	go build -v -o evm_benchmark ./test/cmd/evm_benchmark/main.go
+
 build_benchmark_test:
 	go build -v -o benchmark_test ./test/cmd/benchmark/main.go
+
+evm_benchmark_test: reset
+	./evm_benchmark
 
 parallel_benchmark_test:
 	./benchmark_test --parallel=true --maxBlock=50 --qps=1000 --embedded=false

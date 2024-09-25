@@ -3,6 +3,9 @@ package pkg
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/reddio-com/reddio/parallel"
+	"github.com/yu-org/yu/config"
+	"github.com/yu-org/yu/core/startup"
 	"log"
 	"math/big"
 	"strconv"
@@ -36,7 +39,23 @@ func (e *EthWallet) Copy() *EthWallet {
 
 type WalletManager struct {
 	cfg         *evm.GethConfig
+	yuCfg       *config.KernelConf
 	hostAddress string
+
+	localEVM *parallel.ParallelEVM
+}
+
+func NewWalletManagerForEVM(cfg *evm.GethConfig, yuCfg *config.KernelConf, hostAddress string) *WalletManager {
+	parallelTri := parallel.NewParallelEVM()
+	solidityTri := evm.NewSolidity(cfg)
+	startup.InitKernel(yuCfg, solidityTri, parallelTri).InitBlockChain()
+
+	return &WalletManager{
+		cfg:         cfg,
+		yuCfg:       yuCfg,
+		hostAddress: hostAddress,
+		localEVM:    parallelTri,
+	}
 }
 
 func NewWalletManager(cfg *evm.GethConfig, hostAddress string) *WalletManager {
@@ -58,6 +77,25 @@ func (m *WalletManager) GenerateRandomWallets(count int, initialEthCount uint64)
 	// wait block ready
 	time.Sleep(4 * time.Second)
 	return wallets, nil
+}
+
+func (m *WalletManager) GenerateRandomWalletsForEVM(count int, initialEthCount uint64) ([]*EthWallet, error) {
+	var wallets []*EthWallet
+	var txs []*RawTxReq
+	for i := 0; i < count; i++ {
+		privateKey, address := generatePrivateKey()
+		wallets = append(wallets, &EthWallet{
+			PK:      privateKey,
+			Address: address,
+		})
+		txs = append(txs, &RawTxReq{
+			privateKeyHex: GenesisPrivateKey,
+			toAddress:     address,
+			amount:        initialEthCount,
+		})
+	}
+	err := m.evmTransferEth(txs)
+	return wallets, err
 }
 
 func (m *WalletManager) BatchGenerateRandomWallets(count int, initialEthCount uint64) ([]*EthWallet, error) {
@@ -94,6 +132,18 @@ func (m *WalletManager) TransferEth(from, to *EthWallet, amount uint64) error {
 		return err
 	}
 	return nil
+}
+
+func (m *WalletManager) TransferEthForEVM(steps []*Step) error {
+	var batch []*RawTxReq
+	for _, step := range steps {
+		batch = append(batch, &RawTxReq{
+			privateKeyHex: step.From.PK,
+			toAddress:     step.To.Address,
+			amount:        step.Count,
+		})
+	}
+	return m.evmTransferEth(batch)
 }
 
 func (m *WalletManager) BatchTransferETH(steps []*Step) error {
@@ -144,6 +194,11 @@ type queryResponse struct {
 
 func (m *WalletManager) transferEth(privateKeyHex string, toAddress string, amount uint64) error {
 	return m.sendRawTx(privateKeyHex, toAddress, amount, nil, 0)
+
+}
+
+func (m *WalletManager) evmTransferEth(rawTxs []*RawTxReq) error {
+	return m.sendTxToLocalEVM(rawTxs)
 }
 
 func (m *WalletManager) batchTransferEth(rawTxs []*RawTxReq) error {
@@ -156,6 +211,25 @@ func (m *WalletManager) CreateContract(privateKeyHex string, amount uint64, data
 
 func (m *WalletManager) InvokeContract(privateKeyHex string, toAddress string, amount uint64, data []byte, nonce uint64) error {
 	return m.sendRawTx(privateKeyHex, toAddress, amount, data, nonce)
+}
+
+func (m *WalletManager) sendTxToLocalEVM(rawTxs []*RawTxReq) error {
+	var txs []*types.Transaction
+	for _, rawTx := range rawTxs {
+		tx, err := parallel.MakeEthTX(rawTx.privateKeyHex, rawTx.toAddress, rawTx.amount, rawTx.data, rawTx.nonce)
+		if err != nil {
+			return err
+		}
+		txs = append(txs, tx)
+	}
+	//parallelTri := parallel.NewParallelEVM()
+	//solidityTri := evm.NewSolidity(m.cfg)
+	//startup.InitKernel(m.yuCfg, solidityTri, parallelTri).InitBlockChain()
+	block, err := parallel.SimulateBlock(txs)
+	if err != nil {
+		return err
+	}
+	return m.localEVM.Execute(block)
 }
 
 // sendRawTx is used by transferring and contract creation/invocation.
