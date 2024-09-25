@@ -47,13 +47,3 @@ func (m *EthManager) Run(ctx context.Context) error {
 	}
 	return nil
 }
-
-func (m *EthManager) BatchRun(ctx context.Context) error {
-	for _, tc := range m.testcases {
-		if err := tc.BatchRun(ctx, m.wm); err != nil {
-			return fmt.Errorf("%s failed, err:%v", tc.Name(), err)
-		}
-		log.Println(fmt.Sprintf("test %v success", tc.Name()))
-	}
-	return nil
-}

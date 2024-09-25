@@ -12,7 +12,6 @@ import (
 
 type TestCase interface {
 	Run(ctx context.Context, m *pkg.WalletManager) error
-	BatchRun(ctx context.Context, m *pkg.WalletManager) error
 	Name() string
 }
 
@@ -50,25 +49,6 @@ func (tc *RandomTransferTestCase) Run(ctx context.Context, m *pkg.WalletManager)
 	return runAndAssert(transferCase, m, wallets)
 }
 
-func (tc *RandomTransferTestCase) BatchRun(ctx context.Context, m *pkg.WalletManager) error {
-	var wallets []*pkg.EthWallet
-	var err error
-	wallets, err = m.BatchGenerateRandomWallets(tc.walletCount, tc.initialCount)
-	if err != nil {
-		return err
-	}
-	log.Println(fmt.Sprintf("%s create wallets finish", tc.CaseName))
-	transferCase := tc.tm.GenerateRandomTransferSteps(tc.steps, pkg.GenerateCaseWallets(tc.initialCount, wallets))
-	return batchRunAndAssert(transferCase, m, wallets)
-}
-
-func run(transferCase *pkg.TransferCase, m *pkg.WalletManager) error {
-	if err := transferCase.Run(m); err != nil {
-		return err
-	}
-	return nil
-}
-
 func runAndAssert(transferCase *pkg.TransferCase, m *pkg.WalletManager, wallets []*pkg.EthWallet) error {
 	if err := transferCase.Run(m); err != nil {
 		return err
@@ -79,18 +59,6 @@ func runAndAssert(transferCase *pkg.TransferCase, m *pkg.WalletManager, wallets 
 	if err != nil {
 		return err
 	}
-	if !success {
-		return errors.New("transfer manager assert failed")
-	}
-	return nil
-}
-
-func batchRunAndAssert(transferCase *pkg.TransferCase, m *pkg.WalletManager, wallets []*pkg.EthWallet) error {
-	err := transferCase.BatchRun(m)
-	if err != nil {
-		return err
-	}
-	success, err := assert(transferCase, m, wallets)
 	if !success {
 		return errors.New("transfer manager assert failed")
 	}
