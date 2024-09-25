@@ -2,7 +2,7 @@ key_type = "sr25519"
 my_secret = "node1"
 block_interval = 3000
 pack_num = 30000
-pretty_log = true
+pretty_log = false
 
 [[validators]]
 pubkey = "0x31f40d8bd828cdd35a172571639ac309a673935a5298a28096b842eccc84aeab17"
