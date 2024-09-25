@@ -161,10 +161,13 @@ type queryResponse struct {
 
 func (m *WalletManager) transferEth(privateKeyHex string, toAddress string, amount uint64) error {
 	return m.sendRawTx(privateKeyHex, toAddress, amount, nil, 0)
+
 }
 
 func (m *WalletManager) batchTransferEth(rawTxs []*RawTxReq) error {
-	// return m.sendBatchRawTxs(rawTxs)
+	if m.e2eMode {
+		return m.sendBatchRawTxs(rawTxs)
+	}
 	return m.sendTxToLocalEVM(rawTxs)
 }
 
