@@ -51,7 +51,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         with:
           host: ${{ secrets.DEVNET_IP }}
-          username: ubuntu
+          username: root
           key: ${{ secrets.API_SSH_KEY }}
           script: |
             docker login ghcr.io -u reddio-com -p ${{ secrets.GITHUB_TOKEN }}
