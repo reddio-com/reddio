@@ -61,6 +61,6 @@ jobs:
             cd ${{ secrets.DEVNET_PATH }}
 
             # Change Tag to ${{ steps.imageTag.outputs.tag }}
-            sed -E -i'' "s/(.*reddio-com\/reddio:).*/\1${{ steps.imageTag.outputs.tag }}/" 'docker-compose.yml'
+            sed -E -i'' "s|(.*reddio-com/reddio:).*|\\1${{ steps.imageTag.outputs.tag }}|" 'docker-compose.yml'
 
             docker-compose up -d
