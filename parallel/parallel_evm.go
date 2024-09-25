@@ -42,34 +42,34 @@ func NewParallelEVM() *ParallelEVM {
 }
 
 func (k *ParallelEVM) Execute(block *types.Block) error {
+	statManager := &BlockTxnStatManager{TxnCount: len(block.Txns)}
 	start := time.Now()
-	metrics.BlockExecuteTxnCountGauge.WithLabelValues().Set(float64(len(block.Txns)))
 	defer func() {
-		cost := time.Since(start)
-		if config.GetGlobalConfig().IsBenchmarkMode {
-			log.Printf("execute block cost %v txnCount:%v", cost.String(), len(block.Txns))
-		}
-		metrics.BlockExecuteTxnDurationGauge.WithLabelValues().Set(cost.Seconds())
+		statManager.ExecuteDuration = time.Since(start)
 	}()
-	txnCtxList, receipts := k.prepareTxnList(block)
+	txnCtxList, receipts := k.prepareTxnList(block, statManager)
 	got := k.splitTxnCtxList(txnCtxList)
-	got = k.executeAllTxn(got)
+	got = k.executeAllTxn(got, statManager)
 	for _, subList := range got {
 		for _, c := range subList {
 			receipts[c.txn.TxnHash] = c.receipt
 		}
 	}
+	return k.Commit(block, receipts, statManager)
+}
+
+func (k *ParallelEVM) Commit(block *types.Block, receipts map[common.Hash]*types.Receipt, statManager *BlockTxnStatManager) error {
 	commitStart := time.Now()
 	defer func() {
-		metrics.BlockTxnCommitDurationGauge.WithLabelValues().Set(time.Since(commitStart).Seconds())
+		statManager.CommitDuration = time.Since(commitStart)
 	}()
 	return k.PostExecute(block, receipts)
 }
 
-func (k *ParallelEVM) executeAllTxn(got [][]*txnCtx) [][]*txnCtx {
+func (k *ParallelEVM) executeAllTxn(got [][]*txnCtx, statManager *BlockTxnStatManager) [][]*txnCtx {
 	start := time.Now()
 	defer func() {
-		metrics.BlockTxnAllExecuteDurationGauge.WithLabelValues().Set(time.Now().Sub(start).Seconds())
+		statManager.ExecuteTxnDuration = time.Since(start)
 	}()
 	for index, subList := range got {
 		k.executeTxnCtxList(subList)
@@ -78,10 +78,10 @@ func (k *ParallelEVM) executeAllTxn(got [][]*txnCtx) [][]*txnCtx {
 	return got
 }
 
-func (k *ParallelEVM) prepareTxnList(block *types.Block) ([]*txnCtx, map[common.Hash]*types.Receipt) {
+func (k *ParallelEVM) prepareTxnList(block *types.Block, statManager *BlockTxnStatManager) ([]*txnCtx, map[common.Hash]*types.Receipt) {
 	start := time.Now()
 	defer func() {
-		metrics.BlockTxnPrepareDurationGauge.WithLabelValues().Set(time.Since(start).Seconds())
+		statManager.PrepareDuration = time.Since(start)
 	}()
 	stxns := block.Txns
 	receipts := make(map[common.Hash]*types.Receipt)
@@ -299,4 +299,23 @@ func (k *ParallelEVM) handleTxnEvent(ctx *context.WriteContext, block *types.Blo
 		metrics.TxnCounter.WithLabelValues(txnLabelRedoExecute).Inc()
 	}
 	return k.HandleEvent(ctx, block, stxn)
+}
+
+type BlockTxnStatManager struct {
+	TxnCount           int
+	ExecuteDuration    time.Duration
+	ExecuteTxnDuration time.Duration
+	PrepareDuration    time.Duration
+	CommitDuration     time.Duration
+}
+
+func (stat *BlockTxnStatManager) UpdateMetrics() {
+	metrics.BlockExecuteTxnCountGauge.WithLabelValues().Set(float64(stat.TxnCount))
+	metrics.BlockExecuteTxnDurationGauge.WithLabelValues().Set(float64(stat.ExecuteDuration.Seconds()))
+	metrics.BlockTxnAllExecuteDurationGauge.WithLabelValues().Set(float64(stat.ExecuteTxnDuration.Seconds()))
+	metrics.BlockTxnPrepareDurationGauge.WithLabelValues().Set(float64(stat.PrepareDuration.Seconds()))
+	metrics.BlockTxnCommitDurationGauge.WithLabelValues().Set(float64(stat.CommitDuration.Seconds()))
+	if config.GlobalConfig.IsBenchmarkMode {
+		log.Printf("execute %v txn, total:%v, execute cost:%v, prepare:%v, commit:%v", stat.TxnCount, stat.ExecuteDuration.String(), stat.ExecuteTxnDuration.String(), stat.PrepareDuration.String(), stat.CommitDuration.String())
+	}
 }
