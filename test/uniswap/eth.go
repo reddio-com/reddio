@@ -21,7 +21,7 @@ type EthManager struct {
 func (m *EthManager) Configure(cfg *conf.EthCaseConf, evmCfg *evm.GethConfig) {
 	m.config = cfg
 	m.evmCfg = evmCfg
-	m.wm = pkg.NewWalletManager(m.evmCfg, m.config.HostUrl)
+	m.wm = pkg.NewWalletManager(m.evmCfg, nil, m.config.HostUrl, true)
 	m.testcases = []TestCase{}
 }
 
