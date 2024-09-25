@@ -33,7 +33,7 @@ build_evm_benchmark:
 build_benchmark_test:
 	go build -v -o benchmark_test ./test/cmd/benchmark/main.go
 
-evm_benchmark_test: reset
+bench_evm: reset
 	./evm_benchmark
 
 parallel_benchmark_test:
