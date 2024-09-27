@@ -32,7 +32,7 @@ func StartUpChain(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm
 	ethrpc.StartupEthRPC(chain, evmCfg)
 
 	// event watcher
-	watcher.StartupEventWatcher(evmCfg)
+	watcher.StartupEventsWatcher(chain, evmCfg)
 
 	chain.Startup()
 

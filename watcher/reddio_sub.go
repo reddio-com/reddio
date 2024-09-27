@@ -14,18 +14,27 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/reddio-com/reddio/evm"
 	"github.com/reddio-com/reddio/watcher/contract"
+	"github.com/yu-org/yu/core/kernel"
 )
 
 type ReddioSubscriber struct {
-	ethClient       *ethclient.Client
-	client          *rpc.Client
-	filterer        *contract.ChildBridgeCoreFacetFilterer
-	processedEvents map[string]bool
+	ethClient                 *ethclient.Client
+	client                    *rpc.Client
+	filterer                  *contract.ChildBridgeCoreFacetFilterer
+	processedEvents           map[string]bool
+	chain                     *kernel.Kernel
+	chainConfig               *params.ChainConfig
+	childLayerContractAddress common.Address
 }
 
-func NewReddioSubscriber(clientAddress string, coreContractAddress common.Address) (*ReddioSubscriber, error) {
+func NewReddioSubscriber(chain *kernel.Kernel, cfg *evm.GethConfig) (*ReddioSubscriber, error) {
+	clientAddress := cfg.L2ClientAddress
+	childLayerContractAddress := common.HexToAddress(cfg.ChildLayerContractAddress)
+
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 	// TODO replace with our own client once we have one.
@@ -35,18 +44,23 @@ func NewReddioSubscriber(clientAddress string, coreContractAddress common.Addres
 		return nil, err
 	}
 	ethClient := ethclient.NewClient(client)
-	filterer, err := contract.NewChildBridgeCoreFacetFilterer(coreContractAddress, ethClient)
+	filterer, err := contract.NewChildBridgeCoreFacetFilterer(childLayerContractAddress, ethClient)
 	if err != nil {
 		return nil, err
 	}
 	return &ReddioSubscriber{
-		ethClient: ethClient,
-		client:    client,
-		filterer:  filterer,
+		ethClient:                 ethClient,
+		client:                    client,
+		filterer:                  filterer,
+		processedEvents:           make(map[string]bool),
+		chain:                     chain,
+		chainConfig:               cfg.ChainConfig,
+		childLayerContractAddress: childLayerContractAddress,
 	}, nil
 }
 
-func (s *ReddioSubscriber) WatchUpwardMessage(
+// Note: this function only works when reddio client is wss mode
+func (s *ReddioSubscriber) WatchUpwardMessageWss(
 	ctx context.Context,
 	sink chan<- *contract.ChildBridgeCoreFacetUpwardMessage,
 	sequence []*big.Int,
@@ -62,7 +76,9 @@ func (s *ReddioSubscriber) Close() {
 	s.ethClient.Close()
 }
 
-func (s *ReddioSubscriber) PollUpwardMessage(contractAddress common.Address, eventSignature string) {
+func (s *ReddioSubscriber) WatchUpwardMessageHttp(ctx context.Context,
+	sink chan<- *contract.ChildBridgeCoreFacetUpwardMessage,
+	sequence []*big.Int) error {
 	// Parse contract ABI
 	contractAbi, err := abi.JSON(strings.NewReader(contract.ChildBridgeCoreFacetABI))
 	if err != nil {
@@ -70,7 +86,7 @@ func (s *ReddioSubscriber) PollUpwardMessage(contractAddress common.Address, eve
 	}
 
 	// Get the event signature hash
-	eventSignatureHash := contractAbi.Events[eventSignature].ID
+	eventSignatureHash := contractAbi.Events["UpwardMessage"].ID
 	fmt.Printf("eventSignatureHash: %s\n", eventSignatureHash.Hex())
 
 	// Use a goroutine to handle event logs
@@ -81,75 +97,95 @@ func (s *ReddioSubscriber) PollUpwardMessage(contractAddress common.Address, eve
 		var lastBlock uint64 = 0 // Starting block
 		const bufferBlocks = 6   // Buffer blocks
 
-		for range ticker.C {
-			// Get the latest block number
-			header, err := s.ethClient.HeaderByNumber(context.Background(), nil)
-			if err != nil {
-				log.Fatalf("Failed to get latest block header: %v", err)
-			}
-			latestBlock := header.Number.Uint64()
-
-			if lastBlock == 0 {
-				lastBlock = latestBlock
-			}
-
-			// Set filter query
-			fromBlock := lastBlock
-			if fromBlock > bufferBlocks {
-				fromBlock -= bufferBlocks
-			} else {
-				fromBlock = 0
-			}
-
-			query := ethereum.FilterQuery{
-				FromBlock: big.NewInt(int64(fromBlock)),
-				ToBlock:   big.NewInt(int64(latestBlock)),
-				Addresses: []common.Address{
-					contractAddress,
-				},
-				Topics: [][]common.Hash{
-					{eventSignatureHash},
-				},
-			}
-
-			// Get event logs
-			logs, err := s.ethClient.FilterLogs(context.Background(), query)
-			if err != nil {
-				log.Fatalf("Failed to filter logs: %v", err)
-			}
-
-			// Handle event logs
-			for _, vLog := range logs {
-				eventID := vLog.TxHash.Hex() + fmt.Sprintf("%d", vLog.Index)
-				if s.processedEvents[eventID] {
-					// If the event has already been processed, skip it
-					continue
-				}
-
-				fmt.Printf("Log block number: %d\n", vLog.BlockNumber)
-
-				// Parse log data
-				var upwardMessageEvent struct {
-					From    common.Address
-					To      common.Address
-					Message string
-				}
-				err := contractAbi.UnpackIntoInterface(&upwardMessageEvent, "UpwardMessage", vLog.Data)
+		for {
+			select {
+			case <-ticker.C:
+				// Get the latest block number
+				header, err := s.ethClient.HeaderByNumber(context.Background(), nil)
 				if err != nil {
-					log.Fatalf("Failed to unpack log data: %v", err)
+					log.Fatalf("Failed to get latest block header: %v", err)
+				}
+				latestBlock := header.Number.Uint64()
+
+				if lastBlock == 0 {
+					lastBlock = latestBlock
 				}
 
-				// Parse indexed fields
-				upwardMessageEvent.From = common.HexToAddress(vLog.Topics[1].Hex())
-				upwardMessageEvent.To = common.HexToAddress(vLog.Topics[2].Hex())
-				fmt.Printf("UpwardMessage event: From=%s, To=%s, Message=%s\n", upwardMessageEvent.From.Hex(), upwardMessageEvent.To.Hex(), upwardMessageEvent.Message)
+				// Set filter query
+				fromBlock := lastBlock
+				if fromBlock > bufferBlocks {
+					fromBlock -= bufferBlocks
+				} else {
+					fromBlock = 0
+				}
 
-				// Record the processed event
-				s.processedEvents[eventID] = true
+				query := ethereum.FilterQuery{
+					FromBlock: big.NewInt(int64(fromBlock)),
+					ToBlock:   big.NewInt(int64(latestBlock)),
+					Addresses: []common.Address{
+						s.childLayerContractAddress,
+					},
+					Topics: [][]common.Hash{
+						{eventSignatureHash},
+					},
+				}
+
+				// Get event logs
+				logs, err := s.ethClient.FilterLogs(context.Background(), query)
+				if err != nil {
+					log.Fatalf("Failed to filter logs: %v", err)
+				}
+
+				// Handle event logs
+				for _, vLog := range logs {
+					eventID := vLog.TxHash.Hex() + fmt.Sprintf("%d", vLog.Index)
+					if s.processedEvents[eventID] {
+						// If the event has already been processed, skip it
+						continue
+					}
+
+					fmt.Printf("Log block number: %d\n", vLog.BlockNumber)
+
+					// Parse log data
+					var upwardMessageEvent struct {
+						Sequence    *big.Int
+						PayloadType uint32
+						Payload     []byte
+					}
+					err := contractAbi.UnpackIntoInterface(&upwardMessageEvent, "UpwardMessage", vLog.Data)
+					if err != nil {
+						log.Fatalf("Failed to unpack log data: %v", err)
+					}
+
+					fmt.Printf("UpwardMessage event: Sequence=%s, PayloadType=%d, Payload=%x\n", upwardMessageEvent.Sequence.String(), upwardMessageEvent.PayloadType, upwardMessageEvent.Payload)
+
+					// Create a new ChildBridgeCoreFacetUpwardMessage instance
+					upwardMessage := &contract.ChildBridgeCoreFacetUpwardMessage{
+						Sequence:    upwardMessageEvent.Sequence,
+						PayloadType: upwardMessageEvent.PayloadType,
+						Payload:     upwardMessageEvent.Payload,
+						Raw:         vLog,
+					}
+
+					// Send the event to the sink channel
+					select {
+					case sink <- upwardMessage:
+						fmt.Println("Event sent to sink channel")
+					case <-ctx.Done():
+						fmt.Println("Context done, stopping event processing")
+						return
+					}
+
+					// Record the processed event
+					s.processedEvents[eventID] = true
+				}
+
+				// Update lastBlock to the next block after the latest block
+				lastBlock = latestBlock + 1
+			case <-ctx.Done():
+				return
 			}
-
-			// Update lastBlock to the next block after the latest block
-			lastBlock = latestBlock + 1
 		}
 	}()
+	return nil
 }
