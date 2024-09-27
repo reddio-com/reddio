@@ -5,6 +5,9 @@ services:
     image: ghcr.io/reddio-com/reddio:latest
     restart: always
     volumes:
+      # config
+      - ./data/conf:/conf
+      # database
       - ./data/reddio_db:/reddio_db
       - ./data/yu:/yu
     ports:
