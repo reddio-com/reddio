@@ -154,7 +154,7 @@ func (s *ReddioSubscriber) WatchUpwardMessageHttp(ctx context.Context,
 					}
 					err := contractAbi.UnpackIntoInterface(&upwardMessageEvent, "UpwardMessage", vLog.Data)
 					if err != nil {
-						log.Fatalf("Failed to unpack log data: %v", err)
+						log.Printf("Failed to unpack log data: %v", err)
 					}
 
 					fmt.Printf("UpwardMessage event: Sequence=%s, PayloadType=%d, Payload=%x\n", upwardMessageEvent.Sequence.String(), upwardMessageEvent.PayloadType, upwardMessageEvent.Payload)

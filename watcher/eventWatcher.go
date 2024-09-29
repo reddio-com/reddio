@@ -10,8 +10,10 @@ import (
 
 	"github.com/HyperService-Consortium/go-hexutil"
 	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/kzg4844"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/reddio-com/reddio/evm"
@@ -24,7 +26,7 @@ import (
 )
 
 // just for test
-const privateKey = "32e3b56c9f2763d2332e6e4188e4755815ac96441e899de121969845e343c2ff"
+const privateKey = ""
 const SolidityTripod = "solidity"
 
 type EventsWatcher struct {
@@ -165,7 +167,7 @@ func (w *EventsWatcher) Run(cfg *evm.GethConfig, ctx context.Context) error {
 }
 
 // handleDownwardMessage
-func (w *EventsWatcher) handleDownwardMessage(msg *contract.ParentBridgeCoreFacetDownwardMessage, childLayerContractAddress string) error {
+func (w *EventsWatcher) handleDownwardMessageWithSystemCall(msg *contract.ParentBridgeCoreFacetDownwardMessage, childLayerContractAddress string) error {
 
 	//fmt.Println("Handle downward message", msg)
 	client := w.l2Watcher.ethClient
@@ -173,20 +175,22 @@ func (w *EventsWatcher) handleDownwardMessage(msg *contract.ParentBridgeCoreFace
 	fmt.Println("ChainID", chainId)
 
 	fmt.Println("childLayerContractAddress", childLayerContractAddress)
-	// downwardMessageDispatcher, err := contract.NewDownwardMessageDispatcherFacet(common.HexToAddress(childLayerContractAddress), client)
-	// if err != nil {
-	// 	return err
-	// }
+	downwardMessageDispatcher, err := contract.NewDownwardMessageDispatcherFacet(common.HexToAddress(childLayerContractAddress), client)
+	if err != nil {
+		return err
+	}
+	fmt.Println("downwardMessageDispatcher", downwardMessageDispatcher)
 
-	// testUserPK, err := crypto.HexToECDSA(privateKey)
-	// if err != nil {
-	// 	return err
-	// }
+	testUserPK, err := crypto.HexToECDSA(privateKey)
+	if err != nil {
+		return err
+	}
 
-	// auth, err := bind.NewKeyedTransactorWithChainID(testUserPK, big.NewInt(50341))
-	// if err != nil {
-	// 	log.Fatalf("Failed to create authorized transactor: %v", err)
-	// }
+	auth, err := bind.NewKeyedTransactorWithChainID(testUserPK, big.NewInt(50341))
+	if err != nil {
+		log.Fatalf("Failed to create authorized transactor: %v", err)
+	}
+
 	downwardMessages := []contract.DownwardMessageDispatcherFacetDownwardMessage{
 		{
 			Sequence:    msg.Sequence,
@@ -197,7 +201,7 @@ func (w *EventsWatcher) handleDownwardMessage(msg *contract.ParentBridgeCoreFace
 	log.Printf("Sending downward messages: %v", downwardMessages)
 	nonce := uint64(0)
 	value := big.NewInt(0)
-	gasLimit := uint64(300000)
+	gasLimit := uint64(3e6)
 	gasPrice, err := client.SuggestGasPrice(context.Background())
 	contractABI, err := abi.JSON(strings.NewReader(contract.DownwardMessageDispatcherFacetABI))
 	if err != nil {
@@ -207,7 +211,11 @@ func (w *EventsWatcher) handleDownwardMessage(msg *contract.ParentBridgeCoreFace
 	data, err := contractABI.Pack("receiveDownwardMessages", downwardMessages)
 
 	tx := types.NewTransaction(nonce, common.HexToAddress(childLayerContractAddress), value, gasLimit, gasPrice, data)
-
+	signedTx, err := auth.Signer(auth.From, tx)
+	if err != nil {
+		return err
+	}
+	fmt.Println("signedTx: ", signedTx)
 	txJSON, err := json.MarshalIndent(struct {
 		Nonce    uint64   `json:"nonce"`
 		To       string   `json:"to"`
@@ -227,12 +235,54 @@ func (w *EventsWatcher) handleDownwardMessage(msg *contract.ParentBridgeCoreFace
 		log.Fatalf("Failed to marshal transaction to JSON: %v", err)
 	}
 	fmt.Println(string(txJSON))
-	w.systemCall(context.Background(), tx)
+	w.systemCall(context.Background(), signedTx)
 	// tx, err := downwardMessageDispatcher.ReceiveDownwardMessages(auth, downwardMessages)
 	// if err != nil {
 	// 	log.Printf("Failed to send transaction: %v", err)
 	// 	return err
 	// }
+
+	log.Printf("Transaction sent: %s", tx.Hash().Hex())
+	return nil
+}
+
+// handleDownwardMessage
+func (w *EventsWatcher) handleDownwardMessage(msg *contract.ParentBridgeCoreFacetDownwardMessage, childLayerContractAddress string) error {
+
+	//fmt.Println("Handle downward message", msg)
+	client := w.l2Watcher.ethClient
+	chainId, err := client.ChainID(context.Background())
+	fmt.Println("ChainID", chainId)
+
+	fmt.Println("childLayerContractAddress", childLayerContractAddress)
+	downwardMessageDispatcher, err := contract.NewDownwardMessageDispatcherFacet(common.HexToAddress(childLayerContractAddress), client)
+	if err != nil {
+		return err
+	}
+	testUserPK, err := crypto.HexToECDSA(privateKey)
+	if err != nil {
+		return err
+	}
+
+	auth, err := bind.NewKeyedTransactorWithChainID(testUserPK, big.NewInt(50341))
+	if err != nil {
+		log.Fatalf("Failed to create authorized transactor: %v", err)
+	}
+
+	downwardMessages := []contract.DownwardMessageDispatcherFacetDownwardMessage{
+		{
+			Sequence:    msg.Sequence,
+			PayloadType: msg.PayloadType,
+			Payload:     msg.Payload,
+		},
+	}
+	log.Printf("Sending downward messages: %v", downwardMessages)
+
+	tx, err := downwardMessageDispatcher.ReceiveDownwardMessages(auth, downwardMessages)
+	if err != nil {
+		log.Printf("Failed to send transaction: %v", err)
+		return err
+	}
 
 	log.Printf("Transaction sent: %s", tx.Hash().Hex())
 	return nil
@@ -358,23 +408,30 @@ func NewTxArgsFromTx(tx *types.Transaction) *TransactionArgs {
 func (w *EventsWatcher) systemCall(ctx context.Context, signedTx *types.Transaction) error {
 	// Check if this tx has been created
 	// Create Tx
-	// yuBlock, err := w.l2Watcher.chain.Chain.GetEndCompactBlock()
-	// if err != nil {
-	// 	logrus.Error("EthAPIBackend.CurrentBlock() failed: ", err)
-	// 	return nil
-	// }
-	// head := yuHeader2EthHeader(yuBlock.Header)
-	// signer := types.MakeSigner(w.l2Watcher.chainConfig, head.Number, head.Time)
-	// sender, err := types.Sender(signer, signedTx)
-	// if err != nil {
-	// 	return err
-	// }
+	yuBlock, err := w.l2Watcher.chain.Chain.GetEndCompactBlock()
+	if err != nil {
+		log.Fatalf("EthAPIBackend.CurrentBlock() failed: ", err)
+		return nil
+	}
+	head := yuHeader2EthHeader(yuBlock.Header)
+	signer := types.MakeSigner(w.l2Watcher.chainConfig, head.Number, head.Time)
+
+	// Get v, r, s values
 	v, r, s := signedTx.RawSignatureValues()
+	fmt.Printf("v: %s\n", v.String())
+	fmt.Printf("r: %s\n", r.String())
+	fmt.Printf("s: %s\n", s.String())
+	sender, err := types.Sender(signer, signedTx)
+	if err != nil {
+		log.Fatalf("types.Sender() failed: ", err)
+		return err
+	}
+	v, r, s = signedTx.RawSignatureValues()
 	txArg := NewTxArgsFromTx(signedTx)
 	txArgByte, _ := json.Marshal(txArg)
 	txReq := &evm.TxRequest{
 		Input:    signedTx.Data(),
-		Origin:   common.Address{},
+		Origin:   sender,
 		Address:  signedTx.To(),
 		GasLimit: signedTx.Gas(),
 		GasPrice: signedTx.GasPrice(),
@@ -387,8 +444,15 @@ func (w *EventsWatcher) systemCall(ctx context.Context, signedTx *types.Transact
 
 		OriginArgs: txArgByte,
 	}
+	jsonData, err := json.MarshalIndent(txReq, "", "    ")
+	if err != nil {
+		log.Fatalf("Failed to marshal txReq to JSON: %v", err)
+	}
+
+	fmt.Println("jsonData:", string(jsonData))
 	byt, err := json.Marshal(txReq)
 	if err != nil {
+		log.Fatalf("json.Marshal(txReq) failed: ", err)
 		return err
 	}
 	signedWrCall := &protocol.SignedWrCall{
@@ -398,6 +462,14 @@ func (w *EventsWatcher) systemCall(ctx context.Context, signedTx *types.Transact
 			Params:     string(byt),
 		},
 	}
-	return w.l2Watcher.chain.HandleTxn(signedWrCall)
+	fmt.Println("signedWrCall", signedWrCall)
+	fmt.Println("signedWrCall", signedWrCall.Call.Params)
+
+	err = w.l2Watcher.chain.HandleTxn(signedWrCall)
+	if err != nil {
+		log.Fatalf("HandleTxn() failed: ", err)
+		return err
+	}
+	return nil
 
 }
