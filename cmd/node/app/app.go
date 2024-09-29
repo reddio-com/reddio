@@ -5,7 +5,7 @@ import (
 
 	"github.com/common-nighthawk/go-figure"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/yu-org/nine-tripods/consensus/poa"
+	"github.com/yu-org/yu/apps/poa"
 	yuConfig "github.com/yu-org/yu/config"
 	"github.com/yu-org/yu/core/kernel"
 	"github.com/yu-org/yu/core/startup"
