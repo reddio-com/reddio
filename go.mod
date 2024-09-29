@@ -2,6 +2,8 @@ module github.com/reddio-com/reddio
 
 go 1.23.0
 
+replace github.com/yu-org/yu => ./pkg-yu
+
 require (
 	github.com/BurntSushi/toml v1.2.1
 	github.com/common-nighthawk/go-figure v0.0.0-20210622060536-734e95fb86be
@@ -14,11 +16,9 @@ require (
 	github.com/sourcegraph/conc v0.3.0
 	github.com/stretchr/testify v1.9.0
 	github.com/tendermint/tendermint v0.34.24
-	github.com/yu-org/nine-tripods v0.1.8
-	github.com/yu-org/yu v1.0.11
+	github.com/yu-org/yu v1.1.0
 	golang.org/x/time v0.5.0
 	gopkg.in/yaml.v3 v3.0.1
-
 )
 
 require (

@@ -329,6 +329,9 @@ func (e *EthAPIBackend) Call(ctx context.Context, args TransactionArgs, blockNrO
 func (e *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction) error {
 	// Check if this tx has been created
 	exist, _, _, _, _, err := e.GetTransaction(ctx, signedTx.Hash())
+	if err != nil {
+		return err
+	}
 	if exist {
 		return evm.ErrAlreadyKnown
 	}

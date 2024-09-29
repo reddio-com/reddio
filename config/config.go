@@ -8,8 +8,9 @@ import (
 )
 
 type Config struct {
-	IsParallel     bool `yaml:"isParallel"`
-	MaxConcurrency int  `yaml:"maxConcurrency"`
+	IsParallel      bool `yaml:"isParallel"`
+	MaxConcurrency  int  `yaml:"maxConcurrency"`
+	IsBenchmarkMode bool `yaml:"isBenchmarkMode"`
 }
 
 func defaultConfig() *Config {

@@ -11,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+
 	"github.com/reddio-com/reddio/test/contracts"
 	"github.com/reddio-com/reddio/test/pkg"
 )
@@ -274,10 +275,6 @@ func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManag
 		log.Fatalf("Expected user ETH balance to be %s, but got %s", expectedEthBalance.String(), ethBalance.String())
 	}
 	return err
-}
-
-func (ca *UniswapV2AccuracyTestCase) BatchRun(ctx context.Context, m *pkg.WalletManager) error {
-	panic("implement me")
 }
 
 // deploy UniswapV2 Contracts
