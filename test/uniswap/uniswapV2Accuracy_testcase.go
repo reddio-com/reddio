@@ -11,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+
 	"github.com/reddio-com/reddio/test/contracts"
 	"github.com/reddio-com/reddio/test/pkg"
 )
@@ -55,7 +56,7 @@ const swapTimes = 200
 
 func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManager) error {
 	//create a wallet for contract deployment
-	wallets, err := m.GenerateRandomWallet(1, 1e18)
+	wallets, err := m.GenerateRandomWallets(1, 1e18)
 	if err != nil {
 		return err
 	}
@@ -94,7 +95,7 @@ func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManag
 	}
 
 	//Arrange :
-	testUser, err := m.GenerateRandomWallet(1, 1e18)
+	testUser, err := m.GenerateRandomWallets(1, 1e18)
 	if err != nil {
 		return err
 	}

@@ -197,6 +197,19 @@ func (s *Solidity) PreHandleTxn(txn *yu_types.SignedTxn) error {
 	return nil
 }
 
+func (s *Solidity) CheckTxn(txn *yu_types.SignedTxn) error {
+	req := new(TxRequest)
+	err := txn.BindJson(req)
+	if err != nil {
+		return err
+	}
+	if req.IsInternalCall {
+		// TODO: use txn.Pubkey and txn.Signature to verify the tx
+
+	}
+	return nil
+}
+
 // ExecuteTxn executes the code using the input as call data during the execution.
 // It returns the EVM's return value, the new state and an error if it failed.
 //

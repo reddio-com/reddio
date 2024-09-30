@@ -146,6 +146,7 @@ func generateTestAuth(client *ethclient.Client, user *pkg.EthWallet, chainID int
 
 	return auth, nil
 }
+
 func saveTestDataToFile(filename string, data TestData) {
 	dir := filepath.Dir(filename)
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {

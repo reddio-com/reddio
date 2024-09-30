@@ -5,14 +5,19 @@ services:
     image: ghcr.io/reddio-com/reddio:latest
     restart: always
     volumes:
+      # config
+      - ./data/conf:/conf
+      # database
       - ./data/reddio_db:/reddio_db
       - ./data/yu:/yu
     ports:
       # p2p port
       -  8887:8887
+      # http port
       -  7999:7999
+      # websocket port
       -  8999:8999
-      # starknet port
+      # ETH RPC port
       -  9092:9092
       # pprof port
       -  8080:8080

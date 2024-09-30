@@ -34,6 +34,18 @@ jobs:
           images: |
             ghcr.io/${{ github.event.repository.full_name }}
 
+      - name: Get tag name
+        if: github.ref_name != 'main'
+        uses: olegtarasov/get-tag@v2.1
+        id: gitTag
+      
+      - name: Set the image tag as output if not main branch
+        if: github.ref_name != 'main'
+        id: imageTag
+        run: |
+          IMAGE_TAG=$(echo ${{ steps.gitTag.outputs.tag }}); \
+          echo "::set-output name=tag::$IMAGE_TAG"; \
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -45,3 +57,22 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Deploy tagged image to devnet
+        uses: appleboy/ssh-action@master
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          host: ${{ secrets.DEVNET_IP }}
+          username: root
+          key: ${{ secrets.API_SSH_KEY }}
+          script: |
+            docker login ghcr.io -u reddio-com -p ${{ secrets.GITHUB_TOKEN }}
+
+            docker pull ghcr.io/${{ github.event.repository.full_name }}:${{ steps.imageTag.outputs.tag }}
+        
+            cd ${{ secrets.DEVNET_PATH }}
+
+            # Change Tag to ${{ steps.imageTag.outputs.tag }}
+            sed -E -i'' "s|(.*reddio-com/reddio:).*|\\1${{ steps.imageTag.outputs.tag }}|" 'docker-compose.yml'
+
+            docker-compose up -d

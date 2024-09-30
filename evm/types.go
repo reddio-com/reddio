@@ -39,6 +39,8 @@ type TxRequest struct {
 	S        *big.Int        `json:"s"`
 
 	OriginArgs []byte `json:"originArgs"`
+
+	IsInternalCall bool `json:"is_internal_call"`
 }
 
 type CreateRequest struct {

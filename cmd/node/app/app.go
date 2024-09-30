@@ -5,23 +5,28 @@ import (
 
 	"github.com/common-nighthawk/go-figure"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/yu-org/nine-tripods/consensus/poa"
+	"github.com/yu-org/yu/apps/poa"
 	yuConfig "github.com/yu-org/yu/config"
 	"github.com/yu-org/yu/core/kernel"
 	"github.com/yu-org/yu/core/startup"
 
+	"github.com/reddio-com/reddio/config"
 	"github.com/reddio-com/reddio/evm"
 	"github.com/reddio-com/reddio/evm/ethrpc"
 	"github.com/reddio-com/reddio/parallel"
 	"github.com/reddio-com/reddio/watcher"
 )
 
-func Start(path string, yuCfg *yuConfig.KernelConf) {
-	poaCfg := poa.DefaultCfg(0)
-	poaCfg.PrettyLog = false
-	gethCfg := evm.LoadEvmConfig(path)
+func Start(evmPath, yuPath, poaPath, configPath string) {
+	yuCfg := startup.InitKernelConfigFromPath(yuPath)
+	poaCfg := poa.LoadCfgFromPath(poaPath)
+	evmCfg := evm.LoadEvmConfig(evmPath)
+	err := config.LoadConfig(configPath)
+	if err != nil {
+		panic(err)
+	}
 	go startPromServer()
-	StartUpChain(yuCfg, poaCfg, gethCfg)
+	StartUpChain(yuCfg, poaCfg, evmCfg)
 }
 
 func StartUpChain(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm.GethConfig) {

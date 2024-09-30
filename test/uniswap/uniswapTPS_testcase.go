@@ -187,11 +187,11 @@ func (cd *UniswapV2TPSStatisticsTestCase) prepareDeployerContract(deployerUser *
 }
 
 func (cd *UniswapV2TPSStatisticsTestCase) Prepare(ctx context.Context, m *pkg.WalletManager) error {
-	deployerUsers, err := m.GenerateRandomWallet(cd.deployedUsers, accountInitialFunds)
+	deployerUsers, err := m.GenerateRandomWallets(cd.deployedUsers, accountInitialFunds)
 	if err != nil {
 		return fmt.Errorf("failed to generate deployer user: %v", err.Error())
 	}
-	testUsers, err := m.GenerateRandomWallet(cd.testUsers, accountInitialFunds)
+	testUsers, err := m.GenerateRandomWallets(cd.testUsers, accountInitialFunds)
 	if err != nil {
 		return fmt.Errorf("failed to generate test users: %v", err)
 	}

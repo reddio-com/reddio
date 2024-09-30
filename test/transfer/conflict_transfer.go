@@ -17,7 +17,7 @@ type ConflictTransfer struct {
 }
 
 func (c *ConflictTransfer) Run(ctx context.Context, m *pkg.WalletManager) error {
-	wallets, err := m.GenerateRandomWallet(c.walletCount, c.initialCount)
+	wallets, err := m.GenerateRandomWallets(c.walletCount, c.initialCount)
 	if err != nil {
 		return err
 	}

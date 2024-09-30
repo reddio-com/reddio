@@ -26,7 +26,7 @@ func (m *EthManager) Configure(cfg *conf.EthCaseConf, evmCfg *evm.GethConfig) {
 }
 
 func (m *EthManager) PreCreateWallets(walletCount int, initCount uint64) ([]*pkg.EthWallet, error) {
-	wallets, err := m.wm.GenerateRandomWallet(walletCount, initCount)
+	wallets, err := m.wm.GenerateRandomWallets(walletCount, initCount)
 	if err != nil {
 		return nil, err
 	}
