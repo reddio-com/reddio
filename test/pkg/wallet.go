@@ -1,7 +1,6 @@
 package pkg
 
 import (
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -144,7 +143,7 @@ type queryResponse struct {
 }
 
 func (m *WalletManager) transferEth(privateKeyHex string, toAddress string, amount uint64) error {
-	return m.sendRawTx(privateKeyHex, toAddress, amount, 0)
+	return m.sendRawTx(privateKeyHex, toAddress, amount, uint64(time.Now().UnixNano()))
 }
 
 func (m *WalletManager) batchTransferEth(rawTxs []*RawTxReq) error {
@@ -157,15 +156,13 @@ func (m *WalletManager) sendRawTx(privateKeyHex string, toAddress string, amount
 	gasLimit := uint64(21000)
 	gasPrice := big.NewInt(0)
 
-	buf := make([]byte, 8)
-	binary.BigEndian.PutUint64(buf, uint64(time.Now().UnixNano()))
 	tx := types.NewTx(&types.LegacyTx{
 		Nonce:    nonce,
 		GasPrice: gasPrice,
 		Gas:      gasLimit,
 		To:       &to,
 		Value:    big.NewInt(int64(amount)),
-		Data:     buf,
+		Data:     nil,
 	})
 
 	privateKey, err := crypto.HexToECDSA(privateKeyHex)
