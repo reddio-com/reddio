@@ -26,7 +26,7 @@ import (
 )
 
 // just for test
-const privateKey = ""
+const privateKey = "32e3b56c9f2763d2332e6e4188e4755815ac96441e899de121969845e343c2ff"
 const SolidityTripod = "solidity"
 
 type EventsWatcher struct {

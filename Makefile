@@ -105,3 +105,11 @@ generate_bindings:
 # Clean up generated files
 clean_bindings:
 	rm -f $(ERC20T_GO) $(TOKEN_GO) $(WETH9_GO) $(UNISWAPV2FACTORY_GO) $(UNISWAPV2ROUTER01_GO)
+
+
+
+# only for local test
+resetAndBuildAndStart:
+	make reset
+	make build
+	./reddio

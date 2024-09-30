@@ -6,8 +6,8 @@ eth_port = "9092"
 # [Module:EventsWatcher]
 enable_event_watcher = true
 # note: need websocket rpc to listen to the L1 event
-l1_client_address = ""            # use your own infura address
-l2_client_address = ""
-parentlayer_contract_address = ""
-childlayer_contract_address = ""
+l1_client_address = ""                                                      # use your own infura address
+l2_client_address = "http://localhost:9092"
+parentlayer_contract_address = "0xb59b7ea47FC73b6F468BC3187e9C10F3dCDaA75A"
+childlayer_contract_address = "0xeC054c6ee2DbbeBC9EbCA50CdBF94A94B02B2E40"
 opreator_private_key = ""
