@@ -2,7 +2,6 @@ package logic
 
 import (
 	"context"
-	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum"
@@ -25,7 +24,7 @@ type L2WatcherLogic struct {
 
 func NewL2WatcherLogic(cfg *evm.GethConfig, client *ethclient.Client) *L2WatcherLogic {
 	contractAddressList := []common.Address{
-		common.HexToAddress(cfg.ParentLayerContractAddress),
+		common.HexToAddress(cfg.ChildLayerContractAddress),
 	}
 
 	f := &L2WatcherLogic{
@@ -47,20 +46,21 @@ func (f *L2WatcherLogic) L2FetcherUpwardMessageFromLogs(ctx context.Context, fro
 	}
 	query.Topics[0] = make([]common.Hash, 1)
 	query.Topics[0][0] = backendabi.L2UpwardMessageEventSig
+	//fmt.Println("query: ", query)
 
 	eventLogs, err := f.client.FilterLogs(ctx, query)
 	if err != nil {
-		log.Error("Failed to filter L2 event logs", "from", from, "to", to, "err", err)
+		log.Error("Failed to filter L2 event logs 2", "from", from, "to", to, "err", err)
 		return nil, err
 	}
-	fmt.Println("eventLogs: ", eventLogs)
+	//fmt.Println("eventLogs: ", eventLogs)
 	if len(eventLogs) == 0 {
 		log.Info("No event logs found", "from", from, "to", to)
 		return nil, nil
 	}
 	upwardMessageEvent, err := f.parser.ParseL2EventLogs(ctx, eventLogs)
 	if err != nil {
-		log.Error("Failed to parse L2 event logs", "err", err)
+		log.Error("Failed to parse L2 event logs 3", "err", err)
 		return nil, err
 	}
 

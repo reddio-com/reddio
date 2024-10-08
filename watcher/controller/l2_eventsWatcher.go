@@ -123,7 +123,7 @@ func (w *L2EventsWatcher) WatchUpwardMessageHttp(ctx context.Context,
 	sequence []*big.Int) error {
 	// Use a goroutine to handle event logs
 	go func() {
-		ticker := time.NewTicker(2 * time.Second)
+		ticker := time.NewTicker(3 * time.Second)
 		defer ticker.Stop()
 
 		var lastBlock uint64 = 0 // Starting block
@@ -142,7 +142,6 @@ func (w *L2EventsWatcher) WatchUpwardMessageHttp(ctx context.Context,
 				if lastBlock == 0 {
 					lastBlock = latestBlock
 				}
-				fmt.Println("Last block: ", lastBlock)
 				// Set filter query
 				fromBlock := lastBlock
 				if fromBlock > bufferBlocks {
@@ -150,7 +149,6 @@ func (w *L2EventsWatcher) WatchUpwardMessageHttp(ctx context.Context,
 				} else {
 					fromBlock = 0
 				}
-				fmt.Println("fromBlock: ", fromBlock)
 
 				upwardMessage, err := w.l2WatcherLogic.L2FetcherUpwardMessageFromLogs(ctx, fromBlock, latestBlock)
 				if err != nil {
@@ -158,6 +156,7 @@ func (w *L2EventsWatcher) WatchUpwardMessageHttp(ctx context.Context,
 					continue
 				}
 				if upwardMessage == nil {
+					lastBlock = latestBlock + 1
 					continue
 				}
 				select {
