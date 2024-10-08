@@ -150,11 +150,16 @@ func (m *WalletManager) batchTransferEth(rawTxs []*RawTxReq) error {
 	return m.sendBatchRawTxs(rawTxs)
 }
 
+var counter = uint64(0)
+
 // sendRawTx is used by transferring and contract creation/invocation.
 func (m *WalletManager) sendRawTx(privateKeyHex string, toAddress string, amount uint64, nonce uint64) error {
 	to := common.HexToAddress(toAddress)
 	gasLimit := uint64(21000)
 	gasPrice := big.NewInt(0)
+
+	counter++
+	nonce = nonce + counter
 
 	tx := types.NewTx(&types.LegacyTx{
 		Nonce:    nonce,
