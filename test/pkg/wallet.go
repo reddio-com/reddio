@@ -143,26 +143,23 @@ type queryResponse struct {
 }
 
 func (m *WalletManager) transferEth(privateKeyHex string, toAddress string, amount uint64) error {
-	return m.sendRawTx(privateKeyHex, toAddress, amount, nil, 0)
+	return m.sendRawTx(privateKeyHex, toAddress, amount, uint64(time.Now().UnixNano()))
 }
 
 func (m *WalletManager) batchTransferEth(rawTxs []*RawTxReq) error {
 	return m.sendBatchRawTxs(rawTxs)
 }
 
-func (m *WalletManager) CreateContract(privateKeyHex string, amount uint64, data []byte, nonce uint64) error {
-	return m.sendRawTx(privateKeyHex, "", amount, data, nonce)
-}
-
-func (m *WalletManager) InvokeContract(privateKeyHex string, toAddress string, amount uint64, data []byte, nonce uint64) error {
-	return m.sendRawTx(privateKeyHex, toAddress, amount, data, nonce)
-}
+var counter = uint64(0)
 
 // sendRawTx is used by transferring and contract creation/invocation.
-func (m *WalletManager) sendRawTx(privateKeyHex string, toAddress string, amount uint64, data []byte, nonce uint64) error {
+func (m *WalletManager) sendRawTx(privateKeyHex string, toAddress string, amount uint64, nonce uint64) error {
 	to := common.HexToAddress(toAddress)
 	gasLimit := uint64(21000)
 	gasPrice := big.NewInt(0)
+
+	counter++
+	nonce = nonce + counter
 
 	tx := types.NewTx(&types.LegacyTx{
 		Nonce:    nonce,
@@ -170,7 +167,7 @@ func (m *WalletManager) sendRawTx(privateKeyHex string, toAddress string, amount
 		Gas:      gasLimit,
 		To:       &to,
 		Value:    big.NewInt(int64(amount)),
-		Data:     data,
+		Data:     nil,
 	})
 
 	privateKey, err := crypto.HexToECDSA(privateKeyHex)
