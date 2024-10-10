@@ -3,6 +3,7 @@ package evm
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/holiman/uint256"
 	"path/filepath"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -214,4 +215,12 @@ func (s *EthState) GetNonce(addr common.Address) uint64 {
 	s.stateDB.StopPrefetcher()
 	uint64 := s.stateDB.GetNonce(addr)
 	return uint64
+}
+
+func (s *EthState) AddBalance(addr common.Address, amount *uint256.Int, reason tracing.BalanceChangeReason) {
+	s.stateDB.AddBalance(addr, amount, reason)
+}
+
+func (s *EthState) SubBalance(addr common.Address, amount *uint256.Int, reason tracing.BalanceChangeReason) {
+	s.stateDB.SubBalance(addr, amount, reason)
 }
