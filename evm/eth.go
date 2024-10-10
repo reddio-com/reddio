@@ -44,7 +44,7 @@ type Solidity struct {
 	cfg         *GethConfig
 	stateConfig *yuConfig.Config
 
-	gasPool        *core.GasPool
+	// gasPool        *core.GasPool
 	coinbaseReward atomic.Uint64
 }
 
@@ -172,8 +172,8 @@ func (s *Solidity) StartBlock(block *yu_types.Block) {
 	s.Lock()
 	defer s.Unlock()
 	s.cfg.BlockNumber = big.NewInt(int64(block.Height))
-	s.gasPool = new(core.GasPool).AddGas(block.LeiLimit)
-	//s.cfg.GasLimit =
+	//s.gasPool = new(core.GasPool).AddGas(block.LeiLimit)
+	s.cfg.GasLimit = block.LeiLimit
 	s.cfg.Time = block.Timestamp
 	s.cfg.Difficulty = big.NewInt(int64(block.Difficulty))
 }
@@ -363,7 +363,7 @@ func (s *Solidity) Commit(block *yu_types.Block) {
 		return
 	}
 	block.StateRoot = AdaptHash(stateRoot)
-	s.gasPool.SetGas(0)
+	// s.gasPool.SetGas(0)
 }
 
 func (s *Solidity) buyGas(state vm.StateDB, req *TxRequest) error {
@@ -374,7 +374,8 @@ func (s *Solidity) buyGas(state vm.StateDB, req *TxRequest) error {
 	}
 	state.SubBalance(req.Origin, gasFeeU256, tracing.BalanceDecreaseGasBuy)
 	s.coinbaseReward.Add(gasFee.Uint64())
-	return s.gasPool.SubGas(req.GasLimit)
+	// return s.gasPool.SubGas(req.GasLimit)
+	return nil
 }
 
 func (s *Solidity) refundGas(state vm.StateDB, tx *TxRequest, gasUsed uint64) {
@@ -382,7 +383,7 @@ func (s *Solidity) refundGas(state vm.StateDB, tx *TxRequest, gasUsed uint64) {
 	refundFee := new(big.Int).Mul(tx.GasPrice, new(big.Int).SetUint64(remainGas))
 	refundFeeU256, _ := uint256.FromBig(refundFee)
 	state.AddBalance(tx.Origin, refundFeeU256, tracing.BalanceIncreaseGasReturn)
-	s.gasPool.AddGas(remainGas)
+	// s.gasPool.AddGas(remainGas)
 }
 
 func AdaptHash(ethHash common.Hash) yu_common.Hash {
