@@ -238,10 +238,10 @@ func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManag
 		log.Fatalf("Failed to get TokenA balance: %v", err)
 	}
 
-	//ethBalance, err := client.BalanceAt(context.Background(), common.HexToAddress(testUser[0].Address), nil)
-	//if err != nil {
-	//	log.Fatalf("Failed to get ETH balance: %v", err)
-	//}
+	ethBalance, err := client.BalanceAt(context.Background(), common.HexToAddress(testUser[0].Address), nil)
+	if err != nil {
+		log.Fatalf("Failed to get ETH balance: %v", err)
+	}
 	// Expect results
 	// Initial state
 	tokenAReserve := big.NewInt(1e12)
@@ -270,6 +270,8 @@ func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManag
 	if tokenABalance.Cmp(expectedTokenABalance) != 0 {
 		log.Fatalf("Expected user TokenA balance to be %s, but got %s", expectedTokenABalance.String(), tokenABalance.String())
 	}
+
+	log.Printf("gasFee cost: %d", expectedEthBalance.Sub(expectedEthBalance, ethBalance))
 
 	//if ethBalance.Cmp(expectedEthBalance) != 0 {
 	//	log.Fatalf("Expected user ETH balance to be %s, but got %s", expectedEthBalance.String(), ethBalance.String())
