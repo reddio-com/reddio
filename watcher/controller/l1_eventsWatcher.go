@@ -59,7 +59,6 @@ func (w *L1EventsWatcher) Run(cfg *evm.GethConfig, ctx context.Context) error {
 						continue
 					}
 					fmt.Println("msg as JSON:", string(jsonData))
-					fmt.Println("handleDownwardMessage")
 					w.handleDownwardMessage(msg)
 					fmt.Println("handleDownwardMessage end")
 				case subErr := <-sub.Err():
@@ -100,7 +99,6 @@ func (w *L1EventsWatcher) handleDownwardMessage(
 	if err != nil {
 		return err
 	}
-	//w.bridgeRelayer.handleDownwardMessageWithSystemCall(msg)
 	return nil
 }
 

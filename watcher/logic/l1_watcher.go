@@ -6,10 +6,6 @@ import (
 	"github.com/reddio-com/reddio/evm"
 )
 
-// for test
-const privateKey = "32e3b56c9f2763d2332e6e4188e4755815ac96441e899de121969845e343c2ff"
-const SolidityTripod = "solidity"
-
 type L1WatcherLogic struct {
 	cfg         *evm.GethConfig
 	client      *ethclient.Client
@@ -28,6 +24,5 @@ func NewL1WatcherLogic(cfg *evm.GethConfig, client *ethclient.Client) *L1Watcher
 		addressList: contractAddressList,
 		parser:      NewL1EventParser(cfg, client),
 	}
-
 	return f
 }

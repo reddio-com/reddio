@@ -41,7 +41,6 @@ func NewL2EventsWatcher(ctx context.Context, cfg *evm.GethConfig, ethClient *eth
 
 func (w *L2EventsWatcher) Run(cfg *evm.GethConfig, ctx context.Context) error {
 	upwardMsgChan := make(chan *contract.ChildBridgeCoreFacetUpwardMessage)
-	// Monitor L2 chain
 	if w.ethClient.Client().SupportsSubscriptions() {
 		sub, err := w.WatchUpwardMessageWss(ctx, upwardMsgChan, nil)
 		if err != nil {
@@ -117,7 +116,6 @@ func (w *L2EventsWatcher) WatchUpwardMessageWss(
 	return filterer.WatchUpwardMessage(&bind.WatchOpts{Context: ctx}, sink, sequence)
 }
 
-// TODO:make it more clear
 func (w *L2EventsWatcher) WatchUpwardMessageHttp(ctx context.Context,
 	sink chan<- *contract.ChildBridgeCoreFacetUpwardMessage,
 	sequence []*big.Int) error {
@@ -161,6 +159,7 @@ func (w *L2EventsWatcher) WatchUpwardMessageHttp(ctx context.Context,
 				}
 				select {
 				case sink <- upwardMessage:
+					w.bridgeRelayer.HandleUpwardMessage(upwardMessage)
 					fmt.Println("Event sent to sink channel")
 				case <-ctx.Done():
 					fmt.Println("Context done, stopping event processing")
