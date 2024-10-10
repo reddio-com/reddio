@@ -265,7 +265,13 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 		gasUsed, err = executeContractCall(ctx, txReq, pd, txReq.Origin, coinbase, vmenv, sender, rules)
 	}
 
-	s.refundGas(vmenv.StateDB, txReq, gasUsed)
+	if !rules.IsLondon {
+		// Before EIP-3529: refunds were capped to gasUsed / 2
+		s.refundGas(vmenv.StateDB, txReq, gasUsed, params.RefundQuotient)
+	} else {
+		// After EIP-3529: refunds are capped to gasUsed / 5
+		s.refundGas(vmenv.StateDB, txReq, gasUsed, params.RefundQuotientEIP3529)
+	}
 
 	if err != nil {
 		return err
@@ -378,8 +384,12 @@ func (s *Solidity) buyGas(state vm.StateDB, req *TxRequest) error {
 	return nil
 }
 
-func (s *Solidity) refundGas(state vm.StateDB, tx *TxRequest, gasUsed uint64) {
-	remainGas := tx.GasLimit - gasUsed
+func (s *Solidity) refundGas(state vm.StateDB, tx *TxRequest, gasUsed uint64, refundQuotient uint64) {
+	refund := gasUsed / refundQuotient
+	if refund > state.GetRefund() {
+		refund = state.GetRefund()
+	}
+	remainGas := tx.GasLimit - gasUsed + refund
 	refundFee := new(big.Int).Mul(tx.GasPrice, new(big.Int).SetUint64(remainGas))
 	refundFeeU256, _ := uint256.FromBig(refundFee)
 	state.AddBalance(tx.Origin, refundFeeU256, tracing.BalanceIncreaseGasReturn)
