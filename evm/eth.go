@@ -243,6 +243,11 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 
 	vmenv := newEVM_copy(cfg, txReq)
 	pd := pending_state.NewPendingState(txReq.Origin, ctx.ExtraInterface.(*state.StateDB))
+	// buy gas
+	err = s.buyGas(pd, txReq)
+	if err != nil {
+		return err
+	}
 
 	pd.SetTxContext(common.Hash(ctx.GetTxnHash()), ctx.TxnIndex)
 	vmenv.StateDB = pd
@@ -260,12 +265,7 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 		gasUsed, err = executeContractCall(ctx, txReq, pd, txReq.Origin, coinbase, vmenv, sender, rules)
 	}
 
-	// deducting gas fee
-	gasFee := new(big.Int).Mul(txReq.GasPrice, new(big.Int).SetUint64(gasUsed))
-	gasFeeU256, _ := uint256.FromBig(gasFee)
-	vmenv.StateDB.SubBalance(txReq.Origin, gasFeeU256, tracing.BalanceDecreaseGasBuy)
-	s.coinbaseReward.Add(gasFee.Uint64())
-	// vmenv.StateDB.AddBalance(coinbase, gasFeeU256, tracing.BalanceIncreaseRewardTransactionFee)
+	s.refundGas(vmenv.StateDB, txReq, gasUsed)
 
 	if err != nil {
 		return err
@@ -366,14 +366,23 @@ func (s *Solidity) Commit(block *yu_types.Block) {
 	s.gasPool.SetGas(0)
 }
 
-func (s *Solidity) buyGas(state state.StateDB, req *TxRequest) {
+func (s *Solidity) buyGas(state vm.StateDB, req *TxRequest) error {
 	gasFee := new(big.Int).Mul(req.GasPrice, new(big.Int).SetUint64(req.GasLimit))
 	gasFeeU256, _ := uint256.FromBig(gasFee)
+	if state.GetBalance(req.Origin).Cmp(gasFeeU256) < 0 {
+		return core.ErrInsufficientFunds
+	}
 	state.SubBalance(req.Origin, gasFeeU256, tracing.BalanceDecreaseGasBuy)
+	s.coinbaseReward.Add(gasFee.Uint64())
+	return s.gasPool.SubGas(req.GasLimit)
 }
 
-func (s *Solidity) refundGas(remainingGas, gasPrice *big.Int) {
-
+func (s *Solidity) refundGas(state vm.StateDB, tx *TxRequest, gasUsed uint64) {
+	remainGas := tx.GasLimit - gasUsed
+	refundFee := new(big.Int).Mul(tx.GasPrice, new(big.Int).SetUint64(remainGas))
+	refundFeeU256, _ := uint256.FromBig(refundFee)
+	state.AddBalance(tx.Origin, refundFeeU256, tracing.BalanceIncreaseGasReturn)
+	s.gasPool.AddGas(remainGas)
 }
 
 func AdaptHash(ethHash common.Hash) yu_common.Hash {
