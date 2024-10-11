@@ -2,13 +2,14 @@ package uniswap
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log"
 	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 
@@ -16,28 +17,12 @@ import (
 	"github.com/reddio-com/reddio/test/pkg"
 )
 
-type UniswapV2DeployedAccuracyContracts struct {
-	tokenAAddress                common.Address
-	tokenBAddress                common.Address
-	weth9Address                 common.Address
-	uniswapV2FactoryAddress      common.Address
-	uniswapV2Router01Address     common.Address
-	tokenATransaction            *types.Transaction
-	tokenBTransaction            *types.Transaction
-	weth9Transaction             *types.Transaction
-	uniswapV2FactoryTransaction  *types.Transaction
-	uniswapV2Router01Transaction *types.Transaction
-	tokenAInstance               *contracts.Token
-	tokenBInstance               *contracts.ERC20T
-	weth9Instance                *contracts.WETH9
-	uniswapV2FactoryInstance     *contracts.UniswapV2Factory
-	uniswapV2RouterInstance      *contracts.UniswapV2Router01
-}
-
 type UniswapV2AccuracyTestCase struct {
-	CaseName     string
-	walletCount  int
-	initialCount uint64
+	CaseName      string
+	walletCount   int
+	initialCount  uint64
+	testUsers     int
+	deployedUsers int
 }
 
 func (cd *UniswapV2AccuracyTestCase) Name() string {
@@ -46,20 +31,23 @@ func (cd *UniswapV2AccuracyTestCase) Name() string {
 
 func NewUniswapV2AccuracyTestCase(name string, count int, initial uint64) *UniswapV2AccuracyTestCase {
 	return &UniswapV2AccuracyTestCase{
-		CaseName:     name,
-		walletCount:  count,
-		initialCount: initial,
+		CaseName:      name,
+		walletCount:   count,
+		initialCount:  initial,
+		deployedUsers: 1,
+		testUsers:     2,
 	}
 }
 
 const swapTimes = 200
 
 func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManager) error {
-	//create a wallet for contract deployment
-	wallets, err := m.GenerateRandomWallets(1, 1e18)
+
+	preparedTestData, err := ca.Prepare(ctx, m)
 	if err != nil {
 		return err
 	}
+
 	client, err := ethclient.Dial("http://localhost:9092")
 	if err != nil {
 		log.Fatalf("Failed to connect to the Ethereum client: %v", err)
@@ -76,26 +64,8 @@ func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManag
 		log.Fatalf("Failed to suggest gas price: %v", err)
 	}
 
-	// set tx auth
-	privateKey, err := crypto.HexToECDSA(wallets[0].PK)
-	if err != nil {
-		log.Fatalf("Failed to parse private key: %v", err)
-	}
-	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(50341))
-	if err != nil {
-		log.Fatalf("Failed to create authorized transactor: %v", err)
-	}
-	auth.GasPrice = gasPrice
-	auth.GasLimit = uint64(60000000)
-
-	// deploy contracts
-	uniswapV2Contract, err := deployUniswapV2AccuracyContracts(auth, client)
-	if err != nil {
-		log.Fatalf("Failed to deploy contract: %v", err)
-	}
-
 	//Arrange :
-	testUser, err := m.GenerateRandomWallets(1, 1e18)
+	testUser := preparedTestData.TestUsers
 	if err != nil {
 		return err
 	}
@@ -108,77 +78,7 @@ func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManag
 		log.Fatalf("Failed to create authorized transactor: %v", err)
 	}
 	testUserAuth.GasPrice = gasPrice
-	testUserAuth.GasLimit = uint64(60000000)
-
-	amountApproved := big.NewInt(1e18)
-	tokenAApproveTx, err := uniswapV2Contract.tokenAInstance.Approve(auth, common.HexToAddress(uniswapV2Contract.uniswapV2Router01Address.Hex()), amountApproved)
-	if err != nil {
-		log.Fatalf("Failed to create approve transaction: %v", err)
-	}
-
-	isConfirmed, err := waitForConfirmation(client, tokenAApproveTx.Hash())
-	if err != nil {
-		log.Fatalf("Failed to confirm approve transaction: %v", err)
-	}
-	if !isConfirmed {
-		log.Fatalf("Approve transaction was not confirmed")
-	}
-	tokenAApproveTx, err = uniswapV2Contract.tokenAInstance.Approve(testUserAuth, common.HexToAddress(uniswapV2Contract.uniswapV2Router01Address.Hex()), amountApproved)
-	if err != nil {
-		log.Fatalf("Failed to create approve transaction: %v", err)
-	}
-
-	isConfirmed, err = waitForConfirmation(client, tokenAApproveTx.Hash())
-	if err != nil {
-		log.Fatalf("Failed to confirm approve transaction: %v", err)
-	}
-	if !isConfirmed {
-		log.Fatalf("Approve transaction was not confirmed")
-	}
-
-	WethAmountApproved := big.NewInt(1e18)
-	WethAApproveTx, err := uniswapV2Contract.weth9Instance.Approve(auth, common.HexToAddress(uniswapV2Contract.uniswapV2Router01Address.Hex()), WethAmountApproved)
-	if err != nil {
-		log.Fatalf("Failed to create approve transaction: %v", err)
-	}
-
-	isConfirmed, err = waitForConfirmation(client, WethAApproveTx.Hash())
-	if err != nil {
-		log.Fatalf("Failed to confirm approve transaction: %v", err)
-	}
-	if !isConfirmed {
-		log.Fatalf("Approve transaction was not confirmed")
-	}
-
-	WethAApproveTx, err = uniswapV2Contract.weth9Instance.Approve(testUserAuth, common.HexToAddress(uniswapV2Contract.uniswapV2Router01Address.Hex()), WethAmountApproved)
-	if err != nil {
-		log.Fatalf("Failed to create approve transaction: %v", err)
-	}
-
-	isConfirmed, err = waitForConfirmation(client, WethAApproveTx.Hash())
-	if err != nil {
-		log.Fatalf("Failed to confirm approve transaction: %v", err)
-	}
-	if !isConfirmed {
-		log.Fatalf("Approve transaction was not confirmed")
-	}
-
-	//add ETH liquidity
-	amountADesired := big.NewInt(1e18)
-	auth.Value = big.NewInt(1e18)
-
-	addLiquidityETHTx, err := uniswapV2Contract.uniswapV2RouterInstance.AddLiquidityETH(auth, uniswapV2Contract.tokenAAddress, amountADesired, big.NewInt(0), big.NewInt(0), common.HexToAddress(wallets[0].Address), big.NewInt(time.Now().Unix()+1000))
-	if err != nil {
-		log.Fatalf("Failed to create add liquidity transaction: %v", err)
-	}
-
-	isConfirmed, err = waitForConfirmation(client, addLiquidityETHTx.Hash())
-	if err != nil {
-		log.Fatalf("Failed to confirm add liquidity transaction: %v", err)
-	}
-	if !isConfirmed {
-		log.Fatalf("Add liquidity transaction was not confirmed")
-	}
+	testUserAuth.GasLimit = uint64(6e7)
 
 	// Perform  swaps
 	const maxRetries = 300
@@ -188,16 +88,16 @@ func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManag
 		Err   error
 	}
 	//Act
+	routeraddress := preparedTestData.TestContracts[0].UniswapV2Router
+	uniswapV2RouterInstance, err := contracts.NewUniswapV2Router01(routeraddress, client)
+	if err != nil {
+		log.Fatalf("Failed to get UniswapV2Router instance: %v", err)
+	}
+	swapPath := []common.Address{
+		preparedTestData.TestContracts[0].TokenPairs[0][0],
+		preparedTestData.TestContracts[0].TokenPairs[0][1],
+	}
 	for i := 0; i < swapTimes; i++ {
-		// Set swap parameters
-		testUserAuth.Value = big.NewInt(100)
-
-		//Get output amount
-		amounts, err := uniswapV2Contract.uniswapV2RouterInstance.GetAmountsOut(nil, big.NewInt(100), []common.Address{uniswapV2Contract.weth9Address, uniswapV2Contract.tokenAAddress})
-		if err != nil {
-			log.Fatalf("Failed to get amounts out: %v", err)
-		}
-		amountOut := amounts[len(amounts)-1]
 		// Execute swap operation
 		nonce, err := client.PendingNonceAt(context.Background(), common.HexToAddress(testUser[0].Address))
 		if err != nil {
@@ -205,7 +105,8 @@ func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManag
 		}
 
 		for j := 0; j < maxRetries; j++ {
-			swapETHForExactTokensTx, err := uniswapV2Contract.uniswapV2RouterInstance.SwapETHForExactTokens(testUserAuth, amountOut, []common.Address{uniswapV2Contract.weth9Address, uniswapV2Contract.tokenAAddress}, common.HexToAddress(testUser[0].Address), big.NewInt(time.Now().Unix()+1000))
+			//(testUserAuth, amountOut, []common.Address{preparedTestData.TestContracts[0].TokenPairs[0][0], preparedTestData.TestContracts[0].TokenPairs[0][1]}, common.HexToAddress(testUser[0].Address), big.NewInt(time.Now().Unix()+1000))
+			swapETHForExactTokensTx, err := uniswapV2RouterInstance.SwapExactTokensForTokens(testUserAuth, big.NewInt(100), big.NewInt(0), swapPath, common.HexToAddress(testUser[0].Address), big.NewInt(time.Now().Unix()+1000))
 			if err == nil {
 				// Wait for transaction confirmation
 				if i == (swapTimes - 1) {
@@ -233,124 +134,194 @@ func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManag
 	}
 
 	// Get account balance
-	tokenABalance, err := uniswapV2Contract.tokenAInstance.BalanceOf(nil, common.HexToAddress(testUser[0].Address))
+	token1ddress := preparedTestData.TestContracts[0].TokenPairs[0][0]
+	token1AddressInstance, err := contracts.NewToken(token1ddress, client)
 	if err != nil {
-		log.Fatalf("Failed to get TokenA balance: %v", err)
+		log.Fatalf("Failed to get Token1 instance: %v", err)
 	}
+	token2ddress := preparedTestData.TestContracts[0].TokenPairs[0][1]
+	token2AddressInstance, err := contracts.NewToken(token2ddress, client)
+	if err != nil {
+		log.Fatalf("Failed to get Token2 instance: %v", err)
+	}
+	token1Balance, err := token1AddressInstance.BalanceOf(nil, common.HexToAddress(testUser[0].Address))
+	if err != nil {
+		log.Fatalf("Failed to get Token1 balance: %v", err)
+	}
+	fmt.Printf("Token2 balance: %s\n", token1Balance.String())
 
-	ethBalance, err := client.BalanceAt(context.Background(), common.HexToAddress(testUser[0].Address), nil)
+	token2Balance, err := token2AddressInstance.BalanceOf(nil, common.HexToAddress(testUser[0].Address))
 	if err != nil {
-		log.Fatalf("Failed to get ETH balance: %v", err)
+		log.Fatalf("Failed to get Token2 balance: %v", err)
 	}
+	fmt.Printf("Token2 balance: %s\n", token2Balance.String())
 	// Expect results
 	// Initial state
-	tokenAReserve := big.NewInt(1e18)
-	ethReserve := big.NewInt(1e18)
-	k := new(big.Int).Mul(tokenAReserve, ethReserve)
+	token1Reserve := big.NewInt(1e18)
+	token2Reserve := big.NewInt(1e18)
+	k := new(big.Int).Mul(token1Reserve, token2Reserve)
 
 	// User initial state
-	expectedEthBalance := big.NewInt(1e18)
-	expectedTokenABalance := big.NewInt(0)
+	expectedToken1Balance := big.NewInt(1e18)
+	expectedToken2Balance := big.NewInt(1e18)
 
-	swapEth := big.NewInt(100)
+	swapToken := big.NewInt(100)
 
 	for i := 0; i < swapTimes; i++ {
-		eth2tokenAPrice := 99
-		tokenAReceived := big.NewInt(int64(eth2tokenAPrice))
+		token1toToken2Price := 99
+		token2Received := big.NewInt(int64(token1toToken2Price))
 
 		// Update reserves
-		ethReserve.Add(ethReserve, swapEth)
-		tokenAReserve.Sub(k, ethReserve)
+		token1Reserve.Add(token1Reserve, swapToken)
+		token2Reserve.Sub(k, token2Reserve)
 
 		// Update user balance
-		expectedEthBalance.Sub(expectedEthBalance, swapEth)
-		expectedTokenABalance.Add(expectedTokenABalance, tokenAReceived)
+		expectedToken1Balance.Sub(expectedToken1Balance, swapToken)
+		expectedToken2Balance.Add(expectedToken2Balance, token2Received)
 	}
 
-	if tokenABalance.Cmp(expectedTokenABalance) != 0 {
-		log.Fatalf("Expected user TokenA balance to be %s, but got %s", expectedTokenABalance.String(), tokenABalance.String())
+	// Print final reserves
+	fmt.Printf("Final token1Reserve: %s\n", token1Reserve.String())
+	fmt.Printf("Final token2Reserve: %s\n", token2Reserve.String())
+
+	if token1Balance.Cmp(expectedToken1Balance) != 0 {
+		log.Fatalf("Expected user TokenA balance to be %s, but got %s", expectedToken1Balance.String(), token1Balance.String())
 	}
 
-	if ethBalance.Cmp(expectedEthBalance) != 0 {
-		log.Fatalf("Expected user ETH balance to be %s, but got %s", expectedEthBalance.String(), ethBalance.String())
+	if token2Balance.Cmp(expectedToken2Balance) != 0 {
+		log.Fatalf("Expected user token2Balance balance to be %s, but got %s", expectedToken2Balance.String(), token2Balance.String())
 	}
 	return err
 }
 
-// deploy UniswapV2 Contracts
-func deployUniswapV2AccuracyContracts(auth *bind.TransactOpts, client *ethclient.Client) (*UniswapV2DeployedAccuracyContracts, error) {
-	var err error
-	deployed := &UniswapV2DeployedAccuracyContracts{}
-
-	// Deploy token A
-	deployed.tokenAAddress, deployed.tokenATransaction, deployed.tokenAInstance, err = contracts.DeployToken(auth, client)
+func (ca *UniswapV2AccuracyTestCase) prepareDeployerContract(deployerUser *pkg.EthWallet, testUsers []*pkg.EthWallet, gasPrice *big.Int, client *ethclient.Client) (UniswapV2Router common.Address, TokenPairs [][2]common.Address, err error) {
+	// set tx auth
+	privateKey, err := crypto.HexToECDSA(deployerUser.PK)
 	if err != nil {
-		return nil, err
+		return [20]byte{}, nil, fmt.Errorf("failed to parse private key: %v", err)
 	}
-
-	isConfirmed, err := waitForConfirmation(client, deployed.tokenATransaction.Hash())
+	depolyerAuth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(chainID))
 	if err != nil {
-		log.Fatalf("Failed to confirm transaction: %v", err)
+		return [20]byte{}, nil, fmt.Errorf("failed to create authorized transactor: %v", err)
+	}
+	depolyerAuth.GasPrice = gasPrice
+	depolyerAuth.GasLimit = uint64(6e7)
+	depolyerNonce, err := client.PendingNonceAt(context.Background(), common.HexToAddress(deployerUser.Address))
+	if err != nil {
+		return [20]byte{}, nil, fmt.Errorf("failed to get nonce: %v", err)
+	}
+	depolyerAuth.Nonce = big.NewInt(int64(depolyerNonce))
+	// deploy contracts
+	uniswapV2Contract, err := deployUniswapV2Contracts(depolyerAuth, client)
+	if err != nil {
+		return [20]byte{}, nil, fmt.Errorf("Failed to deploy contract: %v", err)
+	}
+	ERC20DeployedContracts, err := deployERC20Contracts(depolyerAuth, client, tokenContractNum)
+	if err != nil {
+		return [20]byte{}, nil, fmt.Errorf("Failed to deploy ERC20 contracts: %v", err)
+	}
+	lastIndex := len(ERC20DeployedContracts) - 1
+	isConfirmed, err := waitForConfirmation(client, ERC20DeployedContracts[lastIndex].tokenTransaction.Hash())
+	if err != nil {
+		return [20]byte{}, nil, fmt.Errorf("Failed to confirm approve transaction: %v", err)
 	}
 	if !isConfirmed {
-		log.Fatalf("Transaction was not confirmed")
+		return [20]byte{}, nil, fmt.Errorf("transaction was not confirmed")
 	}
-
-	// Deploy token B
-	deployed.tokenBAddress, deployed.tokenBTransaction, deployed.tokenBInstance, err = contracts.DeployERC20T(auth, client, "BBBToken", "BBB")
+	err = dispatchTestToken(client, depolyerAuth, ERC20DeployedContracts, testUsers, big.NewInt(accountInitialERC20Token))
 	if err != nil {
-		return nil, err
+		return [20]byte{}, nil, fmt.Errorf("failed to dispatch test tokens: %v", err)
 	}
+	var lastTxHash common.Hash
+	for _, contract := range ERC20DeployedContracts {
+		_, err := contract.tokenInstance.Approve(depolyerAuth, uniswapV2Contract.uniswapV2Router01Address, big.NewInt(approveAmount))
+		if err != nil {
+			return [20]byte{}, nil, fmt.Errorf("failed to create approve transaction for user %s: %v", deployerUser.Address, err)
+		}
 
-	isConfirmed, err = waitForConfirmation(client, deployed.tokenBTransaction.Hash())
+		depolyerAuth.Nonce = depolyerAuth.Nonce.Add(depolyerAuth.Nonce, big.NewInt(1))
+		for _, user := range testUsers {
+			testAuth, err := generateTestAuth(client, user, chainID, gasPrice, gasLimit)
+			if err != nil {
+				return [20]byte{}, nil, fmt.Errorf("failed to generate test auth for user %s: %v", user.Address, err)
+			}
+			tx, err := contract.tokenInstance.Approve(testAuth, uniswapV2Contract.uniswapV2Router01Address, big.NewInt(approveAmount))
+			if err != nil {
+				return [20]byte{}, nil, fmt.Errorf("failed to create approve transaction for user %s: %v", user.Address, err)
+			}
+			lastTxHash = tx.Hash()
+			//log.Printf("Approve transaction hash for user %s: %s", user.Address, tx.Hash().Hex())
+			testAuth.Nonce = testAuth.Nonce.Add(testAuth.Nonce, big.NewInt(1))
+		}
+	}
+	isConfirmed, err = waitForConfirmation(client, lastTxHash)
 	if err != nil {
-		log.Fatalf("Failed to confirm transaction: %v", err)
+		return [20]byte{}, nil, err
 	}
 	if !isConfirmed {
-		log.Fatalf("Transaction was not confirmed")
+		return [20]byte{}, nil, fmt.Errorf("transaction %s was not confirmed", lastTxHash.Hex())
 	}
-
-	// Deploy WETH9
-	deployed.weth9Address, deployed.weth9Transaction, deployed.weth9Instance, err = contracts.DeployWETH9(auth, client)
-	if err != nil {
-		return nil, err
+	tokenPairs := generateTokenPairs(ERC20DeployedContracts)
+	//add liquidity
+	for _, pair := range tokenPairs {
+		addLiquidityTx, err := uniswapV2Contract.uniswapV2RouterInstance.AddLiquidity(
+			depolyerAuth,
+			pair[0],
+			pair[1],
+			big.NewInt(amountADesired),
+			big.NewInt(amountBDesired),
+			big.NewInt(0),
+			big.NewInt(0),
+			common.HexToAddress(deployerUser.Address),
+			big.NewInt(time.Now().Unix()+1000),
+		)
+		if err != nil {
+			return [20]byte{}, nil, fmt.Errorf("failed to create add liquidity transaction for pair %s - %s: %v", pair[0].Hex(), pair[1].Hex(), err)
+		}
+		depolyerAuth.Nonce = depolyerAuth.Nonce.Add(depolyerAuth.Nonce, big.NewInt(1))
+		lastTxHash = addLiquidityTx.Hash()
 	}
-
-	isConfirmed, err = waitForConfirmation(client, deployed.weth9Transaction.Hash())
+	isConfirmed, err = waitForConfirmation(client, lastTxHash)
 	if err != nil {
-		log.Fatalf("Failed to confirm transaction: %v", err)
+		return [20]byte{}, nil, fmt.Errorf("failed to confirm add liquidity transaction: %v", err)
 	}
 	if !isConfirmed {
-		log.Fatalf("Transaction was not confirmed")
+		return [20]byte{}, nil, errors.New("add liquidity transaction was not confirmed")
 	}
+	return uniswapV2Contract.uniswapV2Router01Address, tokenPairs, nil
+}
 
-	// Deploy UniswapV2Factory
-	deployed.uniswapV2FactoryAddress, deployed.uniswapV2FactoryTransaction, deployed.uniswapV2FactoryInstance, err = contracts.DeployUniswapV2Factory(auth, client, auth.From)
+func (ca *UniswapV2AccuracyTestCase) Prepare(ctx context.Context, m *pkg.WalletManager) (TestData, error) {
+	deployerUsers, err := m.GenerateRandomWallets(ca.deployedUsers, accountInitialFunds)
 	if err != nil {
-		return nil, err
+		return TestData{}, fmt.Errorf("failed to generate deployer user: %v", err.Error())
 	}
-
-	isConfirmed, err = waitForConfirmation(client, deployed.uniswapV2FactoryTransaction.Hash())
+	testUsers, err := m.GenerateRandomWallets(ca.testUsers, accountInitialFunds)
 	if err != nil {
-		log.Fatalf("Failed to confirm transaction: %v", err)
+		return TestData{}, fmt.Errorf("failed to generate test users: %v", err)
 	}
-	if !isConfirmed {
-		log.Fatalf("Transaction was not confirmed")
-	}
-
-	// Deploy UniswapV2Router01
-	deployed.uniswapV2Router01Address, deployed.uniswapV2Router01Transaction, deployed.uniswapV2RouterInstance, err = contracts.DeployUniswapV2Router01(auth, client, deployed.uniswapV2FactoryAddress, deployed.weth9Address)
+	client, err := ethclient.Dial(nodeUrl)
 	if err != nil {
-		return nil, err
+		return TestData{}, fmt.Errorf("failed to connect to the Ethereum client: %v", err)
 	}
+	defer client.Close()
 
-	isConfirmed, err = waitForConfirmation(client, deployed.uniswapV2Router01Transaction.Hash())
+	// get gas price
+	gasPrice, err := client.SuggestGasPrice(context.Background())
 	if err != nil {
-		log.Fatalf("Failed to confirm transaction: %v", err)
+		return TestData{}, fmt.Errorf("failed to suggest gas price: %v", err)
 	}
-	if !isConfirmed {
-		log.Fatalf("Transaction was not confirmed")
+	preparedTestData := TestData{
+		TestUsers:     testUsers,
+		TestContracts: make([]TestContract, 0),
+	}
+	for _, deployerUser := range deployerUsers {
+		router, tokenPairs, err := ca.prepareDeployerContract(deployerUser, testUsers, gasPrice, client)
+		if err != nil {
+			return TestData{}, fmt.Errorf("prepare contract failed, err:%v", err)
+		}
+		preparedTestData.TestContracts = append(preparedTestData.TestContracts, TestContract{router, tokenPairs})
 	}
 
-	return deployed, nil
+	return preparedTestData, nil
 }

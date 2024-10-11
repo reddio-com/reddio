@@ -246,30 +246,6 @@ func (cd *UniswapV2TPSStatisticsTestCase) executeTest(nodeUrl string, chainID in
 
 }
 
-func dispatchTestToken(client *ethclient.Client, ownerAuth *bind.TransactOpts, ERC20DeployedContracts []*ERC20DeployedContract, testUsers []*pkg.EthWallet, accountInitialERC20Token *big.Int) error {
-	var lastTxHash common.Hash
-	for _, contract := range ERC20DeployedContracts {
-		for _, user := range testUsers {
-			amount := accountInitialERC20Token
-			tx, err := contract.tokenInstance.Transfer(ownerAuth, common.HexToAddress(user.Address), amount)
-			if err != nil {
-				return err
-			}
-			lastTxHash = tx.Hash()
-			ownerAuth.Nonce = ownerAuth.Nonce.Add(ownerAuth.Nonce, big.NewInt(1))
-		}
-	}
-
-	isConfirmed, err := waitForConfirmation(client, lastTxHash)
-	if err != nil {
-		return err
-	}
-	if !isConfirmed {
-		return fmt.Errorf("transaction %s was not confirmed", lastTxHash.Hex())
-	}
-	return nil
-}
-
 func generateTokenPairs(contracts []*ERC20DeployedContract) [][2]common.Address {
 	var pairs [][2]common.Address
 	for i := 0; i < len(contracts); i++ {
