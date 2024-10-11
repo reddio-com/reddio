@@ -38,12 +38,12 @@ func (ot *orderedTxns) Insert(input *SignedTxn) {
 func (ot *orderedTxns) Take(numLimit uint64) []*SignedTxn {
 	ot.Lock()
 	defer ot.Unlock()
-	if numLimit > uint64(ot.Size()) {
-		numLimit = uint64(ot.Size())
+	if numLimit > uint64(len(ot.txns)) {
+		numLimit = uint64(len(ot.txns))
 	}
 	takes := ot.txns[:numLimit]
 	// delete
-	if numLimit >= uint64(ot.Size()) {
+	if numLimit >= uint64(len(ot.txns)) {
 		ot.txns = make([]*SignedTxn, 0)
 	} else {
 		ot.txns = ot.txns[numLimit:]
