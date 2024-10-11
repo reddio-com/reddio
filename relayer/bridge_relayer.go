@@ -326,8 +326,8 @@ func (b *BridgeRelayer) HandleUpwardMessage(msg *contract.ChildBridgeCoreFacetUp
 	if err != nil {
 		log.Fatalf("Failed to create authorized transactor: %v", err)
 	}
-	//for test ,make  msg.Sequence to 0////
-	msg.Sequence = big.NewInt(1)
+	//for test ,set  msg.Sequence manually///
+	//msg.Sequence = big.NewInt(1)
 	////////////////////////////////////////
 
 	upwardMessages := []contract.UpwardMessage{
