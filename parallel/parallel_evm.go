@@ -10,6 +10,7 @@ import (
 	"github.com/yu-org/yu/core/tripod"
 
 	"github.com/ethereum/go-ethereum/core/state"
+
 	"github.com/yu-org/yu/common"
 	"github.com/yu-org/yu/core/context"
 	"github.com/yu-org/yu/core/tripod/dev"
@@ -46,6 +47,7 @@ func (k *ParallelEVM) Execute(block *types.Block) error {
 	start := time.Now()
 	defer func() {
 		statManager.ExecuteDuration = time.Since(start)
+		statManager.UpdateMetrics()
 	}()
 	txnCtxList, receipts := k.prepareTxnList(block, statManager)
 	got := k.splitTxnCtxList(txnCtxList)
