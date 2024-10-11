@@ -189,12 +189,13 @@ func (h *Poa) StartBlock(block *types.Block) {
 		err  error
 	)
 
-	if h.MevLess != nil {
-		txns, err = h.MevLess.Pack(block.Height, h.packNum)
-	} else {
-		txns, err = h.Pool.Pack(h.packNum)
-	}
+	//if h.MevLess != nil {
+	//	txns, err = h.MevLess.Pack(block.Height, h.packNum)
+	//} else {
+	//	txns, err = h.Pool.Pack(h.packNum)
+	//}
 
+	txns, err = h.Pool.Take(h.packNum)
 	if err != nil {
 		logrus.Panic("pack txns from pool: ", err)
 	}
@@ -248,10 +249,10 @@ func (h *Poa) EndBlock(block *types.Block) {
 	}
 	// fmt.Println("execute block last: ", time.Since(now).String())
 
-	err = h.Pool.Reset(block.Txns)
-	if err != nil {
-		logrus.Panic("reset pool failed: ", err)
-	}
+	//err = h.Pool.Reset(block.Txns)
+	//if err != nil {
+	//	logrus.Panic("reset pool failed: ", err)
+	//}
 
 	// log.PlusLog().Info(fmt.Sprintf("append block, height=%d, hash=%s", block.Height, block.Hash.String()))
 

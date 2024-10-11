@@ -35,6 +35,25 @@ func (ot *orderedTxns) Insert(input *SignedTxn) {
 	ot.txns = append(ot.txns, input)
 }
 
+func (ot *orderedTxns) Take(numLimit uint64) []*SignedTxn {
+	ot.Lock()
+	defer ot.Unlock()
+	if numLimit > uint64(ot.Size()) {
+		numLimit = uint64(ot.Size())
+	}
+	takes := ot.txns[:numLimit]
+	// delete
+	if numLimit >= uint64(ot.Size()) {
+		ot.txns = make([]*SignedTxn, 0)
+	} else {
+		ot.txns = ot.txns[numLimit:]
+	}
+	for _, take := range takes {
+		delete(ot.idx, take.TxnHash)
+	}
+	return takes
+}
+
 func (ot *orderedTxns) SetOrder(order map[int]Hash) {
 	panic("implement me")
 	//for i, hash := range order {

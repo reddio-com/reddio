@@ -114,6 +114,10 @@ func (tp *TxPool) GetAllTxns() ([]*SignedTxn, error) {
 	return tp.unpackedTxns.GetAll(), nil
 }
 
+func (tp *TxPool) Take(numLimit uint64) ([]*SignedTxn, error) {
+	return tp.unpackedTxns.Take(numLimit), nil
+}
+
 func (tp *TxPool) Pack(numLimit uint64) ([]*SignedTxn, error) {
 	return tp.PackFor(numLimit, func(*SignedTxn) bool {
 		return true
