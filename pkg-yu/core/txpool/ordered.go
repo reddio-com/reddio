@@ -41,7 +41,8 @@ func (ot *orderedTxns) Take(numLimit uint64) []*SignedTxn {
 	if numLimit > uint64(len(ot.txns)) {
 		numLimit = uint64(len(ot.txns))
 	}
-	takes := ot.txns[:numLimit]
+	takes := make([]*SignedTxn, numLimit)
+	copy(takes, ot.txns[:numLimit])
 	// delete
 	if numLimit >= uint64(len(ot.txns)) {
 		ot.txns = make([]*SignedTxn, 0)
