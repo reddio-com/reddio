@@ -3,7 +3,8 @@ package ethrpc
 import (
 	"context"
 	"encoding/json"
-	"errors"
+	"github.com/pkg/errors"
+
 	"log"
 	"math/big"
 	"time"
@@ -328,16 +329,17 @@ func (e *EthAPIBackend) Call(ctx context.Context, args TransactionArgs, blockNrO
 
 func (e *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction) error {
 	// Check if this tx has been created
-	exist, _, _, _, _, err := e.GetTransaction(ctx, signedTx.Hash())
+	signedTxHash := signedTx.Hash()
+	exist, _, _, _, _, err := e.GetTransaction(ctx, signedTxHash)
 	if err != nil {
 		return err
 	}
 	if exist {
-		return evm.ErrAlreadyKnown
+		return errors.Errorf("tx(%s) already known onchain", signedTxHash.String())
 	}
-	existedTx := e.GetPoolTransaction(signedTx.Hash())
+	existedTx := e.GetPoolTransaction(signedTxHash)
 	if existedTx != nil {
-		return evm.ErrAlreadyKnown
+		return errors.Errorf("tx(%s) already known in txpool", signedTxHash.String())
 	}
 
 	// Create Tx
