@@ -52,6 +52,9 @@ reset:
 clean:
 	rm -f $(PROJECT)
 
+clean_tests:
+	rm uniswap_test benchmark_test
+
 clean_test_data:
 	@if [ -d "test/tmp" ]; then \
 		echo "Deleting 'test/tmp' directory..."; \

@@ -64,7 +64,7 @@ type Backend interface {
 	Call(ctx context.Context, args TransactionArgs, blockNrOrHash *rpc.BlockNumberOrHash, overrides *StateOverride, blockOverrides *BlockOverrides) (hexutil.Bytes, error)
 	GetTransaction(ctx context.Context, txHash common.Hash) (bool, *types.Transaction, common.Hash, uint64, uint64, error)
 	GetPoolTransactions() (types.Transactions, error)
-	GetPoolTransaction(txHash common.Hash) *types.Transaction
+	GetPoolTransaction(txHash common.Hash) (*types.Transaction, error)
 	GetPoolNonce(ctx context.Context, addr common.Address) (uint64, error)
 	Stats() (pending int, queued int)
 	TxPoolContent() (map[common.Address][]*types.Transaction, map[common.Address][]*types.Transaction)
