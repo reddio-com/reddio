@@ -5,9 +5,11 @@ import (
 
 	"encoding/hex"
 	"encoding/json"
+	"github.com/ethereum/go-ethereum/core/tracing"
 	"math/big"
 	"net/http"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/ethereum/go-ethereum/ethdb"
@@ -41,6 +43,9 @@ type Solidity struct {
 	ethState    *EthState
 	cfg         *GethConfig
 	stateConfig *yuConfig.Config
+
+	// gasPool        *core.GasPool
+	coinbaseReward atomic.Uint64
 }
 
 func (s *Solidity) StateDB() *state.StateDB {
@@ -167,7 +172,8 @@ func (s *Solidity) StartBlock(block *yu_types.Block) {
 	s.Lock()
 	defer s.Unlock()
 	s.cfg.BlockNumber = big.NewInt(int64(block.Height))
-	//s.cfg.GasLimit =
+	//s.gasPool = new(core.GasPool).AddGas(block.LeiLimit)
+	s.cfg.GasLimit = block.LeiLimit
 	s.cfg.Time = block.Timestamp
 	s.cfg.Difficulty = big.NewInt(int64(block.Difficulty))
 }
@@ -237,6 +243,11 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 
 	vmenv := newEVM_copy(cfg, txReq)
 	pd := pending_state.NewPendingState(txReq.Origin, ctx.ExtraInterface.(*state.StateDB))
+	// buy gas
+	err = s.buyGas(pd, txReq)
+	if err != nil {
+		return err
+	}
 
 	pd.SetTxContext(common.Hash(ctx.GetTxnHash()), ctx.TxnIndex)
 	vmenv.StateDB = pd
@@ -247,10 +258,19 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 	rules := cfg.ChainConfig.Rules(vmenv.Context.BlockNumber, vmenv.Context.Random != nil, vmenv.Context.Time)
 	//s.Unlock()
 
+	var gasUsed uint64
 	if txReq.Address == nil {
-		err = executeContractCreation(ctx, txReq, pd, txReq.Origin, coinbase, vmenv, sender, rules)
+		gasUsed, err = executeContractCreation(ctx, txReq, pd, txReq.Origin, coinbase, vmenv, sender, rules)
 	} else {
-		err = executeContractCall(ctx, txReq, pd, txReq.Origin, coinbase, vmenv, sender, rules)
+		gasUsed, err = executeContractCall(ctx, txReq, pd, txReq.Origin, coinbase, vmenv, sender, rules)
+	}
+
+	if !rules.IsLondon {
+		// Before EIP-3529: refunds were capped to gasUsed / 2
+		s.refundGas(vmenv.StateDB, txReq, gasUsed, params.RefundQuotient)
+	} else {
+		// After EIP-3529: refunds are capped to gasUsed / 5
+		s.refundGas(vmenv.StateDB, txReq, gasUsed, params.RefundQuotientEIP3529)
 	}
 
 	if err != nil {
@@ -337,6 +357,11 @@ func (s *Solidity) Call(ctx *context.ReadContext) {
 func (s *Solidity) Commit(block *yu_types.Block) {
 	s.Lock()
 	defer s.Unlock()
+
+	// reward coinbase
+	s.ethState.AddBalance(s.cfg.Coinbase, uint256.NewInt(s.coinbaseReward.Load()), tracing.BalanceIncreaseRewardTransactionFee)
+	s.coinbaseReward.Store(0)
+
 	blockNumber := uint64(block.Height)
 	stateRoot, err := s.ethState.Commit(blockNumber)
 	if err != nil {
@@ -344,6 +369,31 @@ func (s *Solidity) Commit(block *yu_types.Block) {
 		return
 	}
 	block.StateRoot = AdaptHash(stateRoot)
+	// s.gasPool.SetGas(0)
+}
+
+func (s *Solidity) buyGas(state vm.StateDB, req *TxRequest) error {
+	gasFee := new(big.Int).Mul(req.GasPrice, new(big.Int).SetUint64(req.GasLimit))
+	gasFeeU256, _ := uint256.FromBig(gasFee)
+	if state.GetBalance(req.Origin).Cmp(gasFeeU256) < 0 {
+		return core.ErrInsufficientFunds
+	}
+	state.SubBalance(req.Origin, gasFeeU256, tracing.BalanceDecreaseGasBuy)
+	s.coinbaseReward.Add(gasFee.Uint64())
+	// return s.gasPool.SubGas(req.GasLimit)
+	return nil
+}
+
+func (s *Solidity) refundGas(state vm.StateDB, tx *TxRequest, gasUsed uint64, refundQuotient uint64) {
+	refund := gasUsed / refundQuotient
+	if refund > state.GetRefund() {
+		refund = state.GetRefund()
+	}
+	remainGas := tx.GasLimit - gasUsed + refund
+	refundFee := new(big.Int).Mul(tx.GasPrice, new(big.Int).SetUint64(remainGas))
+	refundFeeU256, _ := uint256.FromBig(refundFee)
+	state.AddBalance(tx.Origin, refundFeeU256, tracing.BalanceIncreaseGasReturn)
+	// s.gasPool.AddGas(remainGas)
 }
 
 func AdaptHash(ethHash common.Hash) yu_common.Hash {
@@ -352,7 +402,7 @@ func AdaptHash(ethHash common.Hash) yu_common.Hash {
 	return yuHash
 }
 
-func executeContractCreation(ctx *context.WriteContext, txReq *TxRequest, stateDB *pending_state.PendingState, origin, coinBase common.Address, vmenv *vm.EVM, sender vm.AccountRef, rules params.Rules) error {
+func executeContractCreation(ctx *context.WriteContext, txReq *TxRequest, stateDB *pending_state.PendingState, origin, coinBase common.Address, vmenv *vm.EVM, sender vm.AccountRef, rules params.Rules) (uint64, error) {
 	//if cfg.EVMConfig.Tracer != nil && cfg.EVMConfig.Tracer.OnTxStart != nil {
 	//	cfg.EVMConfig.Tracer.OnTxStart(vmenv.GetVMContext(), types.NewTx(&types.LegacyTx{Data: txReq.Input, Value: txReq.Value, Gas: txReq.GasLimit}), txReq.Origin)
 	//}
@@ -364,11 +414,11 @@ func executeContractCreation(ctx *context.WriteContext, txReq *TxRequest, stateD
 		// byt, _ := json.Marshal(txReq)
 		//logrus.Printf("[Execute Txn] Create contract Failed. err = %v. Request = %v", err, string(byt))
 		_ = emitReceipt(ctx, vmenv, txReq, code, address, leftOverGas, err)
-		return err
+		return 0, err
 	}
 
 	//logrus.Printf("[Execute Txn] Create contract success. Oringin code = %v, Hex Code = %v, Address = %v, Left Gas = %v", code, hex.EncodeToString(code), address.Hex(), leftOverGas)
-	return emitReceipt(ctx, vmenv, txReq, code, address, leftOverGas, err)
+	return txReq.GasLimit - leftOverGas, emitReceipt(ctx, vmenv, txReq, code, address, leftOverGas, err)
 }
 
 func makeEvmReceipt(ctx *context.WriteContext, vmEvm *vm.EVM, code []byte, signedTx *yu_types.SignedTxn, block *yu_types.Block, address common.Address, leftOverGas uint64, err error) *types.Receipt {
@@ -439,7 +489,7 @@ func makeEvmReceipt(ctx *context.WriteContext, vmEvm *vm.EVM, code []byte, signe
 	return receipt
 }
 
-func executeContractCall(ctx *context.WriteContext, txReq *TxRequest, ethState *pending_state.PendingState, origin, coinBase common.Address, vmenv *vm.EVM, sender vm.AccountRef, rules params.Rules) error {
+func executeContractCall(ctx *context.WriteContext, txReq *TxRequest, ethState *pending_state.PendingState, origin, coinBase common.Address, vmenv *vm.EVM, sender vm.AccountRef, rules params.Rules) (uint64, error) {
 	ethState.Prepare(rules, origin, coinBase, txReq.Address, vm.ActivePrecompiles(rules), nil)
 	ethState.SetNonce(txReq.Origin, ethState.GetNonce(sender.Address())+1)
 
@@ -451,11 +501,11 @@ func executeContractCall(ctx *context.WriteContext, txReq *TxRequest, ethState *
 		//byt, _ := json.Marshal(txReq)
 		//logrus.Printf("[Execute Txn] SendTx Failed. err = %v. Request = %v", err, string(byt))
 		_ = emitReceipt(ctx, vmenv, txReq, code, common.Address{}, leftOverGas, err)
-		return err
+		return 0, err
 	}
 
 	//logrus.Printf("[Execute Txn] SendTx success. Oringin code = %v, Hex Code = %v, Left Gas = %v", code, hex.EncodeToString(code), leftOverGas)
-	return emitReceipt(ctx, vmenv, txReq, code, common.Address{}, leftOverGas, err)
+	return txReq.GasLimit - leftOverGas, emitReceipt(ctx, vmenv, txReq, code, common.Address{}, leftOverGas, err)
 }
 
 func (s *Solidity) StateAt(root common.Hash) (*state.StateDB, error) {
