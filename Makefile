@@ -52,6 +52,9 @@ reset:
 clean:
 	rm -f $(PROJECT)
 
+clean_tests:
+	rm uniswap_test benchmark_test
+
 clean_test_data:
 	@if [ -d "test/tmp" ]; then \
 		echo "Deleting 'test/tmp' directory..."; \
@@ -107,9 +110,3 @@ clean_bindings:
 	rm -f $(ERC20T_GO) $(TOKEN_GO) $(WETH9_GO) $(UNISWAPV2FACTORY_GO) $(UNISWAPV2ROUTER01_GO)
 
 
-
-# only for local test
-resetAndBuildAndStart:
-	make reset
-	make build
-	./reddio
