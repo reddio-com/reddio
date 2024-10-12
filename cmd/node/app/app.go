@@ -70,6 +70,10 @@ func startPromServer() {
 func StartupEventsWatcher(chain *kernel.Kernel, cfg *evm.GethConfig) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
+	if !cfg.EnableL1Client || !cfg.EnableL2Client {
+		logrus.Info("no client enabled, stop init watcher")
+		return
+	}
 
 	l1Client, err := ethclient.Dial(cfg.L1ClientAddress)
 	if err != nil {

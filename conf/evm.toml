@@ -4,8 +4,8 @@ eth_port = "9092"
 
 
 # [Module:EventsWatcher]
-enable_l1_client = true
-enable_l2_client = true
+enable_l1_client = false
+enable_l2_client = false
 # note: need websocket rpc to listen to the L1 event
 l1_client_address = ""
 # use your own infura address
