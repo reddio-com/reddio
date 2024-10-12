@@ -1144,7 +1144,11 @@ func (s *TransactionAPI) GetTransactionByHash(ctx context.Context, hash common.H
 		}
 
 		// No finalized transaction, try to retrieve it from the pool
-		if tx := s.b.GetPoolTransaction(hash); tx != nil {
+		tx, err = s.b.GetPoolTransaction(hash)
+		if err != nil {
+			return nil, err
+		}
+		if tx != nil {
 			return NewRPCPendingTransaction(tx, s.b.CurrentHeader(), s.b.ChainConfig()), nil
 		}
 
@@ -1174,7 +1178,11 @@ func (s *TransactionAPI) GetRawTransactionByHash(ctx context.Context, hash commo
 			return nil, err
 		}
 
-		if tx = s.b.GetPoolTransaction(hash); tx != nil {
+		tx, err = s.b.GetPoolTransaction(hash)
+		if err != nil {
+			return nil, err
+		}
+		if tx != nil {
 			return tx.MarshalBinary()
 		}
 		if err != nil {
@@ -1326,7 +1334,7 @@ func (s *TransactionAPI) FillTransaction(ctx context.Context, args TransactionAr
 func (s *TransactionAPI) SendRawTransaction(ctx context.Context, input hexutil.Bytes) (txHash common.Hash, err error) {
 	defer func() {
 		if err != nil {
-			logrus.Warning("SendRawTransaction failed: ", err)
+			logrus.Error("SendRawTransaction failed: ", err)
 		}
 	}()
 	tx := new(types.Transaction)
@@ -1511,8 +1519,11 @@ func (api *DebugAPI) GetRawTransaction(ctx context.Context, hash common.Hash) (h
 		if err != nil && !errors.Is(err, evm.ErrNotFoundReceipt) {
 			return nil, err
 		}
-
-		if tx = api.b.GetPoolTransaction(hash); tx != nil {
+		tx, err = api.b.GetPoolTransaction(hash)
+		if err != nil {
+			return nil, err
+		}
+		if tx != nil {
 			return tx.MarshalBinary()
 		}
 		if err != nil {

@@ -169,7 +169,11 @@ func (e *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumbe
 	if err != nil {
 		return nil, nil, err
 	}
-	return e.compactBlock2EthBlock(yuBlock), yuBlock, err
+	block, err := e.compactBlock2EthBlock(yuBlock)
+	if err != nil {
+		return nil, nil, err
+	}
+	return block, yuBlock, err
 }
 
 func (e *EthAPIBackend) BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, *yutypes.Block, error) {
@@ -177,7 +181,11 @@ func (e *EthAPIBackend) BlockByHash(ctx context.Context, hash common.Hash) (*typ
 	if err != nil {
 		return nil, nil, err
 	}
-	return e.compactBlock2EthBlock(yuBlock), yuBlock, err
+	block, err := e.compactBlock2EthBlock(yuBlock)
+	if err != nil {
+		return nil, nil, err
+	}
+	return block, yuBlock, err
 }
 
 func (e *EthAPIBackend) BlockByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Block, *yutypes.Block, error) {
@@ -337,7 +345,10 @@ func (e *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction)
 	if exist {
 		return errors.Errorf("tx(%s) already known onchain", signedTxHash.String())
 	}
-	existedTx := e.GetPoolTransaction(signedTxHash)
+	existedTx, err := e.GetPoolTransaction(signedTxHash)
+	if err != nil {
+		return err
+	}
 	if existedTx != nil {
 		return errors.Errorf("tx(%s) already known in txpool", signedTxHash.String())
 	}
@@ -381,26 +392,23 @@ func (e *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction)
 	return e.chain.HandleTxn(signedWrCall)
 }
 
-func YuTxn2EthTxn(yuSignedTxn *yutypes.SignedTxn) *types.Transaction {
+func YuTxn2EthTxn(yuSignedTxn *yutypes.SignedTxn) (*types.Transaction, error) {
 	// Un-serialize wrCall.params to retrive datas:
 	wrCallParams := yuSignedTxn.Raw.WrCall.Params
 	var txReq = &evm.TxRequest{}
-	json.Unmarshal([]byte(wrCallParams), txReq)
-
-	nonce := hexutil.Uint64(txReq.Nonce)
-	gas := hexutil.Uint64(txReq.GasLimit)
-	data := hexutil.Bytes(txReq.Input)
-	txArgs := &TransactionArgs{
-		Nonce:    &nonce,
-		To:       txReq.Address,
-		Gas:      &gas,
-		GasPrice: (*hexutil.Big)(txReq.GasPrice),
-		Value:    (*hexutil.Big)(txReq.Value),
-		Data:     &data,
+	err := json.Unmarshal([]byte(wrCallParams), txReq)
+	if err != nil {
+		return nil, err
 	}
-	json.Unmarshal(txReq.OriginArgs, txArgs)
+
+	// if nonce is assigned to signedTx.Raw.Nonce, then this is ok; otherwise it's nil:
+	txArgs := &TransactionArgs{}
+	err = json.Unmarshal(txReq.OriginArgs, txArgs)
+	if err != nil {
+		return nil, err
+	}
 	tx := txArgs.ToTransaction(txReq.V, txReq.R, txReq.S)
-	return tx
+	return tx, nil
 }
 
 func (e *EthAPIBackend) GetTransaction(ctx context.Context, txHash common.Hash) (bool, *types.Transaction, common.Hash, uint64, uint64, error) {
@@ -409,7 +417,10 @@ func (e *EthAPIBackend) GetTransaction(ctx context.Context, txHash common.Hash) 
 	if err != nil || stxn == nil {
 		return false, nil, common.Hash{}, 0, 0, err
 	}
-	ethTxn := YuTxn2EthTxn(stxn)
+	ethTxn, err := YuTxn2EthTxn(stxn)
+	if err != nil {
+		return false, nil, common.Hash{}, 0, 0, err
+	}
 
 	rcptReq := &evm.ReceiptRequest{Hash: txHash}
 	resp, err := e.adaptChainRead(rcptReq, "GetReceipt")
@@ -463,7 +474,10 @@ func (e *EthAPIBackend) GetPoolTransactions() (types.Transactions, error) {
 	var ethTxns []*types.Transaction
 
 	for _, yuSignedTxn := range stxn {
-		ethTxn := YuTxn2EthTxn(yuSignedTxn)
+		ethTxn, err := YuTxn2EthTxn(yuSignedTxn)
+		if err != nil {
+			return nil, err
+		}
 		ethTxns = append(ethTxns, ethTxn)
 	}
 
@@ -471,11 +485,12 @@ func (e *EthAPIBackend) GetPoolTransactions() (types.Transactions, error) {
 }
 
 // Similar to GetTransaction():
-func (e *EthAPIBackend) GetPoolTransaction(txHash common.Hash) *types.Transaction {
+func (e *EthAPIBackend) GetPoolTransaction(txHash common.Hash) (*types.Transaction, error) {
 	stxn, err := e.chain.Pool.GetTxn(yucommon.Hash(txHash)) // will not return error here
 	if err != nil || stxn == nil {
-		return nil
+		return nil, err
 	}
+
 	return YuTxn2EthTxn(stxn)
 }
 
@@ -592,14 +607,17 @@ func yuHeader2EthHeader(yuHeader *yutypes.Header) *types.Header {
 	}
 }
 
-func (e *EthAPIBackend) compactBlock2EthBlock(yuBlock *yutypes.Block) *types.Block {
+func (e *EthAPIBackend) compactBlock2EthBlock(yuBlock *yutypes.Block) (*types.Block, error) {
 	header := yuHeader2EthHeader(yuBlock.Header)
 
 	// Generate transactions and receipts
 	var ethTxs []*types.Transaction
 	var txHashes []common.Hash
 	for _, yuSignedTxn := range yuBlock.Txns {
-		tx := YuTxn2EthTxn(yuSignedTxn)
+		tx, err := YuTxn2EthTxn(yuSignedTxn)
+		if err != nil {
+			return nil, err
+		}
 		ethTxs = append(ethTxs, tx)
 		txHashes = append(txHashes, tx.Hash())
 	}
@@ -618,7 +636,7 @@ func (e *EthAPIBackend) compactBlock2EthBlock(yuBlock *yutypes.Block) *types.Blo
 		}
 	}
 
-	return types.NewBlock(header, ethTxs, nil, receipts, trie.NewStackTrie(nil))
+	return types.NewBlock(header, ethTxs, nil, receipts, trie.NewStackTrie(nil)), nil
 }
 
 func (e *EthAPIBackend) adaptChainRead(req any, funcName string) (*yucontext.ResponseData, error) {
