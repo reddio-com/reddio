@@ -387,8 +387,17 @@ func YuTxn2EthTxn(yuSignedTxn *yutypes.SignedTxn) *types.Transaction {
 	var txReq = &evm.TxRequest{}
 	json.Unmarshal([]byte(wrCallParams), txReq)
 
-	// if nonce is assigned to signedTx.Raw.Nonce, then this is ok; otherwise it's nil:
-	txArgs := &TransactionArgs{}
+	nonce := hexutil.Uint64(txReq.Nonce)
+	gas := hexutil.Uint64(txReq.GasLimit)
+	data := hexutil.Bytes(txReq.Input)
+	txArgs := &TransactionArgs{
+		Nonce:    &nonce,
+		To:       txReq.Address,
+		Gas:      &gas,
+		GasPrice: (*hexutil.Big)(txReq.GasPrice),
+		Value:    (*hexutil.Big)(txReq.Value),
+		Data:     &data,
+	}
 	json.Unmarshal(txReq.OriginArgs, txArgs)
 	tx := txArgs.ToTransaction(txReq.V, txReq.R, txReq.S)
 	return tx
