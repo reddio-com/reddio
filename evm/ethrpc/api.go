@@ -1326,7 +1326,7 @@ func (s *TransactionAPI) FillTransaction(ctx context.Context, args TransactionAr
 func (s *TransactionAPI) SendRawTransaction(ctx context.Context, input hexutil.Bytes) (txHash common.Hash, err error) {
 	defer func() {
 		if err != nil {
-			logrus.Warning("SendRawTransaction failed: ", err)
+			logrus.Error("SendRawTransaction failed: ", err)
 		}
 	}()
 	tx := new(types.Transaction)
