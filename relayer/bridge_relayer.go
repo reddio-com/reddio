@@ -46,13 +46,11 @@ func NewBridgeRelayer(ctx context.Context, cfg *evm.GethConfig, l1Client *ethcli
 	}, nil
 }
 func LoadPrivateKey(envFilePath string) (string, error) {
-	// 加载 .env 文件
 	err := godotenv.Load(envFilePath)
 	if err != nil {
 		return "", err
 	}
 
-	// 读取私钥
 	privateKey := os.Getenv("RELAYER_PRIVATE_KEY")
 	if privateKey == "" {
 		return "", fmt.Errorf("RELAYER_PRIVATE_KEY not set in %s", envFilePath)
