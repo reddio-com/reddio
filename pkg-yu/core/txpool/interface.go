@@ -27,6 +27,8 @@ type ItxPool interface {
 	SetOrder(order map[int]Hash)
 	SortTxns(fn func(txns []*SignedTxn) []*SignedTxn)
 
+	Take(numLimit uint64) ([]*SignedTxn, error)
+
 	// Pack packs some txns to send to tripods
 	Pack(numLimit uint64) ([]*SignedTxn, error)
 
@@ -43,6 +45,7 @@ type ItxPool interface {
 type IunpackedTxns interface {
 	Insert(input *SignedTxn)
 	Deletes(txnHashes []Hash)
+	Take(numLimit uint64) []*SignedTxn
 	Exist(txnHash Hash) bool
 	Get(txnHash Hash) *SignedTxn
 	GetAll() []*SignedTxn

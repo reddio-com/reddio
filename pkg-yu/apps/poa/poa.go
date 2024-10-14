@@ -3,9 +3,13 @@ package poa
 import (
 	"bytes"
 	"fmt"
+	"time"
+
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"go.uber.org/atomic"
+
 	"github.com/yu-org/yu/apps/MEVless"
 	"github.com/yu-org/yu/common"
 	"github.com/yu-org/yu/common/yerror"
@@ -13,8 +17,6 @@ import (
 	"github.com/yu-org/yu/core/tripod"
 	"github.com/yu-org/yu/core/types"
 	"github.com/yu-org/yu/utils/log"
-	"go.uber.org/atomic"
-	"time"
 )
 
 type Poa struct {
@@ -189,12 +191,7 @@ func (h *Poa) StartBlock(block *types.Block) {
 		err  error
 	)
 
-	if h.MevLess != nil {
-		txns, err = h.MevLess.Pack(block.Height, h.packNum)
-	} else {
-		txns, err = h.Pool.Pack(h.packNum)
-	}
-
+	txns, err = h.Pool.Take(h.packNum)
 	if err != nil {
 		logrus.Panic("pack txns from pool: ", err)
 	}
@@ -247,11 +244,6 @@ func (h *Poa) EndBlock(block *types.Block) {
 		logrus.Panic("append block failed: ", err)
 	}
 	// fmt.Println("execute block last: ", time.Since(now).String())
-
-	err = h.Pool.Reset(block.Txns)
-	if err != nil {
-		logrus.Panic("reset pool failed: ", err)
-	}
 
 	// log.PlusLog().Info(fmt.Sprintf("append block, height=%d, hash=%s", block.Height, block.Hash.String()))
 

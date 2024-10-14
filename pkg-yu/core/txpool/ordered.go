@@ -158,3 +158,22 @@ func (ot *orderedTxns) Size() int {
 	defer ot.RUnlock()
 	return len(ot.txns)
 }
+
+func (ot *orderedTxns) Take(numLimit uint64) []*SignedTxn {
+	ot.Lock()
+	defer ot.Unlock()
+	if numLimit >= uint64(len(ot.txns)) {
+		numLimit = uint64(len(ot.txns))
+	}
+	takes := ot.txns[:numLimit]
+	// delete
+	if numLimit >= uint64(len(ot.txns)) {
+		ot.txns = make([]*SignedTxn, 0)
+	} else {
+		ot.txns = ot.txns[numLimit:]
+	}
+	for _, take := range takes {
+		delete(ot.idx, take.TxnHash)
+	}
+	return takes
+}
