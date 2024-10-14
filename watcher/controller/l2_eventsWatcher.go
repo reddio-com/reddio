@@ -2,7 +2,6 @@ package controller
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"math/big"
@@ -50,15 +49,15 @@ func (w *L2EventsWatcher) Run(cfg *evm.GethConfig, ctx context.Context) error {
 			for {
 				select {
 				case msg := <-upwardMsgChan:
-					fmt.Println("WatchUpwardMessageWss, msgChan: ", msg)
-					jsonData, err := json.Marshal(msg)
-					if err != nil {
-						logrus.Errorf("Error converting upwardMsgChan txn to JSON: %v", err)
-						continue
-					}
-					fmt.Println("msg as JSON:", string(jsonData))
-					fmt.Println("handleupwardMessage")
-					fmt.Println("handleUpwardMessage end")
+					// fmt.Println("WatchUpwardMessageWss, msgChan: ", msg)
+					// jsonData, err := json.Marshal(msg)
+					// if err != nil {
+					// 	logrus.Errorf("Error converting upwardMsgChan txn to JSON: %v", err)
+					// 	continue
+					// }
+
+					// fmt.Println("msg as JSON:", string(jsonData))
+					w.bridgeRelayer.HandleUpwardMessage(msg)
 				case subErr := <-sub.Err():
 					logrus.Errorf("L1 subscription failed: %v, Resubscribing...", subErr)
 					sub.Unsubscribe()
@@ -81,15 +80,14 @@ func (w *L2EventsWatcher) Run(cfg *evm.GethConfig, ctx context.Context) error {
 			for {
 				select {
 				case msg := <-upwardMsgChan:
-					fmt.Println(": ", msg)
-					jsonData, err := json.Marshal(msg)
-					if err != nil {
-						logrus.Errorf("Error converting upwardMsgChan txn to JSON: %v", err)
-						continue
-					}
-					fmt.Println("msg as JSON:", string(jsonData))
-					fmt.Println("handleupwardMessage")
-					fmt.Println("handleUpwardMessage end")
+					// jsonData, err := json.Marshal(msg)
+					// if err != nil {
+					// 	logrus.Errorf("Error converting upwardMsgChan txn to JSON: %v", err)
+					// 	continue
+					// }
+					// fmt.Println("msg as JSON:", string(jsonData))
+					w.bridgeRelayer.HandleUpwardMessage(msg)
+
 				case <-ctx.Done():
 					fmt.Println("Context done, stopping event processing")
 					return
@@ -159,10 +157,9 @@ func (w *L2EventsWatcher) WatchUpwardMessageHttp(ctx context.Context,
 				}
 				select {
 				case sink <- upwardMessage:
-					w.bridgeRelayer.HandleUpwardMessage(upwardMessage)
-					fmt.Println("Event sent to sink channel")
+					// fmt.Println("Event sent to sink channel")
 				case <-ctx.Done():
-					fmt.Println("Context done, stopping event processing")
+					// fmt.Println("Context done, stopping event processing")
 					return
 				}
 

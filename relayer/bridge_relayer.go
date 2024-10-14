@@ -110,11 +110,10 @@ func (b *BridgeRelayer) HandleDownwardMessageWithSystemCall(msg *contract.Parent
 	// 2. setup auth
 	// 3. send downward message to child layer contract by calling downwardMessageDispatcher.ReceiveDownwardMessages
 
-	downwardMessageDispatcher, err := contract.NewDownwardMessageDispatcherFacet(common.HexToAddress(b.cfg.ChildLayerContractAddress), b.l2Client)
-	if err != nil {
-		return err
-	}
-	fmt.Println("downwardMessageDispatcher", downwardMessageDispatcher)
+	// downwardMessageDispatcher, err := contract.NewDownwardMessageDispatcherFacet(common.HexToAddress(b.cfg.ChildLayerContractAddress), b.l2Client)
+	// if err != nil {
+	// 	return err
+	// }
 	downwardMessages := []contract.DownwardMessageDispatcherFacetDownwardMessage{
 		{
 			Sequence:    msg.Sequence,
@@ -251,9 +250,9 @@ func (b *BridgeRelayer) systemCall(ctx context.Context, signedTx *types.Transact
 	// Check if this tx has been created
 	// Create Tx
 	v, r, s := signedTx.RawSignatureValues()
-	fmt.Printf("v: %s\n", v.String())
-	fmt.Printf("r: %s\n", r.String())
-	fmt.Printf("s: %s\n", s.String())
+	// fmt.Printf("v: %s\n", v.String())
+	// fmt.Printf("r: %s\n", r.String())
+	// fmt.Printf("s: %s\n", s.String())
 	v, r, s = signedTx.RawSignatureValues()
 	txArg := NewTxArgsFromTx(signedTx)
 	txArgByte, _ := json.Marshal(txArg)
@@ -273,12 +272,12 @@ func (b *BridgeRelayer) systemCall(ctx context.Context, signedTx *types.Transact
 
 		OriginArgs: txArgByte,
 	}
-	jsonData, err := json.MarshalIndent(txReq, "", "    ")
-	if err != nil {
-		log.Fatalf("Failed to marshal txReq to JSON: %v", err)
-	}
+	// jsonData, err := json.MarshalIndent(txReq, "", "    ")
+	// if err != nil {
+	// 	log.Fatalf("Failed to marshal txReq to JSON: %v", err)
+	// }
 
-	fmt.Println("jsonData:", string(jsonData))
+	// fmt.Println("jsonData:", string(jsonData))
 	byt, err := json.Marshal(txReq)
 	if err != nil {
 		log.Fatalf("json.Marshal(txReq) failed: ", err)
@@ -291,8 +290,8 @@ func (b *BridgeRelayer) systemCall(ctx context.Context, signedTx *types.Transact
 			Params:     string(byt),
 		},
 	}
-	fmt.Println("signedWrCall", signedWrCall)
-	fmt.Println("signedWrCall", signedWrCall.Call.Params)
+	// fmt.Println("signedWrCall", signedWrCall)
+	// fmt.Println("signedWrCall", signedWrCall.Call.Params)
 
 	err = b.l2chain.HandleTxn(signedWrCall)
 	if err != nil {
@@ -350,7 +349,6 @@ func (b *BridgeRelayer) HandleUpwardMessage(msg *contract.ChildBridgeCoreFacetUp
 	for i, sig := range signaturesArray {
 		log.Printf("MutiSignature %d: %x\n", i+1, sig)
 	}
-	fmt.Println("upwardMessageDispatcher.ContractAddress", b.cfg.ParentLayerContractAddress)
 
 	tx, err := upwardMessageDispatcher.ReceiveUpwardMessages(auth, upwardMessages, signaturesArray)
 	if err != nil {
@@ -379,7 +377,6 @@ func (b *BridgeRelayer) HandleUpwardMessage(msg *contract.ChildBridgeCoreFacetUp
  * - An error if the signature generation fails.
  */
 func GenerateUpwardMessageMultiSignatures(upwardMessages []contract.UpwardMessage, privateKeys []string) ([][]byte, error) {
-	fmt.Println("GenerateUpwardMessageMultiSignatures start")
 
 	arrayLength := big.NewInt(int64(len(upwardMessages)))
 	initialOffset := big.NewInt(32)
@@ -417,7 +414,7 @@ func GenerateUpwardMessageMultiSignatures(upwardMessages []contract.UpwardMessag
 			{Type: abi.Type{T: abi.BytesTy}},
 		}.Pack(msg.Sequence, msg.PayloadType, msg.Payload)
 		if err != nil {
-			fmt.Printf("Failed to pack upwardMessages: %v\n", err)
+			//fmt.Printf("Failed to pack upwardMessages: %v\n", err)
 			return nil, err
 		}
 		data = append(data, packedData...)
@@ -461,7 +458,7 @@ func GenerateUpwardMessageMultiSignatures(upwardMessages []contract.UpwardMessag
 	// fmt.Printf("Signer address: %s\n", address.Hex())
 	// Ensure v value is 27 or 28
 	if signaturesArray[0][64] < 27 {
-		fmt.Println("v value is less than 27")
+		//fmt.Println("v value is less than 27")
 		signaturesArray[0][64] += 27
 	}
 	return signaturesArray, nil

@@ -2,8 +2,6 @@ package controller
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -52,15 +50,15 @@ func (w *L1EventsWatcher) Run(cfg *evm.GethConfig, ctx context.Context) error {
 					if msg == nil {
 						continue
 					}
-					fmt.Println("Listen for msgChan", msg)
-					jsonData, err := json.Marshal(msg)
-					if err != nil {
-						logrus.Errorf("Error converting downwardMsgChan txn to JSON: %v", err)
-						continue
-					}
-					fmt.Println("msg as JSON:", string(jsonData))
+					//fmt.Println("Listen for msgChan", msg)
+					// jsonData, err := json.Marshal(msg)
+					// if err != nil {
+					// 	logrus.Errorf("Error converting downwardMsgChan txn to JSON: %v", err)
+					// 	continue
+					// }
+					// fmt.Println("msg as JSON:", string(jsonData))
 					w.handleDownwardMessage(msg)
-					fmt.Println("handleDownwardMessage end")
+					//fmt.Println("handleDownwardMessage end")
 				case subErr := <-sub.Err():
 					logrus.Errorf("L1 subscription failed: %v, Resubscribing...", subErr)
 					sub, err = w.watchDownwardMessage(ctx, downwardMsgChan, nil)
