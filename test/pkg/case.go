@@ -74,8 +74,8 @@ func (m *TransferManager) GenerateSameTargetTransferSteps(stepCount int, wallets
 }
 
 func (tc *TransferCase) Run(m *WalletManager) error {
-	for _, step := range tc.Steps {
-		if err := m.TransferEth(step.From, step.To, step.Count); err != nil {
+	for i, step := range tc.Steps {
+		if err := m.TransferEth(step.From, step.To, step.Count, uint64(i+1)); err != nil {
 			return err
 		}
 	}

@@ -81,16 +81,16 @@ func (m *WalletManager) BatchGenerateRandomWallets(count int, initialEthCount ui
 
 func (m *WalletManager) createEthWallet(initialEthCount uint64) (*EthWallet, error) {
 	privateKey, address := generatePrivateKey()
-	if err := m.transferEth(GenesisPrivateKey, address, initialEthCount); err != nil {
+	if err := m.transferEth(GenesisPrivateKey, address, initialEthCount, 0); err != nil {
 		return nil, err
 	}
 	//log.Println(fmt.Sprintf("create wallet %v", address))
 	return &EthWallet{PK: privateKey, Address: address}, nil
 }
 
-func (m *WalletManager) TransferEth(from, to *EthWallet, amount uint64) error {
+func (m *WalletManager) TransferEth(from, to *EthWallet, amount, nonce uint64) error {
 	//log.Println(fmt.Sprintf("transfer %v eth from %v to %v", amount, from.Address, to.Address))
-	if err := m.transferEth(from.PK, to.Address, amount); err != nil {
+	if err := m.transferEth(from.PK, to.Address, amount, nonce); err != nil {
 		return err
 	}
 	return nil
@@ -142,8 +142,8 @@ type queryResponse struct {
 	Result string `json:"result"`
 }
 
-func (m *WalletManager) transferEth(privateKeyHex string, toAddress string, amount uint64) error {
-	return m.sendRawTx(privateKeyHex, toAddress, amount, uint64(time.Now().UnixNano()))
+func (m *WalletManager) transferEth(privateKeyHex string, toAddress string, amount, nonce uint64) error {
+	return m.sendRawTx(privateKeyHex, toAddress, amount, nonce)
 }
 
 func (m *WalletManager) batchTransferEth(rawTxs []*RawTxReq) error {
@@ -206,13 +206,13 @@ type RawTxReq struct {
 
 func (m *WalletManager) sendBatchRawTxs(rawTxs []*RawTxReq) error {
 	batchTx := new(ethrpc.BatchTx)
-	for _, rawTx := range rawTxs {
+	for i, rawTx := range rawTxs {
 		to := common.HexToAddress(rawTx.toAddress)
 		gasLimit := uint64(21000)
 		gasPrice := big.NewInt(0)
 
 		tx := types.NewTx(&types.LegacyTx{
-			Nonce:    rawTx.nonce,
+			Nonce:    uint64(i + 1),
 			GasPrice: gasPrice,
 			Gas:      gasLimit,
 			To:       &to,
