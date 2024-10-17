@@ -36,11 +36,11 @@ func (tc *RandomBenchmarkTest) Name() string {
 
 func (tc *RandomBenchmarkTest) Run(ctx context.Context, m *pkg.WalletManager) error {
 	transferCase := tc.tm.GenerateRandomTransferSteps(tc.steps, pkg.GenerateCaseWallets(tc.initialCount, tc.wallets))
-	for _, step := range transferCase.Steps {
+	for i, step := range transferCase.Steps {
 		if err := tc.rm.Wait(ctx); err != nil {
 			return err
 		}
-		m.TransferEth(step.From, step.To, step.Count)
+		m.TransferEth(step.From, step.To, step.Count, uint64(i+1))
 	}
 	return nil
 }
