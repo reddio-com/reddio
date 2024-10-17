@@ -404,13 +404,6 @@ func (s *Solidity) refundGas(state vm.StateDB, tx *TxRequest, gasUsed uint64, re
 }
 
 func preCheck(tx *TxRequest, stateDB vm.StateDB) error {
-
-	// if sender is an EOA, return.
-	codeHash := stateDB.GetCodeHash(tx.Origin)
-	if codeHash == (common.Hash{}) || codeHash == types.EmptyCodeHash {
-		return nil
-	}
-
 	// Make sure this transaction's nonce is correct.
 	stNonce := stateDB.GetNonce(tx.Origin)
 	if msgNonce := tx.Nonce; stNonce < msgNonce {
@@ -422,6 +415,13 @@ func preCheck(tx *TxRequest, stateDB vm.StateDB) error {
 	} else if stNonce+1 < stNonce {
 		return fmt.Errorf("%w: address %v, nonce: %d", core.ErrNonceMax,
 			tx.Origin.Hex(), stNonce)
+	}
+
+	// Make sure the sender is an EOA
+	codeHash := stateDB.GetCodeHash(tx.Origin)
+	if codeHash != (common.Hash{}) && codeHash != types.EmptyCodeHash {
+		return fmt.Errorf("%w: address %v, codehash: %s", core.ErrSenderNoEOA,
+			tx.Origin.Hex(), codeHash)
 	}
 
 	return nil
