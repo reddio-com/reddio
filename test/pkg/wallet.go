@@ -206,13 +206,18 @@ type RawTxReq struct {
 
 func (m *WalletManager) sendBatchRawTxs(rawTxs []*RawTxReq) error {
 	batchTx := new(ethrpc.BatchTx)
-	for i, rawTx := range rawTxs {
+	nonceMap := make(map[string]uint64)
+	for _, rawTx := range rawTxs {
 		to := common.HexToAddress(rawTx.toAddress)
 		gasLimit := uint64(21000)
 		gasPrice := big.NewInt(0)
 
+		if _, ok := nonceMap[rawTx.privateKeyHex]; ok {
+			nonceMap[rawTx.privateKeyHex]++
+		}
+
 		tx := types.NewTx(&types.LegacyTx{
-			Nonce:    uint64(i + 1),
+			Nonce:    nonceMap[rawTx.privateKeyHex],
 			GasPrice: gasPrice,
 			Gas:      gasLimit,
 			To:       &to,

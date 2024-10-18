@@ -210,6 +210,11 @@ func (s *Solidity) CheckTxn(txn *yu_types.SignedTxn) error {
 	if err != nil {
 		return err
 	}
+	stNonce := s.ethState.GetNonce(req.Origin)
+	if req.Nonce <= stNonce {
+		return fmt.Errorf("%w: address %v, tx: %d state: %d", core.ErrNonceTooLow,
+			req.Origin.Hex(), req.Nonce, stNonce)
+	}
 	if req.IsInternalCall {
 		// TODO: use txn.Pubkey and txn.Signature to verify the tx
 
@@ -245,10 +250,10 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 	vmenv := newEVM_copy(cfg, txReq)
 	pd := pending_state.NewPendingState(txReq.Origin, ctx.ExtraInterface.(*state.StateDB))
 
-	err = preCheck(txReq, pd)
-	if err != nil {
-		return err
-	}
+	//err = preCheck(txReq, pd)
+	//if err != nil {
+	//	return err
+	//}
 
 	// buy gas
 	err = s.buyGas(pd, txReq)
@@ -406,6 +411,7 @@ func (s *Solidity) refundGas(state vm.StateDB, tx *TxRequest, gasUsed uint64, re
 func preCheck(tx *TxRequest, stateDB vm.StateDB) error {
 	// Make sure this transaction's nonce is correct.
 	stNonce := stateDB.GetNonce(tx.Origin)
+	fmt.Printf("From(%s) stateDB.Nonce = %d, request.Nonce = %d \n", tx.Origin.Hex(), stNonce, tx.Nonce)
 	if msgNonce := tx.Nonce; stNonce < msgNonce {
 		return fmt.Errorf("%w: address %v, tx: %d state: %d", core.ErrNonceTooHigh,
 			tx.Origin.Hex(), msgNonce, stNonce)
