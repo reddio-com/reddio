@@ -5,6 +5,7 @@ import (
 
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"github.com/ethereum/go-ethereum/core/tracing"
 	"math/big"
 	"net/http"
@@ -209,6 +210,7 @@ func (s *Solidity) CheckTxn(txn *yu_types.SignedTxn) error {
 	if err != nil {
 		return err
 	}
+
 	if req.IsInternalCall {
 		// TODO: use txn.Pubkey and txn.Signature to verify the tx
 
@@ -243,6 +245,12 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 
 	vmenv := newEVM_copy(cfg, txReq)
 	pd := pending_state.NewPendingState(txReq.Origin, ctx.ExtraInterface.(*state.StateDB))
+
+	err = preCheck(txReq, pd)
+	if err != nil {
+		return err
+	}
+
 	// buy gas
 	err = s.buyGas(pd, txReq)
 	if err != nil {
@@ -394,6 +402,39 @@ func (s *Solidity) refundGas(state vm.StateDB, tx *TxRequest, gasUsed uint64, re
 	refundFeeU256, _ := uint256.FromBig(refundFee)
 	state.AddBalance(tx.Origin, refundFeeU256, tracing.BalanceIncreaseGasReturn)
 	// s.gasPool.AddGas(remainGas)
+}
+
+func preCheck(req *TxRequest, stateDB vm.StateDB) error {
+	//// Make sure this transaction's nonce is correct.
+	//stNonce := stateDB.GetNonce(tx.Origin)
+	//fmt.Printf("From(%s) stateDB.Nonce = %d, request.Nonce = %d \n", tx.Origin.Hex(), stNonce, tx.Nonce)
+	//if msgNonce := tx.Nonce; stNonce < msgNonce {
+	//	return fmt.Errorf("%w: address %v, tx: %d state: %d", core.ErrNonceTooHigh,
+	//		tx.Origin.Hex(), msgNonce, stNonce)
+	//} else if stNonce > msgNonce {
+	//	return fmt.Errorf("%w: address %v, tx: %d state: %d", core.ErrNonceTooLow,
+	//		tx.Origin.Hex(), msgNonce, stNonce)
+	//} else if stNonce+1 < stNonce {
+	//	return fmt.Errorf("%w: address %v, nonce: %d", core.ErrNonceMax,
+	//		tx.Origin.Hex(), stNonce)
+	//}
+	//
+	//// Make sure the sender is an EOA
+	//codeHash := stateDB.GetCodeHash(tx.Origin)
+	//if codeHash != (common.Hash{}) && codeHash != types.EmptyCodeHash {
+	//	return fmt.Errorf("%w: address %v, codehash: %s", core.ErrSenderNoEOA,
+	//		tx.Origin.Hex(), codeHash)
+	//}
+	//
+	//return nil
+	stNonce := stateDB.GetNonce(req.Origin)
+
+	// fmt.Printf("address %s, tx.nonce: %d, state.nonce: %d \n", req.Origin.Hex(), req.Nonce, stNonce)
+	if req.Nonce < stNonce {
+		return fmt.Errorf("%w: address %v, tx: %d state: %d", core.ErrNonceTooLow,
+			req.Origin.Hex(), req.Nonce, stNonce)
+	}
+	return nil
 }
 
 func AdaptHash(ethHash common.Hash) yu_common.Hash {
