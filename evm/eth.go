@@ -429,7 +429,7 @@ func preCheck(req *TxRequest, stateDB vm.StateDB) error {
 	//return nil
 	stNonce := stateDB.GetNonce(req.Origin)
 
-	fmt.Printf("address %s, tx.nonce: %d, state.nonce: %d \n", req.Origin.Hex(), req.Nonce, stNonce)
+	// fmt.Printf("address %s, tx.nonce: %d, state.nonce: %d \n", req.Origin.Hex(), req.Nonce, stNonce)
 	if req.Nonce < stNonce {
 		return fmt.Errorf("%w: address %v, tx: %d state: %d", core.ErrNonceTooLow,
 			req.Origin.Hex(), req.Nonce, stNonce)
