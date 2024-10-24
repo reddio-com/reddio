@@ -4,10 +4,12 @@ go 1.23.0
 
 require (
 	github.com/BurntSushi/toml v1.2.1
+	github.com/HyperService-Consortium/go-hexutil v1.0.1
 	github.com/common-nighthawk/go-figure v0.0.0-20210622060536-734e95fb86be
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 	github.com/ethereum/go-ethereum v1.14.0
 	github.com/holiman/uint256 v1.2.4
+	github.com/joho/godotenv v1.5.1
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.20.2
 	github.com/rs/cors v1.11.0
@@ -23,7 +25,6 @@ require (
 require (
 	github.com/ChainSafe/go-schnorrkel v0.0.0-20200626160457-b38283118816 // indirect
 	github.com/DataDog/zstd v1.5.6-0.20230824185856-869dae002e5e // indirect
-	github.com/HyperService-Consortium/go-hexutil v1.0.1 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
 	github.com/VictoriaMetrics/fastcache v1.12.1 // indirect
 	github.com/anqiansong/ketty v0.0.0-20211202021934-dbaf2e277891 // indirect

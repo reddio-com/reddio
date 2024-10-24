@@ -10,3 +10,5 @@ benchmark_test
 uniswap_test
 uniswap_benchmark_test
 eth_benchmark_data.json
+**/.env
+**/.sepolia.env
