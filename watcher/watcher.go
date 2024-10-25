@@ -65,29 +65,30 @@ func NewWatcher(cfg *evm.GethConfig) *Watcher {
 }
 
 func (w *Watcher) InitChain(block *yutypes.Block) {
-	db, err := pebble.Open("evm_bridge_db", &pebble.Options{})
-	if err != nil {
-		logrus.Fatal("open db failed: ", err)
-	}
+	if w.cfg.EnableL1Client {
+		db, err := pebble.Open("evm_bridge_db", &pebble.Options{})
+		if err != nil {
+			logrus.Fatal("open db failed: ", err)
+		}
+		l1Client, err := ethclient.Dial(w.cfg.L1ClientAddress)
+		if err != nil {
+			log.Fatal("failed to connect to L1 geth", "endpoint", w.cfg.L1ClientAddress, "err", err)
+		}
+		l2toL1Relayer, err := relayer.NewL2ToL1Relayer(context.Background(), w.cfg, l1Client)
+		if err != nil {
+			logrus.Fatal("init bridge relayer failed: ", err)
+		}
 
-	l1Client, err := ethclient.Dial(w.cfg.L1ClientAddress)
-	if err != nil {
-		log.Fatal("failed to connect to L1 geth", "endpoint", w.cfg.L1ClientAddress, "err", err)
-	}
-	l2toL1Relayer, err := relayer.NewL2ToL1Relayer(context.Background(), w.cfg, l1Client)
-	if err != nil {
-		logrus.Fatal("init bridge relayer failed: ", err)
-	}
+		l2Watcher, err := controller.NewL2EventsWatcher(context.Background(), w.cfg, l2toL1Relayer, w.Solidity)
+		if err != nil {
+			logrus.Fatal("init l2Watcher failed: ", err)
+		}
 
-	l2Watcher, err := controller.NewL2EventsWatcher(context.Background(), w.cfg, l2toL1Relayer, w.Solidity)
-	if err != nil {
-		logrus.Fatal("init l2Watcher failed: ", err)
+		w.l2toL1Relayer = l2toL1Relayer
+		w.l2Watcher = l2Watcher
+		w.evmBridgeDB = db
+
 	}
-
-	w.l2Watcher = l2Watcher
-	w.l2toL1Relayer = l2toL1Relayer
-	w.evmBridgeDB = db
-
 	logrus.Info("Watcher InitChain")
 }
 
@@ -100,30 +101,28 @@ func (w *Watcher) EndBlock(block *yutypes.Block) {
 }
 
 func (w *Watcher) FinalizeBlock(block *yutypes.Block) {
-	fmt.Printf("finalize block, height=%d, hash=%s /n", block.Height, block.Hash.String())
-
-	// upwardSequence, err := w.GetSequence("upwardSequence")
-	// if err != nil {
-	// 	fmt.Println("GetSequence error", "err", err)
-	// 	return
-	// }
-	// if upwardSequence == 0 {
-	// 	fmt.Println("upwardSequence is 0")
-	// }
-	// fmt.Println("upwardSequence", upwardSequence)
-	//watch upward message
-	blockHeightBigInt := big.NewInt(int64(block.Header.Height))
-	if big.NewInt(0).Mod(blockHeightBigInt, w.cfg.L2BlockCollectionDepth).Cmp(big.NewInt(0)) == 0 {
-		err := w.l2Watcher.WatchUpwardMessage(context.Background(), block, w.Solidity)
-		if err != nil {
-			fmt.Println("WatchUpwardMessage error", "err", err)
-			return
+	if w.cfg.EnableL1Client {
+		// upwardSequence, err := w.GetSequence("upwardSequence")
+		// if err != nil {
+		// 	fmt.Println("GetSequence error", "err", err)
+		// 	return
+		// }
+		// if upwardSequence == 0 {
+		// 	fmt.Println("upwardSequence is 0")
+		// }
+		// fmt.Println("upwardSequence", upwardSequence)
+		//watch upward message
+		blockHeightBigInt := big.NewInt(int64(block.Header.Height))
+		if big.NewInt(0).Mod(blockHeightBigInt, w.cfg.L2BlockCollectionDepth).Cmp(big.NewInt(0)) == 0 {
+			err := w.l2Watcher.WatchUpwardMessage(context.Background(), block, w.Solidity)
+			if err != nil {
+				fmt.Println("WatchUpwardMessage error", "err", err)
+				return
+			}
 		}
+		// upwardSequence++
+		// w.SetSequence("upwardSequence", upwardSequence)
 	}
-	// upwardSequence++
-	// w.SetSequence("upwardSequence", upwardSequence)
-
-	fmt.Println("Watcher FinalizeBlock")
 }
 
 func (w *Watcher) SetSequence(key string, value int64) error {
