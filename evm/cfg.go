@@ -50,12 +50,13 @@ type GethConfig struct {
 	EthPort      string `toml:"eth_port"`
 
 	// EventsWatcher configs
-	EnableL1Client             bool   `toml:"enable_l1_client"`
-	EnableL2Client             bool   `toml:"enable_l2_client"`
-	L1ClientAddress            string `toml:"l1_client_address"`
-	L2ClientAddress            string `toml:"l2_client_address"`
-	ParentLayerContractAddress string `toml:"parentlayer_contract_address"`
-	ChildLayerContractAddress  string `toml:"childlayer_contract_address"`
+	EnableL1Client             bool     `toml:"enable_l1_client"`
+	EnableL2Client             bool     `toml:"enable_l2_client"`
+	L1ClientAddress            string   `toml:"l1_client_address"`
+	L2ClientAddress            string   `toml:"l2_client_address"`
+	ParentLayerContractAddress string   `toml:"parentlayer_contract_address"`
+	ChildLayerContractAddress  string   `toml:"childlayer_contract_address"`
+	L2BlockCollectionDepth     *big.Int `toml:"l2_block_collection_depth"`
 }
 
 func (gc *GethConfig) Copy() *GethConfig {

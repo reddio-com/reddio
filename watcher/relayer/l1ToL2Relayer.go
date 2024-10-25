@@ -25,27 +25,22 @@ import (
 	"github.com/yu-org/yu/core/protocol"
 )
 
-type BridgeRelayer struct {
+type L1ToL2Relayer struct {
 	ctx      context.Context
 	cfg      *evm.GethConfig
-	l1Client *ethclient.Client
 	l2Client *ethclient.Client
-
-	processedEvents map[string]bool
-	l2chain         *kernel.Kernel
+	chain    *kernel.Kernel
 }
 
-func NewBridgeRelayer(ctx context.Context, cfg *evm.GethConfig, l1Client *ethclient.Client, l2Client *ethclient.Client, l2chain *kernel.Kernel) (*BridgeRelayer, error) {
-	return &BridgeRelayer{
-		ctx:             ctx,
-		cfg:             cfg,
-		l1Client:        l1Client,
-		l2Client:        l2Client,
-		processedEvents: make(map[string]bool),
-		l2chain:         l2chain,
+func NewL1ToL2Relayer(ctx context.Context, cfg *evm.GethConfig, l2Client *ethclient.Client, chain *kernel.Kernel) (*L1ToL2Relayer, error) {
+	return &L1ToL2Relayer{
+		ctx:      ctx,
+		cfg:      cfg,
+		l2Client: l2Client,
+		chain:    chain,
 	}, nil
 }
-func LoadPrivateKey(envFilePath string) (string, error) {
+func loadPrivateKey(envFilePath string) (string, error) {
 	err := godotenv.Load(envFilePath)
 	if err != nil {
 		return "", err
@@ -60,12 +55,12 @@ func LoadPrivateKey(envFilePath string) (string, error) {
 }
 
 // handleDownwardMessage
-func (b *BridgeRelayer) HandleDownwardMessage(msg *contract.ParentBridgeCoreFacetDownwardMessage) error {
+func (b *L1ToL2Relayer) HandleDownwardMessage(msg *contract.ParentBridgeCoreFacetDownwardMessage) error {
 
 	// 1. parse downward message
 	// 2. setup auth
 	// 3. send downward message to child layer contract by calling downwardMessageDispatcher.ReceiveDownwardMessages
-	privateKey, err := LoadPrivateKey("relayer/.sepolia.env")
+	privateKey, err := loadPrivateKey("relayer/.sepolia.env")
 	if err != nil {
 		log.Fatalf("Error loading private key: %v", err)
 	}
@@ -103,15 +98,11 @@ func (b *BridgeRelayer) HandleDownwardMessage(msg *contract.ParentBridgeCoreFace
 }
 
 // handleDownwardMessage
-func (b *BridgeRelayer) HandleDownwardMessageWithSystemCall(msg *contract.ParentBridgeCoreFacetDownwardMessage) error {
+func (b *L1ToL2Relayer) HandleDownwardMessageWithSystemCall(msg *contract.ParentBridgeCoreFacetDownwardMessage) error {
 	// 1. parse downward message
 	// 2. setup auth
 	// 3. send downward message to child layer contract by calling downwardMessageDispatcher.ReceiveDownwardMessages
 
-	// downwardMessageDispatcher, err := contract.NewDownwardMessageDispatcherFacet(common.HexToAddress(b.cfg.ChildLayerContractAddress), b.l2Client)
-	// if err != nil {
-	// 	return err
-	// }
 	downwardMessages := []contract.DownwardMessageDispatcherFacetDownwardMessage{
 		{
 			Sequence:    msg.Sequence,
@@ -123,10 +114,12 @@ func (b *BridgeRelayer) HandleDownwardMessageWithSystemCall(msg *contract.Parent
 	nonce := uint64(0)
 	value := big.NewInt(0)
 	gasLimit := uint64(3e6)
-	gasPrice, err := b.l2Client.SuggestGasPrice(context.Background())
-	if err != nil {
-		log.Fatalf("Failed to suggest gas price: %v", err)
-	}
+	// gasPrice, err := b.l2Client.SuggestGasPrice(context.Background())
+	// if err != nil {
+	// 	log.Fatalf("Failed to suggest gas price: %v", err)
+	// }
+	gasPrice := big.NewInt(1e9)
+
 	contractABI, err := abi.JSON(strings.NewReader(contract.DownwardMessageDispatcherFacetABI))
 	if err != nil {
 		log.Fatalf("Failed to parse contract ABI: %v", err)
@@ -180,7 +173,7 @@ type TransactionArgs struct {
 	blobSidecarAllowed bool
 }
 
-func NewTxArgsFromTx(tx *types.Transaction) *TransactionArgs {
+func newTxArgsFromTx(tx *types.Transaction) *TransactionArgs {
 	args := TransactionArgs{}
 
 	nonce := hexutil.Uint64(tx.Nonce())
@@ -244,15 +237,15 @@ func NewTxArgsFromTx(tx *types.Transaction) *TransactionArgs {
 
 	return &args
 }
-func (b *BridgeRelayer) systemCall(ctx context.Context, signedTx *types.Transaction) error {
+func (b *L1ToL2Relayer) systemCall(ctx context.Context, signedTx *types.Transaction) error {
 	// Check if this tx has been created
 	// Create Tx
-	v, r, s := signedTx.RawSignatureValues()
+	//v, r, s := signedTx.RawSignatureValues()
 	// fmt.Printf("v: %s\n", v.String())
 	// fmt.Printf("r: %s\n", r.String())
 	// fmt.Printf("s: %s\n", s.String())
-	v, r, s = signedTx.RawSignatureValues()
-	txArg := NewTxArgsFromTx(signedTx)
+	v, r, s := signedTx.RawSignatureValues()
+	txArg := newTxArgsFromTx(signedTx)
 	txArgByte, _ := json.Marshal(txArg)
 	txReq := &evm.TxRequest{
 		Input:          signedTx.Data(),
@@ -288,176 +281,14 @@ func (b *BridgeRelayer) systemCall(ctx context.Context, signedTx *types.Transact
 			Params:     string(byt),
 		},
 	}
-	// fmt.Println("signedWrCall", signedWrCall)
-	// fmt.Println("signedWrCall", signedWrCall.Call.Params)
+	fmt.Println("signedWrCall", signedWrCall)
+	fmt.Println("signedWrCall", signedWrCall.Call.Params)
 
-	err = b.l2chain.HandleTxn(signedWrCall)
+	err = b.chain.HandleTxn(signedWrCall)
 	if err != nil {
 		log.Fatalf("HandleTxn() failed: ", err)
 		return err
 	}
 	return nil
 
-}
-
-// handleL2UpwardMessage
-func (b *BridgeRelayer) HandleUpwardMessage(msg *contract.ChildBridgeCoreFacetUpwardMessage) error {
-	// 1. parse upward message
-	// 2. setup auth
-	// 3. send upward message to parent layer contract by calling upwardMessageDispatcher.ReceiveUpwardMessages
-
-	upwardMessageDispatcher, err := contract.NewUpwardMessageDispatcherFacet(common.HexToAddress(b.cfg.ParentLayerContractAddress), b.l1Client)
-	if err != nil {
-		return err
-	}
-	privateKey, err := LoadPrivateKey("relayer/.sepolia.env")
-	if err != nil {
-		log.Fatalf("Error loading private key: %v", err)
-	}
-	testUserPK, err := crypto.HexToECDSA(privateKey)
-	if err != nil {
-		return err
-	}
-
-	auth, err := bind.NewKeyedTransactorWithChainID(testUserPK, big.NewInt(11155111))
-	if err != nil {
-		log.Fatalf("Failed to create authorized transactor: %v", err)
-	}
-	//for test ,set  msg.Sequence manually///
-	//msg.Sequence = big.NewInt(1)
-	////////////////////////////////////////
-
-	upwardMessages := []contract.UpwardMessage{
-		{
-			Sequence:    msg.Sequence,
-			PayloadType: msg.PayloadType,
-			Payload:     msg.Payload,
-		},
-	}
-
-	privateKeys := []string{
-		privateKey,
-	}
-
-	signaturesArray, err := GenerateUpwardMessageMultiSignatures(upwardMessages, privateKeys)
-	if err != nil {
-		log.Fatalf("Failed to generate multi-signatures: %v", err)
-	}
-
-	for i, sig := range signaturesArray {
-		log.Printf("MutiSignature %d: %x\n", i+1, sig)
-	}
-
-	tx, err := upwardMessageDispatcher.ReceiveUpwardMessages(auth, upwardMessages, signaturesArray)
-	if err != nil {
-		log.Printf("Failed to send transaction: %v", err)
-		return err
-	}
-
-	log.Printf("Transaction sent: %s", tx.Hash().Hex())
-	return nil
-}
-
-/**
- * GenerateUpwardMessageMultiSignatures generates multi-signatures for upward messages.
- * The signature hash generation process includes the message header to ensure the integrity and authenticity of the message.
- * The message header typically contains the following metadata:
- * - Initial offset: Points to the first element (array) offset, usually fixed at 32 bytes.
- * - Array length: The number of upward messages in the array.
- * - Tuple offset: Points to the offset of the tuple.
- *
- * Parameters:
- * - upwardMessages: A slice of UpwardMessage structs containing the messages to be signed.
- * - privateKeys: A slice of strings containing the private keys used for signing.
- *
- * Returns:
- * - A slice of byte slices containing the generated signatures.
- * - An error if the signature generation fails.
- */
-func GenerateUpwardMessageMultiSignatures(upwardMessages []contract.UpwardMessage, privateKeys []string) ([][]byte, error) {
-
-	arrayLength := big.NewInt(int64(len(upwardMessages)))
-	initialOffset := big.NewInt(32)
-	headerData, err := abi.Arguments{
-		{Type: abi.Type{T: abi.UintTy, Size: 256}},
-	}.Pack(initialOffset)
-	if err != nil {
-		log.Fatalf("Failed to pack initial offset: %v", err)
-	}
-
-	lengthData, err := abi.Arguments{
-		{Type: abi.Type{T: abi.UintTy, Size: 256}},
-	}.Pack(arrayLength)
-	if err != nil {
-		log.Fatalf("Failed to pack array length: %v", err)
-	}
-
-	tupleOffset := big.NewInt(32)
-	tupleOffsetData, err := abi.Arguments{
-		{Type: abi.Type{T: abi.UintTy, Size: 256}},
-	}.Pack(tupleOffset)
-	if err != nil {
-		log.Fatalf("Failed to pack tuple offset: %v", err)
-	}
-
-	var data []byte
-	data = append(data, headerData...)
-	data = append(data, lengthData...)
-	data = append(data, tupleOffsetData...)
-
-	for _, msg := range upwardMessages {
-		packedData, err := abi.Arguments{
-			{Type: abi.Type{T: abi.UintTy, Size: 256}}, // Use UintTy with size 256 for *big.Int
-			{Type: abi.Type{T: abi.UintTy, Size: 32}},  // Use UintTy with size 32 for uint32
-			{Type: abi.Type{T: abi.BytesTy}},
-		}.Pack(msg.Sequence, msg.PayloadType, msg.Payload)
-		if err != nil {
-			//fmt.Printf("Failed to pack upwardMessages: %v\n", err)
-			return nil, err
-		}
-		data = append(data, packedData...)
-	}
-
-	//fmt.Printf("Encoded Data (Hex): %s\n", hex.EncodeToString(data))
-
-	dataHash := crypto.Keccak256Hash(data)
-	//fmt.Println("newdataHash:", dataHash)
-	// Generate multiple signatures
-	var signaturesArray [][]byte
-	for _, pk := range privateKeys {
-		privateKey, err := crypto.HexToECDSA(pk)
-		if err != nil {
-			return nil, err
-		}
-
-		signature, err := crypto.Sign(dataHash.Bytes(), privateKey)
-		if err != nil {
-			return nil, err
-		}
-
-		signaturesArray = append(signaturesArray, signature)
-	}
-
-	// for print
-	// Recover the public key
-	// sigPublicKey, err := crypto.Ecrecover(dataHash.Bytes(), signaturesArray[0])
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-
-	// // Convert public key to address
-	// publicKeyECDSA, err := crypto.UnmarshalPubkey(sigPublicKey)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// address := crypto.PubkeyToAddress(*publicKeyECDSA)
-
-	// fmt.Printf("Signed hash: %x\n", signaturesArray[0])
-	// fmt.Printf("Signer address: %s\n", address.Hex())
-	// Ensure v value is 27 or 28
-	if signaturesArray[0][64] < 27 {
-		//fmt.Println("v value is less than 27")
-		signaturesArray[0][64] += 27
-	}
-	return signaturesArray, nil
 }

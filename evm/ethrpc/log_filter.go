@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/big"
+	"slices"
+
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -12,8 +15,6 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/sirupsen/logrus"
 	yutypes "github.com/yu-org/yu/core/types"
-	"math/big"
-	"slices"
 )
 
 var (
@@ -273,17 +274,17 @@ func (f *LogFilter) checkMatches(ctx context.Context, vLog *types.Log) bool {
 	}
 
 	// TODO: The logic for topic filtering is a bit complex; it will not be implemented for now.
-	//if len(f.topics) > len(vLog.Topics) {
-	//	return false
-	//}
-	//for i, sub := range f.topics {
-	//	if len(sub) == 0 {
-	//		continue // empty rule set == wildcard
-	//	}
-	//	if !slices.Contains(sub, vLog.Topics[i]) {
-	//		return false
-	//	}
-	//}
+	// if len(f.topics) > len(vLog.Topics) {
+	// 	return false
+	// }
+	// for i, sub := range f.topics {
+	// 	if len(sub) == 0 {
+	// 		continue // empty rule set == wildcard
+	// 	}
+	// 	if !slices.Contains(sub, vLog.Topics[i]) {
+	// 		return false
+	// 	}
+	// }
 
 	return true
 }

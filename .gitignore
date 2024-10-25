@@ -1,6 +1,8 @@
 .idea
 **/**/yu
 **/**/reddio_db
+**/**/evm_bridge_db
+
 
 /test/tmp/
 data

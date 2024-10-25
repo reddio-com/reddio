@@ -19,8 +19,10 @@ import (
 	"github.com/reddio-com/reddio/evm"
 	"github.com/reddio-com/reddio/evm/ethrpc"
 	"github.com/reddio-com/reddio/parallel"
-	"github.com/reddio-com/reddio/relayer"
-	watcher "github.com/reddio-com/reddio/watcher/controller"
+	l2watcherTri "github.com/reddio-com/reddio/watcher"
+	l1watcher "github.com/reddio-com/reddio/watcher/controller"
+
+	"github.com/reddio-com/reddio/watcher/relayer"
 )
 
 func Start(evmPath, yuPath, poaPath, configPath string) {
@@ -42,7 +44,7 @@ func StartUpChain(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm
 
 	ethrpc.StartupEthRPC(chain, evmCfg)
 
-	StartupEventsWatcher(chain, evmCfg)
+	StartupL1Watcher(chain, evmCfg)
 
 	chain.Startup()
 
@@ -52,9 +54,10 @@ func InitReddio(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm.G
 	poaTri := poa.NewPoa(poaCfg)
 	solidityTri := evm.NewSolidity(evmCfg)
 	parallelTri := parallel.NewParallelEVM()
+	watcherTri := l2watcherTri.NewWatcher(evmCfg)
 
 	chain := startup.InitDefaultKernel(
-		yuCfg, poaTri, solidityTri, parallelTri,
+		yuCfg, poaTri, solidityTri, parallelTri, watcherTri,
 	)
 	//chain.WithExecuteFn(chain.OrderedExecute)
 	chain.WithExecuteFn(parallelTri.Execute)
@@ -67,7 +70,7 @@ func startPromServer() {
 	http.ListenAndServe(":8080", nil)
 }
 
-func StartupEventsWatcher(chain *kernel.Kernel, cfg *evm.GethConfig) {
+func StartupL1Watcher(chain *kernel.Kernel, cfg *evm.GethConfig) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 	if !cfg.EnableL1Client || !cfg.EnableL2Client {
@@ -84,29 +87,17 @@ func StartupEventsWatcher(chain *kernel.Kernel, cfg *evm.GethConfig) {
 	if err != nil {
 		log.Fatal("failed to connect to L2 geth", "endpoint", cfg.L2ClientAddress, "err", err)
 	}
-	// set up the bridge relayer
-	bridgeRelayer, err := relayer.NewBridgeRelayer(ctx, cfg, l1Client, l2Client, chain)
+	l1ToL2Relayer, err := relayer.NewL1ToL2Relayer(ctx, cfg, l2Client, chain)
 	if err != nil {
 		logrus.Fatal("init bridge relayer failed: ", err)
 	}
 
-	// set up the L1 and L2 event watchers
 	if cfg.EnableL1Client {
-		l1Watcher, err := watcher.NewL1EventsWatcher(ctx, cfg, l1Client, bridgeRelayer)
+		l1Watcher, err := l1watcher.NewL1EventsWatcher(ctx, cfg, l1Client, l1ToL2Relayer)
 		if err != nil {
 			logrus.Fatal("init L1 client failed: ", err)
 		}
-		err = l1Watcher.Run(cfg, context.Background())
-		if err != nil {
-			logrus.Fatal("l1 client run failed: ", err)
-		}
-	}
-	if cfg.EnableL2Client {
-		l2Watcher, err := watcher.NewL2EventsWatcher(ctx, cfg, l2Client, bridgeRelayer)
-		if err != nil {
-			logrus.Fatal("init L1 client failed: ", err)
-		}
-		err = l2Watcher.Run(cfg, context.Background())
+		err = l1Watcher.Run(ctx)
 		if err != nil {
 			logrus.Fatal("l1 client run failed: ", err)
 		}

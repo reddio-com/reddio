@@ -9,9 +9,9 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/reddio-com/reddio/evm"
-	"github.com/reddio-com/reddio/relayer"
 	"github.com/reddio-com/reddio/watcher/contract"
 	"github.com/reddio-com/reddio/watcher/logic"
+	"github.com/reddio-com/reddio/watcher/relayer"
 	"github.com/sirupsen/logrus"
 )
 
@@ -20,22 +20,22 @@ type L1EventsWatcher struct {
 	cfg            *evm.GethConfig
 	ethClient      *ethclient.Client
 	l1WatcherLogic *logic.L1WatcherLogic
-	bridgeRelayer  relayer.BridgeRelayerInterface
+	l1toL2Relayer  relayer.L1ToL2RelayerInterface
 }
 
-func NewL1EventsWatcher(ctx context.Context, cfg *evm.GethConfig, ethClient *ethclient.Client, bridgeRelayer relayer.BridgeRelayerInterface) (*L1EventsWatcher, error) {
+func NewL1EventsWatcher(ctx context.Context, cfg *evm.GethConfig, ethClient *ethclient.Client, l1toL2Relayer relayer.L1ToL2RelayerInterface) (*L1EventsWatcher, error) {
 
 	c := &L1EventsWatcher{
 		ctx:            ctx,
 		cfg:            cfg,
 		ethClient:      ethClient,
 		l1WatcherLogic: logic.NewL1WatcherLogic(cfg, ethClient),
-		bridgeRelayer:  bridgeRelayer,
+		l1toL2Relayer:  l1toL2Relayer,
 	}
 	return c, nil
 }
 
-func (w *L1EventsWatcher) Run(cfg *evm.GethConfig, ctx context.Context) error {
+func (w *L1EventsWatcher) Run(ctx context.Context) error {
 	downwardMsgChan := make(chan *contract.ParentBridgeCoreFacetDownwardMessage)
 	if w.ethClient.Client().SupportsSubscriptions() {
 		sub, err := w.watchDownwardMessage(ctx, downwardMsgChan, nil)
@@ -93,7 +93,7 @@ func (w *L1EventsWatcher) watchDownwardMessage(
 func (w *L1EventsWatcher) handleDownwardMessage(
 	msg *contract.ParentBridgeCoreFacetDownwardMessage,
 ) error {
-	err := w.bridgeRelayer.HandleDownwardMessageWithSystemCall(msg)
+	err := w.l1toL2Relayer.HandleDownwardMessageWithSystemCall(msg)
 	if err != nil {
 		return err
 	}
