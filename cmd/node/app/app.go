@@ -44,9 +44,7 @@ func InitReddio(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm.G
 	solidityTri := evm.NewSolidity(evmCfg)
 	parallelTri := parallel.NewParallelEVM()
 
-	chain := startup.InitDefaultKernel(
-		yuCfg, poaTri, solidityTri, parallelTri,
-	)
+	chain := startup.InitDefaultKernel(yuCfg).WithTripods(poaTri, solidityTri, parallelTri)
 	//chain.WithExecuteFn(chain.OrderedExecute)
 	chain.WithExecuteFn(parallelTri.Execute)
 	return chain
