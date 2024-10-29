@@ -82,6 +82,12 @@ func assert(transferCase *pkg.TransferCase, walletsManager *pkg.WalletManager, w
 			continue
 		}
 	}
+	bm := pkg.GetDefaultBlockManager()
+	block, err := bm.GetCurrentBlock()
+	if err != nil {
+		return false, err
+	}
+	log.Printf("Block(%d) StateRoot: %s\n", block.Height, block.StateRoot)
 	printChange(got, transferCase.Expect, transferCase)
 	return false, nil
 }
