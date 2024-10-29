@@ -68,7 +68,7 @@ func runAndAssert(transferCase *pkg.TransferCase, m *pkg.WalletManager, wallets 
 	if err != nil {
 		return err
 	}
-	log.Printf("Block(%d) StateRoot: %s\n", block.Height, block.StateRoot.String())
+	log.Printf("Block(%d) StateRoot: %s, total transactions count: %d", block.Height, block.StateRoot.String(), len(block.Txns))
 	return nil
 }
 
