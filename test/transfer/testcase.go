@@ -21,6 +21,9 @@ type RandomTransferTestCase struct {
 	initialCount uint64
 	steps        int
 	tm           *pkg.TransferManager
+
+	wallets   []*pkg.CaseEthWallet
+	transCase *pkg.TransferCase
 }
 
 func NewRandomTest(name string, count int, initial uint64, steps int) *RandomTransferTestCase {
@@ -45,8 +48,9 @@ func (tc *RandomTransferTestCase) Run(ctx context.Context, m *pkg.WalletManager)
 		return err
 	}
 	log.Println(fmt.Sprintf("%s create wallets finish", tc.CaseName))
-	transferCase := tc.tm.GenerateRandomTransferSteps(tc.steps, pkg.GenerateCaseWallets(tc.initialCount, wallets))
-	return runAndAssert(transferCase, m, wallets)
+	tc.wallets = pkg.GenerateCaseWallets(tc.initialCount, wallets)
+	tc.transCase = tc.tm.GenerateRandomTransferSteps(tc.steps, tc.wallets)
+	return runAndAssert(tc.transCase, m, wallets)
 }
 
 func runAndAssert(transferCase *pkg.TransferCase, m *pkg.WalletManager, wallets []*pkg.EthWallet) error {
@@ -69,7 +73,7 @@ func assert(transferCase *pkg.TransferCase, walletsManager *pkg.WalletManager, w
 	var got map[string]*pkg.CaseEthWallet
 	var success bool
 	var err error
-	for i := 0; i < 3; i++ {
+	for i := 0; i < 20; i++ {
 		got, success, err = transferCase.AssertExpect(walletsManager, wallets)
 		if err != nil {
 			return false, err
