@@ -62,6 +62,13 @@ func runAndAssert(transferCase *pkg.TransferCase, m *pkg.WalletManager, wallets 
 	if !success {
 		return errors.New("transfer manager assert failed")
 	}
+
+	bm := pkg.GetDefaultBlockManager()
+	block, err := bm.GetCurrentBlock()
+	if err != nil {
+		return err
+	}
+	log.Printf("Block(%d) StateRoot: %s", block.Height, block.StateRoot.String())
 	return nil
 }
 
@@ -82,6 +89,7 @@ func assert(transferCase *pkg.TransferCase, walletsManager *pkg.WalletManager, w
 			continue
 		}
 	}
+
 	printChange(got, transferCase.Expect, transferCase)
 	return false, nil
 }
