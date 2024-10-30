@@ -81,6 +81,10 @@ func (m *WalletManager) BatchGenerateRandomWallets(count int, initialEthCount ui
 
 func (m *WalletManager) createEthWallet(initialEthCount uint64) (*EthWallet, error) {
 	privateKey, address := generatePrivateKey()
+	return m.CreateEthWalletByAddress(initialEthCount, privateKey, address)
+}
+
+func (m *WalletManager) CreateEthWalletByAddress(initialEthCount uint64, privateKey, address string) (*EthWallet, error) {
 	if err := m.transferEth(GenesisPrivateKey, address, initialEthCount, 0); err != nil {
 		return nil, err
 	}
