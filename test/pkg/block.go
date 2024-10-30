@@ -3,10 +3,12 @@ package pkg
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/yu-org/yu/common/yerror"
-	"github.com/yu-org/yu/core/types"
 	"io"
 	"net/http"
+
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/yu-org/yu/common/yerror"
+	"github.com/yu-org/yu/core/types"
 
 	"github.com/ethereum/go-ethereum/log"
 )
@@ -51,6 +53,27 @@ func (bm *BlockManager) GetBlockTxnCountByIndex(index int) (bool, int, error) {
 
 func (bm *BlockManager) GetCurrentBlock() (*types.Block, error) {
 	resp, err := http.Get(fmt.Sprintf("http://%s/api/block", bm.hostUrl))
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	d, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	r := &blockResp{}
+	err = json.Unmarshal(d, &r)
+	if err != nil {
+		return nil, err
+	}
+	if r.ErrMsg == yerror.ErrBlockNotFound.Error() {
+		return nil, err
+	}
+	return r.Data, nil
+}
+
+func (bm *BlockManager) GetBlockByIndex(id uint64) (*types.Block, error) {
+	resp, err := http.Get(fmt.Sprintf("http://%s/api/block?number=%s", bm.hostUrl, hexutil.EncodeUint64(id)))
 	if err != nil {
 		return nil, err
 	}

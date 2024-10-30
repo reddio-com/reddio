@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/ethereum/go-ethereum/common"
+	yucommon "github.com/yu-org/yu/common"
 
 	"github.com/reddio-com/reddio/test/pkg"
 )
@@ -33,10 +33,14 @@ func (st *StateRootTestCase) Run(ctx context.Context, m *pkg.WalletManager) erro
 	if err := st.RandomTransferTestCase.Run(ctx, m); err != nil {
 		return err
 	}
+	hash, err := getStateRoot()
+	if err != nil {
+		return err
+	}
 	result := StateRootTestResult{
 		Wallets:      st.wallets,
 		TransferCase: st.transCase,
-		StateRoot:    getStateRoot(),
+		StateRoot:    hash,
 	}
 	content, _ := json.Marshal(result)
 	os.Remove("stateRootTestResult.json")
@@ -53,13 +57,17 @@ func (st *StateRootTestCase) Run(ctx context.Context, m *pkg.WalletManager) erro
 }
 
 type StateRootTestResult struct {
-	Wallets      []*pkg.CaseEthWallet
-	TransferCase *pkg.TransferCase
-	StateRoot    common.Hash
+	Wallets      []*pkg.CaseEthWallet `json:"wallets"`
+	TransferCase *pkg.TransferCase    `json:"transferCase"`
+	StateRoot    yucommon.Hash        `json:"stateRoot"`
 }
 
-func getStateRoot() common.Hash {
-	return [32]byte{}
+func getStateRoot() (yucommon.Hash, error) {
+	b, err := pkg.GetDefaultBlockManager().GetBlockByIndex(2)
+	if err != nil {
+		return [32]byte{}, err
+	}
+	return b.StateRoot, nil
 }
 
 type StateRootAssertTestCase struct {
@@ -85,7 +93,10 @@ func (s *StateRootAssertTestCase) Run(ctx context.Context, m *pkg.WalletManager)
 	if err := runAndAssert(result.TransferCase, m, getWallets(result.Wallets)); err != nil {
 		return err
 	}
-	stateRoot := getStateRoot()
+	stateRoot, err := getStateRoot()
+	if err != nil {
+		return err
+	}
 	if result.StateRoot != stateRoot {
 		return fmt.Errorf("expected stateRoot %v, got %v", stateRoot, result.StateRoot)
 	}
