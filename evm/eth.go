@@ -376,7 +376,7 @@ func (s *Solidity) Commit(block *yu_types.Block) {
 		logrus.Errorf("Solidity commit failed on Block(%d), error: %v", blockNumber, err)
 		return
 	}
-	block.StateRoot = AdaptHash(stateRoot)
+	block.StateRoot = yu_common.Hash(stateRoot)
 	// s.gasPool.SetGas(0)
 }
 
@@ -435,12 +435,6 @@ func preCheck(req *TxRequest, stateDB vm.StateDB) error {
 			req.Origin.Hex(), req.Nonce, stNonce)
 	}
 	return nil
-}
-
-func AdaptHash(ethHash common.Hash) yu_common.Hash {
-	var yuHash yu_common.Hash
-	copy(yuHash[:], ethHash[:])
-	return yuHash
 }
 
 func executeContractCreation(ctx *context.WriteContext, txReq *TxRequest, stateDB *pending_state.PendingState, origin, coinBase common.Address, vmenv *vm.EVM, sender vm.AccountRef, rules params.Rules) (uint64, error) {
