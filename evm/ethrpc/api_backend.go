@@ -626,7 +626,7 @@ func (e *EthAPIBackend) compactBlock2EthBlock(yuBlock *yutypes.Block) (*types.Bl
 	rcptReq := &evm.ReceiptsRequest{Hashes: txHashes}
 	resp, err := e.adaptChainRead(rcptReq, "GetReceipts")
 	if err != nil {
-		log.Printf("Failed to get receipts when compact block: %v", err)
+		log.Printf("Failed to get receipts when adaptChainRead: %v", err)
 	} else {
 		receiptResponse := resp.DataInterface.(*evm.ReceiptsResponse)
 		if receiptResponse.Err != nil {
