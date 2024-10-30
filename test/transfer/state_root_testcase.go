@@ -3,6 +3,7 @@ package transfer
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -62,22 +63,33 @@ func getStateRoot() common.Hash {
 }
 
 type StateRootAssertTestCase struct {
+	content []byte
+	initial uint64
+}
+
+func NewStateRootAssertTestCase(content []byte, initial uint64) *StateRootAssertTestCase {
+	return &StateRootAssertTestCase{content: content, initial: initial}
 }
 
 func (s *StateRootAssertTestCase) Run(ctx context.Context, m *pkg.WalletManager) error {
-	content, err := os.ReadFile(resultJson)
-	if err != nil {
+	result := &StateRootTestResult{}
+	if err := json.Unmarshal(s.content, result); err != nil {
 		return err
 	}
-	result := &StateRootTestResult{}
-	if err := json.Unmarshal(content, result); err != nil {
-		return err
+	for _, wallet := range result.Wallets {
+		_, err := m.CreateEthWalletByAddress(s.initial, wallet.PK, wallet.Address)
+		if err != nil {
+			return err
+		}
 	}
 	if err := runAndAssert(result.TransferCase, m, getWallets(result.Wallets)); err != nil {
 		return err
 	}
 	stateRoot := getStateRoot()
-	return result.StateRoot == stateRoot
+	if result.StateRoot != stateRoot {
+		return fmt.Errorf("expected stateRoot %v, got %v", stateRoot, result.StateRoot)
+	}
+	return nil
 }
 
 func (s *StateRootAssertTestCase) Name() string {
