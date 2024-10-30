@@ -6,35 +6,31 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/ethereum/go-ethereum/core/tracing"
 	"math/big"
 	"net/http"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/core/tracing"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/yu-org/yu/common/yerror"
-
-	yuConfig "github.com/reddio-com/reddio/evm/config"
-	"github.com/reddio-com/reddio/metrics"
-
-	"github.com/reddio-com/reddio/evm/pending_state"
-
+	"github.com/ethereum/go-ethereum/params"
+	"github.com/holiman/uint256"
 	"github.com/sirupsen/logrus"
 	yu_common "github.com/yu-org/yu/common"
+	"github.com/yu-org/yu/common/yerror"
 	"github.com/yu-org/yu/core/context"
 	"github.com/yu-org/yu/core/tripod"
 	yu_types "github.com/yu-org/yu/core/types"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/state"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/ethereum/go-ethereum/params"
-
-	"github.com/holiman/uint256"
+	yuConfig "github.com/reddio-com/reddio/evm/config"
+	"github.com/reddio-com/reddio/evm/pending_state"
+	"github.com/reddio-com/reddio/metrics"
 )
 
 type Solidity struct {
@@ -173,7 +169,7 @@ func (s *Solidity) StartBlock(block *yu_types.Block) {
 	s.Lock()
 	defer s.Unlock()
 	s.cfg.BlockNumber = big.NewInt(int64(block.Height))
-	//s.gasPool = new(core.GasPool).AddGas(block.LeiLimit)
+	// s.gasPool = new(core.GasPool).AddGas(block.LeiLimit)
 	s.cfg.GasLimit = block.LeiLimit
 	s.cfg.Time = block.Timestamp
 	s.cfg.Difficulty = big.NewInt(int64(block.Difficulty))
@@ -213,7 +209,6 @@ func (s *Solidity) CheckTxn(txn *yu_types.SignedTxn) error {
 
 	if req.IsInternalCall {
 		// TODO: use txn.Pubkey and txn.Signature to verify the tx
-
 	}
 	return nil
 }
@@ -236,7 +231,7 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 	txReq := new(TxRequest)
 	coinbase := common.BytesToAddress(s.cfg.Coinbase.Bytes())
 
-	//s.Lock()
+	// s.Lock()
 	err = ctx.BindJson(txReq)
 	if err != nil {
 		return err
@@ -264,7 +259,7 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 
 	sender := vm.AccountRef(txReq.Origin)
 	rules := cfg.ChainConfig.Rules(vmenv.Context.BlockNumber, vmenv.Context.Random != nil, vmenv.Context.Time)
-	//s.Unlock()
+	// s.Unlock()
 
 	var gasUsed uint64
 	if txReq.Address == nil {
@@ -447,18 +442,18 @@ func executeContractCreation(ctx *context.WriteContext, txReq *TxRequest, stateD
 	code, address, leftOverGas, err := vmenv.Create(sender, txReq.Input, txReq.GasLimit, uint256.MustFromBig(txReq.Value))
 	if err != nil {
 		// byt, _ := json.Marshal(txReq)
-		//logrus.Printf("[Execute Txn] Create contract Failed. err = %v. Request = %v", err, string(byt))
+		// logrus.Printf("[Execute Txn] Create contract Failed. err = %v. Request = %v", err, string(byt))
 		_ = emitReceipt(ctx, vmenv, txReq, code, address, leftOverGas, err)
 		return 0, err
 	}
 
-	//logrus.Printf("[Execute Txn] Create contract success. Oringin code = %v, Hex Code = %v, Address = %v, Left Gas = %v", code, hex.EncodeToString(code), address.Hex(), leftOverGas)
+	// logrus.Printf("[Execute Txn] Create contract success. Oringin code = %v, Hex Code = %v, Address = %v, Left Gas = %v", code, hex.EncodeToString(code), address.Hex(), leftOverGas)
 	return txReq.GasLimit - leftOverGas, emitReceipt(ctx, vmenv, txReq, code, address, leftOverGas, err)
 }
 
 func makeEvmReceipt(ctx *context.WriteContext, vmEvm *vm.EVM, code []byte, signedTx *yu_types.SignedTxn, block *yu_types.Block, address common.Address, leftOverGas uint64, err error) *types.Receipt {
 	wrCallParams := signedTx.Raw.WrCall.Params
-	var txReq = &TxRequest{}
+	txReq := &TxRequest{}
 	_ = json.Unmarshal([]byte(wrCallParams), txReq)
 
 	txArgs := &TempTransactionArgs{}
@@ -508,8 +503,8 @@ func makeEvmReceipt(ctx *context.WriteContext, vmEvm *vm.EVM, code []byte, signe
 	receipt.BlockNumber = blockNumber
 	receipt.TransactionIndex = uint(ctx.TxnIndex)
 
-	//spew.Dump("[Receipt] log = %v", stateDB.Logs())
-	//logrus.Printf("[Receipt] log is nil = %v", receipt.Logs == nil)
+	// spew.Dump("[Receipt] log = %v", stateDB.Logs())
+	// logrus.Printf("[Receipt] log is nil = %v", receipt.Logs == nil)
 	if receipt.Logs == nil {
 		receipt.Logs = []*types.Log{}
 	}
@@ -531,15 +526,15 @@ func executeContractCall(ctx *context.WriteContext, txReq *TxRequest, ethState *
 	// logrus.Printf("before transfer: account %s balance %d \n", sender.Address(), ethState.GetBalance(sender.Address()))
 
 	code, leftOverGas, err := vmenv.Call(sender, *txReq.Address, txReq.Input, txReq.GasLimit, uint256.MustFromBig(txReq.Value))
-	//logrus.Printf("after transfer: account %s balance %d \n", sender.Address(), ethState.GetBalance(sender.Address()))
+	// logrus.Printf("after transfer: account %s balance %d \n", sender.Address(), ethState.GetBalance(sender.Address()))
 	if err != nil {
-		//byt, _ := json.Marshal(txReq)
-		//logrus.Printf("[Execute Txn] SendTx Failed. err = %v. Request = %v", err, string(byt))
+		// byt, _ := json.Marshal(txReq)
+		// logrus.Printf("[Execute Txn] SendTx Failed. err = %v. Request = %v", err, string(byt))
 		_ = emitReceipt(ctx, vmenv, txReq, code, common.Address{}, leftOverGas, err)
 		return 0, err
 	}
 
-	//logrus.Printf("[Execute Txn] SendTx success. Oringin code = %v, Hex Code = %v, Left Gas = %v", code, hex.EncodeToString(code), leftOverGas)
+	// logrus.Printf("[Execute Txn] SendTx success. Oringin code = %v, Hex Code = %v, Left Gas = %v", code, hex.EncodeToString(code), leftOverGas)
 	return txReq.GasLimit - leftOverGas, emitReceipt(ctx, vmenv, txReq, code, common.Address{}, leftOverGas, err)
 }
 

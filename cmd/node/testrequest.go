@@ -6,18 +6,19 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/reddio-com/reddio/evm"
 	"io"
 	"log"
 	"math/big"
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/reddio-com/reddio/evm"
 )
 
 // How To Use
@@ -68,7 +69,7 @@ func TestSendTransaction(gethCfg *evm.GethConfig, exit bool) {
 		log.Fatal(err)
 	}
 
-	//signer := types.MakeSigner(gethCfg, new(big.Int).SetUint64(uint64(block.Height)), block.Timestamp)
+	// signer := types.MakeSigner(gethCfg, new(big.Int).SetUint64(uint64(block.Height)), block.Timestamp)
 
 	signer := types.LatestSigner(gethCfg.ChainConfig)
 	signedTx, err := types.SignTx(tx, signer, privateKey)

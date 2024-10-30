@@ -55,7 +55,6 @@ type TestContract struct {
 
 // deploy Erc20 token contracts
 func deployERC20Contracts(auth *bind.TransactOpts, client *ethclient.Client, deployNum int) ([]*ERC20DeployedContract, error) {
-
 	var err error
 	deployedTokens := make([]*ERC20DeployedContract, 0)
 
@@ -72,7 +71,6 @@ func deployERC20Contracts(auth *bind.TransactOpts, client *ethclient.Client, dep
 	}
 
 	return deployedTokens, nil
-
 }
 
 // deploy UniswapV2 Contracts

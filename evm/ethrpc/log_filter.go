@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/big"
+	"slices"
+
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -12,8 +15,6 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/sirupsen/logrus"
 	yutypes "github.com/yu-org/yu/core/types"
-	"math/big"
-	"slices"
 )
 
 var (
@@ -24,8 +25,10 @@ var (
 	errExceedMaxTopics        = errors.New("exceed max topics")
 )
 
-const maxTopics = 100
-const maxSubTopics = 1000
+const (
+	maxTopics    = 100
+	maxSubTopics = 1000
+)
 
 // FilterCriteria represents a request to create a new filter.
 // Same as ethereum.FilterQuery but with UnmarshalJSON() method.

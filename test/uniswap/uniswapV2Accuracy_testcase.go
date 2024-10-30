@@ -42,7 +42,6 @@ func NewUniswapV2AccuracyTestCase(name string, count int, initial uint64) *Unisw
 const swapTimes = 200
 
 func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManager) error {
-
 	preparedTestData, err := ca.Prepare(ctx, m)
 	if err != nil {
 		return err
@@ -64,7 +63,7 @@ func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManag
 		log.Fatalf("Failed to suggest gas price: %v", err)
 	}
 
-	//Arrange :
+	// Arrange :
 	testUser := preparedTestData.TestUsers
 	if err != nil {
 		return err
@@ -87,7 +86,7 @@ func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManag
 		Nonce int
 		Err   error
 	}
-	//Act
+	// Act
 	routeraddress := preparedTestData.TestContracts[0].UniswapV2Router
 	uniswapV2RouterInstance, err := contracts.NewUniswapV2Router01(routeraddress, client)
 	if err != nil {
@@ -250,7 +249,7 @@ func (ca *UniswapV2AccuracyTestCase) prepareDeployerContract(deployerUser *pkg.E
 				return [20]byte{}, nil, fmt.Errorf("failed to create approve transaction for user %s: %v", user.Address, err)
 			}
 			lastTxHash = tx.Hash()
-			//log.Printf("Approve transaction hash for user %s: %s", user.Address, tx.Hash().Hex())
+			// log.Printf("Approve transaction hash for user %s: %s", user.Address, tx.Hash().Hex())
 			testAuth.Nonce = testAuth.Nonce.Add(testAuth.Nonce, big.NewInt(1))
 		}
 	}
@@ -262,7 +261,7 @@ func (ca *UniswapV2AccuracyTestCase) prepareDeployerContract(deployerUser *pkg.E
 		return [20]byte{}, nil, fmt.Errorf("transaction %s was not confirmed", lastTxHash.Hex())
 	}
 	tokenPairs := generateTokenPairs(ERC20DeployedContracts)
-	//add liquidity
+	// add liquidity
 	for _, pair := range tokenPairs {
 		addLiquidityTx, err := uniswapV2Contract.uniswapV2RouterInstance.AddLiquidity(
 			depolyerAuth,

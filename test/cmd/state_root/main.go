@@ -72,7 +72,6 @@ func main() {
 		log.Println("assert success")
 		os.Exit(0)
 	}
-
 }
 
 func assertStateRootGen(ctx context.Context, evmCfg *evm.GethConfig) error {
@@ -97,6 +96,4 @@ func assertStateRootAssert(ctx context.Context, evmCfg *evm.GethConfig, content 
 	return ethManager.Run(ctx)
 }
 
-var (
-	initial uint64 = 90 * 100 * 100 * 100
-)
+var initial uint64 = 90 * 100 * 100 * 100

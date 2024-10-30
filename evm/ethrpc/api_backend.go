@@ -3,8 +3,6 @@ package ethrpc
 import (
 	"context"
 	"encoding/json"
-	"github.com/pkg/errors"
-
 	"log"
 	"math/big"
 	"time"
@@ -24,6 +22,7 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/ethereum/go-ethereum/trie"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	yucommon "github.com/yu-org/yu/common"
 	yucontext "github.com/yu-org/yu/core/context"
@@ -42,7 +41,7 @@ type EthAPIBackend struct {
 }
 
 func (e *EthAPIBackend) SyncProgress() ethereum.SyncProgress {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
@@ -52,10 +51,9 @@ func (e *EthAPIBackend) SyncProgress() ethereum.SyncProgress {
 //}
 
 // Move to ethrpc/gasprice.go
-//func (e *EthAPIBackend) FeeHistory(ctx context.Context, blockCount uint64, lastBlock rpc.BlockNumber, rewardPercentiles []float64) (*big.Int, [][]*big.Int, []*big.Int, []float64, []*big.Int, []float64, error) {}
-
+// func (e *EthAPIBackend) FeeHistory(ctx context.Context, blockCount uint64, lastBlock rpc.BlockNumber, rewardPercentiles []float64) (*big.Int, [][]*big.Int, []*big.Int, []float64, []*big.Int, []float64, error) {}
 func (e *EthAPIBackend) BlobBaseFee(ctx context.Context) *big.Int {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
@@ -80,7 +78,7 @@ func (e *EthAPIBackend) UnprotectedAllowed() bool {
 }
 
 func (e *EthAPIBackend) SetHead(number uint64) {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
@@ -130,7 +128,6 @@ func (e *EthAPIBackend) HeaderByNumberOrHash(ctx context.Context, blockNrOrHash 
 
 func (e *EthAPIBackend) CurrentHeader() *types.Header {
 	yuBlock, err := e.chain.Chain.GetEndCompactBlock()
-
 	if err != nil {
 		logrus.Error("EthAPIBackend.CurrentBlock() failed: ", err)
 		return nil
@@ -141,7 +138,6 @@ func (e *EthAPIBackend) CurrentHeader() *types.Header {
 
 func (e *EthAPIBackend) CurrentBlock() *types.Header {
 	yuBlock, err := e.chain.Chain.GetEndCompactBlock()
-
 	if err != nil {
 		logrus.Error("EthAPIBackend.CurrentBlock() failed: ", err)
 		return nil
@@ -245,12 +241,12 @@ func (e *EthAPIBackend) ChainDb() ethdb.Database {
 }
 
 func (e *EthAPIBackend) AccountManager() *accounts.Manager {
-	//TODO implement me
+	// TODO implement me
 	return nil
 }
 
 func (e *EthAPIBackend) Pending() (*types.Block, types.Receipts, *state.StateDB) {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
@@ -261,7 +257,7 @@ func (e *EthAPIBackend) GetTd(ctx context.Context, hash common.Hash) *big.Int {
 
 func (e *EthAPIBackend) GetEVM(ctx context.Context, msg *core.Message, state *state.StateDB, header *types.Header, vmConfig *vm.Config, blockCtx *vm.BlockContext) *vm.EVM {
 	if vmConfig == nil {
-		//vmConfig = e.chain.Chain.GetVMConfig()
+		// vmConfig = e.chain.Chain.GetVMConfig()
 		vmConfig = &vm.Config{
 			EnablePreimageRecording: false, // TODO: replace with ctx.Bool()
 		}
@@ -278,17 +274,17 @@ func (e *EthAPIBackend) GetEVM(ctx context.Context, msg *core.Message, state *st
 }
 
 func (e *EthAPIBackend) SubscribeChainEvent(ch chan<- core.ChainEvent) event.Subscription {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
 func (e *EthAPIBackend) SubscribeChainHeadEvent(ch chan<- core.ChainHeadEvent) event.Subscription {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
 func (e *EthAPIBackend) SubscribeChainSideEvent(ch chan<- core.ChainSideEvent) event.Subscription {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
@@ -395,7 +391,7 @@ func (e *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction)
 func YuTxn2EthTxn(yuSignedTxn *yutypes.SignedTxn) (*types.Transaction, error) {
 	// Un-serialize wrCall.params to retrive datas:
 	wrCallParams := yuSignedTxn.Raw.WrCall.Params
-	var txReq = &evm.TxRequest{}
+	txReq := &evm.TxRequest{}
 	err := json.Unmarshal([]byte(wrCallParams), txReq)
 	if err != nil {
 		return nil, err
@@ -506,7 +502,7 @@ func (e *EthAPIBackend) GetPoolNonce(ctx context.Context, addr common.Address) (
 		sender, _ := types.Sender(signer, ethTxn)
 		if sender == addr {
 			nonce++
-			//return ethTxn.Nonce(), nil
+			// return ethTxn.Nonce(), nil
 		}
 	}
 
@@ -514,22 +510,22 @@ func (e *EthAPIBackend) GetPoolNonce(ctx context.Context, addr common.Address) (
 }
 
 func (e *EthAPIBackend) Stats() (pending int, queued int) {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
 func (e *EthAPIBackend) TxPoolContent() (map[common.Address][]*types.Transaction, map[common.Address][]*types.Transaction) {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
 func (e *EthAPIBackend) TxPoolContentFrom(addr common.Address) ([]*types.Transaction, []*types.Transaction) {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
 func (e *EthAPIBackend) SubscribeNewTxsEvent(events chan<- core.NewTxsEvent) event.Subscription {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
@@ -542,7 +538,7 @@ func (e *EthAPIBackend) Engine() consensus.Engine {
 }
 
 func (e *EthAPIBackend) GetBody(ctx context.Context, hash common.Hash, number rpc.BlockNumber) (*types.Body, error) {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
@@ -570,22 +566,22 @@ func (e *EthAPIBackend) GetLogs(ctx context.Context, blockHash common.Hash, numb
 }
 
 func (e *EthAPIBackend) SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent) event.Subscription {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
 func (e *EthAPIBackend) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscription {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
 func (e *EthAPIBackend) BloomStatus() (uint64, uint64) {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
 func (e *EthAPIBackend) ServiceFilter(ctx context.Context, session *bloombits.MatcherSession) {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
