@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"os"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -484,6 +485,7 @@ func (g *Genesis) ToBlock() *types.Block {
 // Commit writes the block and state of a genesis specification to the database.
 // The block is committed as the canonical head block.
 func (g *Genesis) Commit(ethState *EthState /*db ethdb.Database, triedb *triedb.Database*/) (*types.Block, error) {
+	fmt.Println("Commit Genesis  (Only First startup chain) ")
 	block := g.ToBlock()
 	if block.Number().Sign() != 0 {
 		return nil, errors.New("can't commit genesis block with number > 0")
@@ -616,6 +618,31 @@ type AccountInfo struct {
 	} `rlp:"optional"`
 }
 
+func LoadGenesisConfig() ([]AccountInfo, error) {
+	fmt.Println("start to load eth_benchmark_data.json ...")
+	var accounts []struct {
+		PK      string `json:"pk"`
+		Address string `json:"address"`
+	}
+	byt, err := os.ReadFile("eth_benchmark_data.json")
+	if err != nil {
+		return nil, err
+	}
+	err = json.Unmarshal(byt, &accounts)
+	if err != nil {
+		return nil, err
+	}
+	var accountsInfo []AccountInfo
+	for _, account := range accounts {
+		accountsInfo = append(accountsInfo, AccountInfo{
+			Addr:    common.HexToAddress(account.Address).Big(),
+			Balance: new(big.Int).Mul(big.NewInt(100000000000), ether),
+		})
+	}
+	fmt.Println("finish loading eth_benchmark_data.json ...")
+	return accountsInfo, nil
+}
+
 func decodePrealloc(data string) types.GenesisAlloc {
 	var p []AccountInfo
 	if err := rlp.NewStream(strings.NewReader(data), 0).Decode(&p); err != nil {
@@ -655,6 +682,12 @@ func decodePrealloc(data string) types.GenesisAlloc {
 		},
 	}
 	p = append(p, devnetAccounts...)
+
+	accounts, err := LoadGenesisConfig()
+	if err != nil {
+		panic(err)
+	}
+	p = append(p, accounts...)
 
 	ga := make(types.GenesisAlloc, len(p))
 	for _, account := range p {
