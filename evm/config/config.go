@@ -3,7 +3,6 @@ package config
 import "time"
 
 type Config struct {
-
 	// Enables VM tracing
 	VMTrace       string `toml:"vm_trace"`
 	VMTraceConfig string `toml:"vm_trace_config"`

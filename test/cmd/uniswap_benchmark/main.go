@@ -70,6 +70,7 @@ func blockBenchmark(ethManager *uniswap.EthManager) {
 func prepareBenchmark(ctx context.Context, manager *uniswap.EthManager) {
 	manager.Prepare(ctx)
 }
+
 func runBenchmark(ctx context.Context, manager *uniswap.EthManager) {
 	for {
 		select {

@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/holiman/uint256"
 	yu_common "github.com/yu-org/yu/common"
-	"math/big"
 )
 
 func ConvertHashToYuHash(hash common.Hash) (yu_common.Hash, error) {

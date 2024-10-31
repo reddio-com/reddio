@@ -3,7 +3,6 @@ package evm
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/holiman/uint256"
 	"path/filepath"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -20,6 +19,7 @@ import (
 	"github.com/ethereum/go-ethereum/triedb"
 	"github.com/ethereum/go-ethereum/triedb/hashdb"
 	"github.com/ethereum/go-ethereum/triedb/pathdb"
+	"github.com/holiman/uint256"
 	"github.com/sirupsen/logrus"
 
 	"github.com/reddio-com/reddio/evm/config"

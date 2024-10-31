@@ -14,7 +14,7 @@ type EthManager struct {
 	evmCfg *evm.GethConfig
 	config *conf.EthCaseConf
 	wm     *pkg.WalletManager
-	//tm     *pkg.TransferManager
+	// tm     *pkg.TransferManager
 	testcases []TestCase
 }
 

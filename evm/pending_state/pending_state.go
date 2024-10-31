@@ -139,12 +139,10 @@ func (s *PendingState) Selfdestruct6780(address common.Address) {
 }
 
 func (s *PendingState) Exist(address common.Address) bool {
-
 	return s.state.Exist(address)
 }
 
 func (s *PendingState) Empty(address common.Address) bool {
-
 	return s.state.Empty(address)
 }
 

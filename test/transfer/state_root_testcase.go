@@ -11,9 +11,7 @@ import (
 	"github.com/reddio-com/reddio/test/pkg"
 )
 
-var (
-	resultJson = "stateRootTestResult.json"
-)
+var resultJson = "stateRootTestResult.json"
 
 type StateRootTestCase struct {
 	*RandomTransferTestCase

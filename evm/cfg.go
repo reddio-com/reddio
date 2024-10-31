@@ -1,6 +1,9 @@
 package evm
 
 import (
+	"math/big"
+	"time"
+
 	"github.com/BurntSushi/toml"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
@@ -9,8 +12,6 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	yuConfig "github.com/reddio-com/reddio/evm/config"
 	"github.com/sirupsen/logrus"
-	"math/big"
-	"time"
 )
 
 type GethConfig struct {
