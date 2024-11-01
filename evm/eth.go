@@ -594,11 +594,15 @@ func (s *Solidity) getReceipt(hash common.Hash) (*types.Receipt, error) {
 	}
 	yuReceipt, err := s.TxDB.GetReceipt(yuHash)
 	if err != nil {
+		logrus.Error("getReceipt() TxDB.GetReceipt error: ", err)
 		return nil, err
 	}
 	if yuReceipt == nil {
 		return nil, ErrNotFoundReceipt
 	}
+
+	logrus.Println("yuReceipt.Extra: ", string(yuReceipt.Extra))
+
 	receipt := new(types.Receipt)
 	err = json.Unmarshal(yuReceipt.Extra, receipt)
 	return receipt, err
