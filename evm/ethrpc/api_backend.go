@@ -424,7 +424,7 @@ func (e *EthAPIBackend) GetTransaction(ctx context.Context, txHash common.Hash) 
 	}
 	receiptResponse := resp.DataInterface.(*evm.ReceiptResponse)
 	if receiptResponse.Err != nil {
-		return false, nil, common.Hash{}, 0, 0, receiptResponse.Err
+		return false, nil, common.Hash{}, 0, 0, errors.Errorf("StatusCode: %d, Error: %v", resp.StatusCode, receiptResponse.Err)
 	}
 	receipt := receiptResponse.Receipt
 
