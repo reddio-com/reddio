@@ -601,10 +601,13 @@ func (s *Solidity) getReceipt(hash common.Hash) (*types.Receipt, error) {
 		return nil, ErrNotFoundReceipt
 	}
 
-	logrus.Println("yuReceipt.Extra: ", string(yuReceipt.Extra))
+	logrus.Printf("yuReceipt.Extra(%s): %s", yuReceipt.TxHash.String(), string(yuReceipt.Extra))
 
 	receipt := new(types.Receipt)
 	err = json.Unmarshal(yuReceipt.Extra, receipt)
+	if err != nil {
+		logrus.Errorf("json.Unmarshal yuReceipt.Extra(%s) failed: %v", yuReceipt.TxHash.String(), err)
+	}
 	return receipt, err
 }
 
