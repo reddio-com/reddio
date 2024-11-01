@@ -3,7 +3,6 @@ package ethrpc
 import (
 	"context"
 	"encoding/json"
-	"log"
 	"math/big"
 	"time"
 
@@ -622,11 +621,11 @@ func (e *EthAPIBackend) compactBlock2EthBlock(yuBlock *yutypes.Block) (*types.Bl
 	rcptReq := &evm.ReceiptsRequest{Hashes: txHashes}
 	resp, err := e.adaptChainRead(rcptReq, "GetReceipts")
 	if err != nil {
-		log.Printf("Failed to get receipts when adaptChainRead: %v", err)
+		logrus.Errorf("Failed to get receipts when adaptChainRead: %v", err)
 	} else {
 		receiptResponse := resp.DataInterface.(*evm.ReceiptsResponse)
 		if receiptResponse.Err != nil {
-			log.Printf("Failed to get receipts when compact block: %v", receiptResponse.Err)
+			logrus.Errorf("Failed to get receipts when compact block: error-code: %d, error: %v", resp.StatusCode, receiptResponse.Err)
 		} else {
 			receipts = receiptResponse.Receipts
 		}

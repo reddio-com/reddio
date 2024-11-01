@@ -137,7 +137,7 @@ func (s *EthState) Commit(blockNum uint64) (common.Hash, error) {
 
 	// new stateDB for the next block
 	err = s.newStateForNextBlock(stateRoot)
-	logrus.Printf("EthState Commit Successful")
+	logrus.Debug("EthState Commit Successful")
 	return stateRoot, err
 }
 
