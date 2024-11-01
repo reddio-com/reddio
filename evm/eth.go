@@ -597,6 +597,9 @@ func (s *Solidity) getReceipt(hash common.Hash) (*types.Receipt, error) {
 		logrus.Error("getReceipt() TxDB.GetReceipt error: ", err)
 		return nil, err
 	}
+
+	logrus.Printf("yuReceipt body is %s", yuReceipt.String())
+
 	if yuReceipt == nil {
 		return nil, ErrNotFoundReceipt
 	}
@@ -639,8 +642,7 @@ func emitReceipt(ctx *context.WriteContext, vmEmv *vm.EVM, txReq *TxRequest, cod
 	evmReceipt := makeEvmReceipt(ctx, vmEmv, code, ctx.Txn, ctx.Block, contractAddr, leftOverGas, err)
 	receiptByt, err := json.Marshal(evmReceipt)
 	if err != nil {
-		txReqByt, _ := json.Marshal(txReq)
-		logrus.Errorf("Receipt marshal err: %v. Tx: %v", err, string(txReqByt))
+		logrus.Errorf("Receipt marshal err: %v. Tx: %s", err, txReq.Hash.String())
 		return err
 	}
 	ctx.EmitExtra(receiptByt)
