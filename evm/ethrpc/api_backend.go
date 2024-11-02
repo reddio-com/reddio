@@ -435,6 +435,7 @@ func (e *EthAPIBackend) GetTransaction(ctx context.Context, txHash common.Hash) 
 	}
 	index := receipt.TransactionIndex
 
+	logrus.Printf("EthAPIBackend.GetTransaction() txn %s, blockHash %s, blockNumber %d, txIdx %d", ethTxn.Hash().String(), blockHash.String(), blockNumber, index)
 	return true, ethTxn, blockHash, blockNumber, uint64(index), nil
 }
 
