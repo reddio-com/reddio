@@ -604,7 +604,7 @@ func (s *Solidity) getReceipt(hash common.Hash) (*types.Receipt, error) {
 		return nil, ErrNotFoundReceipt
 	}
 
-	logrus.Printf("yuReceipt.Extra(%s): %s", yuHash.String(), string(yuReceipt.Extra))
+	// logrus.Printf("yuReceipt.Extra(%s): %s", yuHash.String(), string(yuReceipt.Extra))
 
 	receipt := new(types.Receipt)
 	if yuReceipt.Extra != nil {
