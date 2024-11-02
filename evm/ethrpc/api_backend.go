@@ -417,25 +417,36 @@ func (e *EthAPIBackend) GetTransaction(ctx context.Context, txHash common.Hash) 
 		return false, nil, common.Hash{}, 0, 0, err
 	}
 
-	rcptReq := &evm.ReceiptRequest{Hash: txHash}
-	resp, err := e.adaptChainRead(rcptReq, "GetReceipt")
+	// rcptReq := &evm.ReceiptRequest{Hash: txHash}
+	receipt, err := e.chain.TxDB.GetReceipt(yucommon.Hash(txHash))
 	if err != nil {
 		return false, nil, common.Hash{}, 0, 0, err
 	}
-	receiptResponse := resp.DataInterface.(*evm.ReceiptResponse)
-	if receiptResponse.Err != nil {
-		return false, nil, common.Hash{}, 0, 0, errors.Errorf("StatusCode: %d, Error: %v", resp.StatusCode, receiptResponse.Err)
-	}
-	receipt := receiptResponse.Receipt
+
+	//resp, err := e.adaptChainRead(rcptReq, "GetReceipt")
+	//if err != nil {
+	//	return false, nil, common.Hash{}, 0, 0, err
+	//}
+	//receiptResponse := resp.DataInterface.(*evm.ReceiptResponse)
+	//if receiptResponse.Err != nil {
+	//	return false, nil, common.Hash{}, 0, 0, errors.Errorf("StatusCode: %d, Error: %v", resp.StatusCode, receiptResponse.Err)
+	//}
+	//receipt := receiptResponse.Receipt
 
 	blockHash := receipt.BlockHash
-	blockNumber := uint64(0)
-	if receipt.BlockNumber != nil {
-		blockNumber = receipt.BlockNumber.Uint64()
-	}
-	index := receipt.TransactionIndex
+	blockNumber := receipt.Height
+	var index uint64
 
-	return true, ethTxn, blockHash, blockNumber, uint64(index), nil
+	if receipt.Extra != nil {
+		ethRcpt := new(types.Receipt)
+		err = json.Unmarshal(receipt.Extra, ethRcpt)
+		if err != nil {
+			return true, ethTxn, common.Hash(blockHash), uint64(blockNumber), 0, err
+		}
+		index = uint64(ethRcpt.TransactionIndex)
+	}
+
+	return true, ethTxn, common.Hash(blockHash), uint64(blockNumber), index, nil
 }
 
 func (e *EthAPIBackend) GetReceipts(ctx context.Context, hash common.Hash) (types.Receipts, error) {
