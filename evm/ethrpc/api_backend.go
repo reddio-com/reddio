@@ -441,6 +441,7 @@ func (e *EthAPIBackend) GetTransaction(ctx context.Context, txHash common.Hash) 
 		ethRcpt := new(types.Receipt)
 		err = json.Unmarshal(receipt.Extra, ethRcpt)
 		if err != nil {
+			logrus.Error("GetTransaction() json.Unmarshal failed: ", err)
 			return true, ethTxn, common.Hash(blockHash), uint64(blockNumber), 0, err
 		}
 		index = uint64(ethRcpt.TransactionIndex)
