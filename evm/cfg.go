@@ -50,7 +50,7 @@ type GethConfig struct {
 	EthPort      string `toml:"eth_port"`
 
 	// EventsWatcher configs
-	EnableL1Client             bool     `toml:"enable_l1_client"`
+	EnableBridge               bool     `toml:"enable_bridge"`
 	L1ClientAddress            string   `toml:"l1_client_address"`
 	L2ClientAddress            string   `toml:"l2_client_address"`
 	ParentLayerContractAddress string   `toml:"parentlayer_contract_address"`

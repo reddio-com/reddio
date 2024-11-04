@@ -2,7 +2,7 @@
 **/**/yu
 **/**/reddio_db
 **/**/evm_bridge_db
-
+.vscode
 
 /test/tmp/
 data

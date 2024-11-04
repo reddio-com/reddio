@@ -235,6 +235,7 @@ func (cd *UniswapV2TPSStatisticsTestCase) executeTest(nodeUrl string, chainID in
 		log.Fatalf("Failed to connect to the Ethereum client: %v", err)
 		return err
 	}
+	defer client.Close()
 	//FixME: should use gasPrice from the chain
 	gasPrice := new(big.Int).SetUint64(2000000000)
 	err = cd.executeSwapSteps(client, steps, chainID, gasPrice, gasLimit)
@@ -242,6 +243,7 @@ func (cd *UniswapV2TPSStatisticsTestCase) executeTest(nodeUrl string, chainID in
 		log.Fatalf("Failed to perform swap steps: %v", err)
 		return err
 	}
+
 	return nil
 
 }
