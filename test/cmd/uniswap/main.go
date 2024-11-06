@@ -53,7 +53,6 @@ func main() {
 	}
 	log.Println("assert success")
 	os.Exit(0)
-
 }
 
 func assertUniswapV2(ctx context.Context, evmCfg *evm.GethConfig) error {

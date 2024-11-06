@@ -145,7 +145,7 @@ func (cd *UniswapV2TPSStatisticsTestCase) prepareDeployerContract(deployerUser *
 				return [20]byte{}, nil, fmt.Errorf("failed to create approve transaction for user %s: %v", user.Address, err)
 			}
 			lastTxHash = tx.Hash()
-			//log.Printf("Approve transaction hash for user %s: %s", user.Address, tx.Hash().Hex())
+			// log.Printf("Approve transaction hash for user %s: %s", user.Address, tx.Hash().Hex())
 			testAuth.Nonce = testAuth.Nonce.Add(testAuth.Nonce, big.NewInt(1))
 		}
 	}
@@ -157,7 +157,7 @@ func (cd *UniswapV2TPSStatisticsTestCase) prepareDeployerContract(deployerUser *
 		return [20]byte{}, nil, fmt.Errorf("transaction %s was not confirmed", lastTxHash.Hex())
 	}
 	tokenPairs := generateTokenPairs(ERC20DeployedContracts)
-	//add liquidity
+	// add liquidity
 	for _, pair := range tokenPairs {
 		addLiquidityTx, err := uniswapV2Contract.uniswapV2RouterInstance.AddLiquidity(
 			depolyerAuth,
@@ -236,7 +236,7 @@ func (cd *UniswapV2TPSStatisticsTestCase) executeTest(nodeUrl string, chainID in
 		return err
 	}
 	defer client.Close()
-	//FixME: should use gasPrice from the chain
+	// FixME: should use gasPrice from the chain
 	gasPrice := new(big.Int).SetUint64(2000000000)
 	err = cd.executeSwapSteps(client, steps, chainID, gasPrice, gasLimit)
 	if err != nil {
@@ -245,7 +245,6 @@ func (cd *UniswapV2TPSStatisticsTestCase) executeTest(nodeUrl string, chainID in
 	}
 
 	return nil
-
 }
 
 func generateTokenPairs(contracts []*ERC20DeployedContract) [][2]common.Address {

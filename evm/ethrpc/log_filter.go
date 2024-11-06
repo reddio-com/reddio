@@ -25,8 +25,10 @@ var (
 	errExceedMaxTopics        = errors.New("exceed max topics")
 )
 
-const maxTopics = 100
-const maxSubTopics = 1000
+const (
+	maxTopics    = 100
+	maxSubTopics = 1000
+)
 
 // FilterCriteria represents a request to create a new filter.
 // Same as ethereum.FilterQuery but with UnmarshalJSON() method.

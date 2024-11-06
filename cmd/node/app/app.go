@@ -45,7 +45,6 @@ func StartUpChain(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm
 	StartupL1Watcher(chain, evmCfg)
 
 	chain.Startup()
-
 }
 
 func InitReddio(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm.GethConfig) *kernel.Kernel {
@@ -54,10 +53,8 @@ func InitReddio(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm.G
 	parallelTri := parallel.NewParallelEVM()
 	watcherTri := watcher.NewL2EventsWatcher(evmCfg)
 
-	chain := startup.InitDefaultKernel(
-		yuCfg, poaTri, solidityTri, parallelTri, watcherTri,
-	)
-	//chain.WithExecuteFn(chain.OrderedExecute)
+	chain := startup.InitDefaultKernel(yuCfg).WithTripods(poaTri, solidityTri, parallelTri, watcherTri)
+	// chain.WithExecuteFn(chain.OrderedExecute)
 	chain.WithExecuteFn(parallelTri.Execute)
 	return chain
 }

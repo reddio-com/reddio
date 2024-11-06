@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
+	"slices"
+
 	"github.com/ethereum/go-ethereum/consensus/misc/eip1559"
 	"github.com/ethereum/go-ethereum/consensus/misc/eip4844"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -13,8 +16,6 @@ import (
 
 	//"github.com/yu-org/yu/common"
 	"github.com/ethereum/go-ethereum/common"
-	"math/big"
-	"slices"
 )
 
 const sampleNumber = 3 // Number of transactions sampled in a block
@@ -27,13 +28,13 @@ type EthGasPrice struct {
 	lastPrice   *big.Int
 	maxPrice    *big.Int
 	ignorePrice *big.Int
-	//cacheLock   sync.RWMutex
-	//fetchLock   sync.Mutex
+	// cacheLock   sync.RWMutex
+	// fetchLock   sync.Mutex
 
 	checkBlocks, percentile int
-	//maxHeaderHistory, maxBlockHistory uint64
+	// maxHeaderHistory, maxBlockHistory uint64
 
-	//historyCache *lru.Cache[cacheKey, processedFees]
+	// historyCache *lru.Cache[cacheKey, processedFees]
 }
 
 func NewEthGasPrice(backend Backend) *EthGasPrice {
@@ -60,14 +61,14 @@ func (e *EthAPIBackend) SuggestGasTipCap(ctx context.Context) (*big.Int, error) 
 
 	// TODO: need add cache lock
 	// If the latest gasprice is still available, return it.
-	//e.cacheLock.RLock()
+	// e.cacheLock.RLock()
 	lastHead, lastPrice := e.gasPriceCache.lastHead, e.gasPriceCache.lastPrice
-	//oracle.cacheLock.RUnlock()
+	// oracle.cacheLock.RUnlock()
 	if headHash == lastHead {
 		return new(big.Int).Set(lastPrice), nil
 	}
-	//oracle.fetchLock.Lock()
-	//defer oracle.fetchLock.Unlock()
+	// oracle.fetchLock.Lock()
+	// defer oracle.fetchLock.Unlock()
 
 	// Try checking the cache again, maybe the last fetch fetched what we need
 	//oracle.cacheLock.RLock()
@@ -122,10 +123,10 @@ func (e *EthAPIBackend) SuggestGasTipCap(ctx context.Context) (*big.Int, error) 
 	if price.Cmp(e.gasPriceCache.maxPrice) > 0 {
 		price = new(big.Int).Set(e.gasPriceCache.maxPrice)
 	}
-	//oracle.cacheLock.Lock()
+	// oracle.cacheLock.Lock()
 	e.gasPriceCache.lastHead = headHash
 	e.gasPriceCache.lastPrice = price
-	//oracle.cacheLock.Unlock()
+	// oracle.cacheLock.Unlock()
 
 	return new(big.Int).Set(price), nil
 }

@@ -3,9 +3,6 @@ package ethrpc
 import (
 	"context"
 	"encoding/json"
-	"github.com/pkg/errors"
-
-	"log"
 	"math/big"
 	"time"
 
@@ -24,6 +21,7 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/ethereum/go-ethereum/trie"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	yucommon "github.com/yu-org/yu/common"
 	yucontext "github.com/yu-org/yu/core/context"
@@ -42,7 +40,7 @@ type EthAPIBackend struct {
 }
 
 func (e *EthAPIBackend) SyncProgress() ethereum.SyncProgress {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
@@ -52,10 +50,9 @@ func (e *EthAPIBackend) SyncProgress() ethereum.SyncProgress {
 //}
 
 // Move to ethrpc/gasprice.go
-//func (e *EthAPIBackend) FeeHistory(ctx context.Context, blockCount uint64, lastBlock rpc.BlockNumber, rewardPercentiles []float64) (*big.Int, [][]*big.Int, []*big.Int, []float64, []*big.Int, []float64, error) {}
-
+// func (e *EthAPIBackend) FeeHistory(ctx context.Context, blockCount uint64, lastBlock rpc.BlockNumber, rewardPercentiles []float64) (*big.Int, [][]*big.Int, []*big.Int, []float64, []*big.Int, []float64, error) {}
 func (e *EthAPIBackend) BlobBaseFee(ctx context.Context) *big.Int {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
@@ -80,7 +77,7 @@ func (e *EthAPIBackend) UnprotectedAllowed() bool {
 }
 
 func (e *EthAPIBackend) SetHead(number uint64) {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
@@ -130,7 +127,6 @@ func (e *EthAPIBackend) HeaderByNumberOrHash(ctx context.Context, blockNrOrHash 
 
 func (e *EthAPIBackend) CurrentHeader() *types.Header {
 	yuBlock, err := e.chain.Chain.GetEndCompactBlock()
-
 	if err != nil {
 		logrus.Error("EthAPIBackend.CurrentBlock() failed: ", err)
 		return nil
@@ -141,7 +137,6 @@ func (e *EthAPIBackend) CurrentHeader() *types.Header {
 
 func (e *EthAPIBackend) CurrentBlock() *types.Header {
 	yuBlock, err := e.chain.Chain.GetEndCompactBlock()
-
 	if err != nil {
 		logrus.Error("EthAPIBackend.CurrentBlock() failed: ", err)
 		return nil
@@ -169,7 +164,11 @@ func (e *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumbe
 	if err != nil {
 		return nil, nil, err
 	}
-	return e.compactBlock2EthBlock(yuBlock), yuBlock, err
+	block, err := e.compactBlock2EthBlock(yuBlock)
+	if err != nil {
+		return nil, nil, err
+	}
+	return block, yuBlock, err
 }
 
 func (e *EthAPIBackend) BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, *yutypes.Block, error) {
@@ -177,7 +176,11 @@ func (e *EthAPIBackend) BlockByHash(ctx context.Context, hash common.Hash) (*typ
 	if err != nil {
 		return nil, nil, err
 	}
-	return e.compactBlock2EthBlock(yuBlock), yuBlock, err
+	block, err := e.compactBlock2EthBlock(yuBlock)
+	if err != nil {
+		return nil, nil, err
+	}
+	return block, yuBlock, err
 }
 
 func (e *EthAPIBackend) BlockByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Block, *yutypes.Block, error) {
@@ -237,12 +240,12 @@ func (e *EthAPIBackend) ChainDb() ethdb.Database {
 }
 
 func (e *EthAPIBackend) AccountManager() *accounts.Manager {
-	//TODO implement me
+	// TODO implement me
 	return nil
 }
 
 func (e *EthAPIBackend) Pending() (*types.Block, types.Receipts, *state.StateDB) {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
@@ -253,7 +256,7 @@ func (e *EthAPIBackend) GetTd(ctx context.Context, hash common.Hash) *big.Int {
 
 func (e *EthAPIBackend) GetEVM(ctx context.Context, msg *core.Message, state *state.StateDB, header *types.Header, vmConfig *vm.Config, blockCtx *vm.BlockContext) *vm.EVM {
 	if vmConfig == nil {
-		//vmConfig = e.chain.Chain.GetVMConfig()
+		// vmConfig = e.chain.Chain.GetVMConfig()
 		vmConfig = &vm.Config{
 			EnablePreimageRecording: false, // TODO: replace with ctx.Bool()
 		}
@@ -270,17 +273,17 @@ func (e *EthAPIBackend) GetEVM(ctx context.Context, msg *core.Message, state *st
 }
 
 func (e *EthAPIBackend) SubscribeChainEvent(ch chan<- core.ChainEvent) event.Subscription {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
 func (e *EthAPIBackend) SubscribeChainHeadEvent(ch chan<- core.ChainHeadEvent) event.Subscription {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
 func (e *EthAPIBackend) SubscribeChainSideEvent(ch chan<- core.ChainSideEvent) event.Subscription {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
@@ -337,7 +340,10 @@ func (e *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction)
 	if exist {
 		return errors.Errorf("tx(%s) already known onchain", signedTxHash.String())
 	}
-	existedTx := e.GetPoolTransaction(signedTxHash)
+	existedTx, err := e.GetPoolTransaction(signedTxHash)
+	if err != nil {
+		return err
+	}
 	if existedTx != nil {
 		return errors.Errorf("tx(%s) already known in txpool", signedTxHash.String())
 	}
@@ -381,17 +387,23 @@ func (e *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction)
 	return e.chain.HandleTxn(signedWrCall)
 }
 
-func YuTxn2EthTxn(yuSignedTxn *yutypes.SignedTxn) *types.Transaction {
+func YuTxn2EthTxn(yuSignedTxn *yutypes.SignedTxn) (*types.Transaction, error) {
 	// Un-serialize wrCall.params to retrive datas:
 	wrCallParams := yuSignedTxn.Raw.WrCall.Params
-	var txReq = &evm.TxRequest{}
-	json.Unmarshal([]byte(wrCallParams), txReq)
+	txReq := &evm.TxRequest{}
+	err := json.Unmarshal([]byte(wrCallParams), txReq)
+	if err != nil {
+		return nil, err
+	}
 
 	// if nonce is assigned to signedTx.Raw.Nonce, then this is ok; otherwise it's nil:
 	txArgs := &TransactionArgs{}
-	json.Unmarshal(txReq.OriginArgs, txArgs)
+	err = json.Unmarshal(txReq.OriginArgs, txArgs)
+	if err != nil {
+		return nil, err
+	}
 	tx := txArgs.ToTransaction(txReq.V, txReq.R, txReq.S)
-	return tx
+	return tx, nil
 }
 
 func (e *EthAPIBackend) GetTransaction(ctx context.Context, txHash common.Hash) (bool, *types.Transaction, common.Hash, uint64, uint64, error) {
@@ -400,27 +412,42 @@ func (e *EthAPIBackend) GetTransaction(ctx context.Context, txHash common.Hash) 
 	if err != nil || stxn == nil {
 		return false, nil, common.Hash{}, 0, 0, err
 	}
-	ethTxn := YuTxn2EthTxn(stxn)
-
-	rcptReq := &evm.ReceiptRequest{Hash: txHash}
-	resp, err := e.adaptChainRead(rcptReq, "GetReceipt")
+	ethTxn, err := YuTxn2EthTxn(stxn)
 	if err != nil {
 		return false, nil, common.Hash{}, 0, 0, err
 	}
-	receiptResponse := resp.DataInterface.(*evm.ReceiptResponse)
-	if receiptResponse.Err != nil {
-		return false, nil, common.Hash{}, 0, 0, receiptResponse.Err
+
+	// rcptReq := &evm.ReceiptRequest{Hash: txHash}
+	receipt, err := e.chain.TxDB.GetReceipt(yucommon.Hash(txHash))
+	if err != nil {
+		return false, nil, common.Hash{}, 0, 0, err
 	}
-	receipt := receiptResponse.Receipt
+
+	//resp, err := e.adaptChainRead(rcptReq, "GetReceipt")
+	//if err != nil {
+	//	return false, nil, common.Hash{}, 0, 0, err
+	//}
+	//receiptResponse := resp.DataInterface.(*evm.ReceiptResponse)
+	//if receiptResponse.Err != nil {
+	//	return false, nil, common.Hash{}, 0, 0, errors.Errorf("StatusCode: %d, Error: %v", resp.StatusCode, receiptResponse.Err)
+	//}
+	//receipt := receiptResponse.Receipt
 
 	blockHash := receipt.BlockHash
-	blockNumber := uint64(0)
-	if receipt.BlockNumber != nil {
-		blockNumber = receipt.BlockNumber.Uint64()
-	}
-	index := receipt.TransactionIndex
+	blockNumber := receipt.Height
+	var index uint64
 
-	return true, ethTxn, blockHash, blockNumber, uint64(index), nil
+	if receipt.Extra != nil {
+		ethRcpt := new(types.Receipt)
+		err = json.Unmarshal(receipt.Extra, ethRcpt)
+		if err != nil {
+			logrus.Error("GetTransaction() json.Unmarshal eth receipt failed: ", err)
+			return true, ethTxn, common.Hash(blockHash), uint64(blockNumber), 0, err
+		}
+		index = uint64(ethRcpt.TransactionIndex)
+	}
+	
+	return true, ethTxn, common.Hash(blockHash), uint64(blockNumber), index, nil
 }
 
 func (e *EthAPIBackend) GetReceipts(ctx context.Context, hash common.Hash) (types.Receipts, error) {
@@ -454,7 +481,10 @@ func (e *EthAPIBackend) GetPoolTransactions() (types.Transactions, error) {
 	var ethTxns []*types.Transaction
 
 	for _, yuSignedTxn := range stxn {
-		ethTxn := YuTxn2EthTxn(yuSignedTxn)
+		ethTxn, err := YuTxn2EthTxn(yuSignedTxn)
+		if err != nil {
+			return nil, err
+		}
 		ethTxns = append(ethTxns, ethTxn)
 	}
 
@@ -462,11 +492,12 @@ func (e *EthAPIBackend) GetPoolTransactions() (types.Transactions, error) {
 }
 
 // Similar to GetTransaction():
-func (e *EthAPIBackend) GetPoolTransaction(txHash common.Hash) *types.Transaction {
+func (e *EthAPIBackend) GetPoolTransaction(txHash common.Hash) (*types.Transaction, error) {
 	stxn, err := e.chain.Pool.GetTxn(yucommon.Hash(txHash)) // will not return error here
 	if err != nil || stxn == nil {
-		return nil
+		return nil, err
 	}
+
 	return YuTxn2EthTxn(stxn)
 }
 
@@ -482,7 +513,7 @@ func (e *EthAPIBackend) GetPoolNonce(ctx context.Context, addr common.Address) (
 		sender, _ := types.Sender(signer, ethTxn)
 		if sender == addr {
 			nonce++
-			//return ethTxn.Nonce(), nil
+			// return ethTxn.Nonce(), nil
 		}
 	}
 
@@ -490,22 +521,22 @@ func (e *EthAPIBackend) GetPoolNonce(ctx context.Context, addr common.Address) (
 }
 
 func (e *EthAPIBackend) Stats() (pending int, queued int) {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
 func (e *EthAPIBackend) TxPoolContent() (map[common.Address][]*types.Transaction, map[common.Address][]*types.Transaction) {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
 func (e *EthAPIBackend) TxPoolContentFrom(addr common.Address) ([]*types.Transaction, []*types.Transaction) {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
 func (e *EthAPIBackend) SubscribeNewTxsEvent(events chan<- core.NewTxsEvent) event.Subscription {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
@@ -518,7 +549,7 @@ func (e *EthAPIBackend) Engine() consensus.Engine {
 }
 
 func (e *EthAPIBackend) GetBody(ctx context.Context, hash common.Hash, number rpc.BlockNumber) (*types.Body, error) {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
@@ -546,22 +577,22 @@ func (e *EthAPIBackend) GetLogs(ctx context.Context, blockHash common.Hash, numb
 }
 
 func (e *EthAPIBackend) SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent) event.Subscription {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
 func (e *EthAPIBackend) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscription {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
 func (e *EthAPIBackend) BloomStatus() (uint64, uint64) {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
 func (e *EthAPIBackend) ServiceFilter(ctx context.Context, session *bloombits.MatcherSession) {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }
 
@@ -583,14 +614,17 @@ func yuHeader2EthHeader(yuHeader *yutypes.Header) *types.Header {
 	}
 }
 
-func (e *EthAPIBackend) compactBlock2EthBlock(yuBlock *yutypes.Block) *types.Block {
+func (e *EthAPIBackend) compactBlock2EthBlock(yuBlock *yutypes.Block) (*types.Block, error) {
 	header := yuHeader2EthHeader(yuBlock.Header)
 
 	// Generate transactions and receipts
 	var ethTxs []*types.Transaction
 	var txHashes []common.Hash
 	for _, yuSignedTxn := range yuBlock.Txns {
-		tx := YuTxn2EthTxn(yuSignedTxn)
+		tx, err := YuTxn2EthTxn(yuSignedTxn)
+		if err != nil {
+			return nil, err
+		}
 		ethTxs = append(ethTxs, tx)
 		txHashes = append(txHashes, tx.Hash())
 	}
@@ -599,17 +633,17 @@ func (e *EthAPIBackend) compactBlock2EthBlock(yuBlock *yutypes.Block) *types.Blo
 	rcptReq := &evm.ReceiptsRequest{Hashes: txHashes}
 	resp, err := e.adaptChainRead(rcptReq, "GetReceipts")
 	if err != nil {
-		log.Printf("Failed to get receipts when compact block: %v", err)
+		logrus.Errorf("Failed to get receipts when adaptChainRead: %v", err)
 	} else {
 		receiptResponse := resp.DataInterface.(*evm.ReceiptsResponse)
 		if receiptResponse.Err != nil {
-			log.Printf("Failed to get receipts when compact block: %v", receiptResponse.Err)
+			logrus.Errorf("Failed to get receipts when compact block: error-code: %d, error: %v", resp.StatusCode, receiptResponse.Err)
 		} else {
 			receipts = receiptResponse.Receipts
 		}
 	}
 
-	return types.NewBlock(header, ethTxs, nil, receipts, trie.NewStackTrie(nil))
+	return types.NewBlock(header, ethTxs, nil, receipts, trie.NewStackTrie(nil)), nil
 }
 
 func (e *EthAPIBackend) adaptChainRead(req any, funcName string) (*yucontext.ResponseData, error) {

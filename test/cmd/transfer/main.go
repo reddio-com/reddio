@@ -32,6 +32,7 @@ func main() {
 	flag.Parse()
 	evmConfig := evm.LoadEvmConfig(evmConfigPath)
 	config := config2.GetGlobalConfig()
+	config.IsBenchmarkMode = true
 	config.IsParallel = isParallel
 	go func() {
 		if config.IsParallel {

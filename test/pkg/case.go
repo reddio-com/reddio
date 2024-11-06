@@ -74,8 +74,12 @@ func (m *TransferManager) GenerateSameTargetTransferSteps(stepCount int, wallets
 }
 
 func (tc *TransferCase) Run(m *WalletManager) error {
+	nonceMap := make(map[string]uint64)
 	for _, step := range tc.Steps {
-		if err := m.TransferEth(step.From, step.To, step.Count); err != nil {
+		if _, ok := nonceMap[step.From.Address]; ok {
+			nonceMap[step.From.Address]++
+		}
+		if err := m.TransferEth(step.From, step.To, step.Count, nonceMap[step.From.Address]); err != nil {
 			return err
 		}
 	}

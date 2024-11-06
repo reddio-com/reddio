@@ -1144,7 +1144,11 @@ func (s *TransactionAPI) GetTransactionByHash(ctx context.Context, hash common.H
 		}
 
 		// No finalized transaction, try to retrieve it from the pool
-		if tx := s.b.GetPoolTransaction(hash); tx != nil {
+		tx, err = s.b.GetPoolTransaction(hash)
+		if err != nil {
+			return nil, err
+		}
+		if tx != nil {
 			return NewRPCPendingTransaction(tx, s.b.CurrentHeader(), s.b.ChainConfig()), nil
 		}
 
@@ -1174,7 +1178,11 @@ func (s *TransactionAPI) GetRawTransactionByHash(ctx context.Context, hash commo
 			return nil, err
 		}
 
-		if tx = s.b.GetPoolTransaction(hash); tx != nil {
+		tx, err = s.b.GetPoolTransaction(hash)
+		if err != nil {
+			return nil, err
+		}
+		if tx != nil {
 			return tx.MarshalBinary()
 		}
 		if err != nil {
@@ -1192,13 +1200,12 @@ func (s *TransactionAPI) GetRawTransactionByHash(ctx context.Context, hash commo
 // GetTransactionReceipt returns the transaction receipt for the given transaction hash.
 func (s *TransactionAPI) GetTransactionReceipt(ctx context.Context, hash common.Hash) (map[string]interface{}, error) {
 	found, tx, blockHash, blockNumber, index, err := s.b.GetTransaction(ctx, hash)
-
 	if err != nil {
 		// Only when err==nil should it return nil, and when err!=nil, it should return NewTxIndexingError.
 		// However, this would cause errors with packages such as Hardhat. In order to handle compatibility,
 		// it currently returns nil directly.
 		logrus.Warnf("[GetTransactionReceipt] Failed to get tx %s, err: %v", hash.String(), err)
-		//return nil, NewTxIndexingError() // transaction is not fully indexed
+		// return nil, NewTxIndexingError() // transaction is not fully indexed
 	}
 	if !found {
 		return nil, nil // transaction is not existent or reachable
@@ -1326,7 +1333,7 @@ func (s *TransactionAPI) FillTransaction(ctx context.Context, args TransactionAr
 func (s *TransactionAPI) SendRawTransaction(ctx context.Context, input hexutil.Bytes) (txHash common.Hash, err error) {
 	defer func() {
 		if err != nil {
-			logrus.Warning("SendRawTransaction failed: ", err)
+			logrus.Errorf("SendRawTransaction failed: %v, txHash(%s)", err, txHash.String())
 		}
 	}()
 	tx := new(types.Transaction)
@@ -1511,8 +1518,11 @@ func (api *DebugAPI) GetRawTransaction(ctx context.Context, hash common.Hash) (h
 		if err != nil && !errors.Is(err, evm.ErrNotFoundReceipt) {
 			return nil, err
 		}
-
-		if tx = api.b.GetPoolTransaction(hash); tx != nil {
+		tx, err = api.b.GetPoolTransaction(hash)
+		if err != nil {
+			return nil, err
+		}
+		if tx != nil {
 			return tx.MarshalBinary()
 		}
 		if err != nil {

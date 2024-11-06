@@ -10,6 +10,9 @@ build:
 build_transfer_test_race:
 	go build -race -v -o transfer_test ./test/cmd/transfer/main.go
 
+build_transfer_test_no_race:
+	go build -v -o transfer_test ./test/cmd/transfer/main.go
+
 build_uniswap_test_race:
 	go build -race -v -o uniswap_test ./test/cmd/uniswap/main.go
 
@@ -24,6 +27,15 @@ ci_parallel_uniswap_test: reset
 
 ci_serial_uniswap_test: reset
 	./uniswap_test --parallel=false
+
+build_state_root_test:
+	go build -v -o state_root_test ./test/cmd/state_root/main.go
+
+state_root_test_gen:
+	./state_root_test --action=gen
+
+state_root_test_assert:
+	./state_root_test --action=assert
 
 ## for local benchmark
 

@@ -14,7 +14,7 @@ type EthManager struct {
 	evmCfg *evm.GethConfig
 	config *conf.EthCaseConf
 	wm     *pkg.WalletManager
-	//tm     *pkg.TransferManager
+	// tm     *pkg.TransferManager
 	testcases []TestCase
 }
 
@@ -23,6 +23,10 @@ func (m *EthManager) Configure(cfg *conf.EthCaseConf, evmCfg *evm.GethConfig) {
 	m.evmCfg = evmCfg
 	m.wm = pkg.NewWalletManager(m.evmCfg, m.config.HostUrl)
 	m.testcases = []TestCase{}
+}
+
+func (m *EthManager) GetWalletManager() *pkg.WalletManager {
+	return m.wm
 }
 
 func (m *EthManager) PreCreateWallets(walletCount int, initCount uint64) ([]*pkg.EthWallet, error) {
