@@ -2,7 +2,6 @@ package controller
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"math/big"
 
@@ -14,6 +13,7 @@ import (
 	"github.com/reddio-com/reddio/bridge/logic"
 	"github.com/reddio-com/reddio/bridge/relayer"
 	"github.com/reddio-com/reddio/evm"
+	"github.com/reddio-com/reddio/metrics"
 	"github.com/sirupsen/logrus"
 )
 
@@ -38,17 +38,11 @@ func NewL1EventsWatcher(ctx context.Context, cfg *evm.GethConfig, ethClient *eth
 }
 
 func (w *L1EventsWatcher) Run(ctx context.Context) error {
-	fmt.Println("L1EventsWatcher Run")
 	downwardMsgChan := make(chan *contract.ParentBridgeCoreFacetDownwardMessage)
 	if w.l1Client.Client().SupportsSubscriptions() {
-		ChainId, err := w.l1Client.ChainID(ctx)
-		if err != nil {
-			return err
-		}
-		fmt.Println("L1EventsWatcher Run: SupportsSubscriptions, ChainId", ChainId)
 		sub, err := w.watchDownwardMessage(ctx, downwardMsgChan)
 		if err != nil {
-			fmt.Println("L1EventsWatcher Run: watchDownwardMessage error", err)
+			metrics.L1EventWatcherFailureCounter.Inc()
 			return err
 		}
 		go func() {
@@ -57,23 +51,24 @@ func (w *L1EventsWatcher) Run(ctx context.Context) error {
 				select {
 				case msg := <-downwardMsgChan:
 					if msg == nil {
-						fmt.Println("msg is nil")
 						continue
 					}
-					fmt.Println("Listen for msgChan", msg)
-					jsonData, err := json.Marshal(msg)
-					if err != nil {
-						logrus.Errorf("Error converting downwardMsgChan txn to JSON: %v", err)
-						continue
-					}
-					fmt.Println("msg as JSON:", string(jsonData))
+					// fmt.Println("Listen for msgChan", msg)
+					// jsonData, err := json.Marshal(msg)
+					// if err != nil {
+					// 	logrus.Errorf("Error converting downwardMsgChan txn to JSON: %v", err)
+					// 	continue
+					// }
+					// fmt.Println("msg as JSON:", string(jsonData))
 					w.handleDownwardMessage(msg)
-					fmt.Println("handleDownwardMessage end")
 				case subErr := <-sub.Err():
 					logrus.Errorf("L1 subscription failed: %v, Resubscribing...", subErr)
+					metrics.L1EventWatcherFailureCounter.Inc()
+					metrics.L1EventWatcherRetryCounter.Inc()
 					sub, err = w.watchDownwardMessage(ctx, downwardMsgChan)
 					if err != nil {
 						logrus.Errorf("Resubscribe failed: %v", err)
+						metrics.L1EventWatcherFailureCounter.Inc()
 						return
 					}
 				case <-ctx.Done():
@@ -92,12 +87,10 @@ func (w *L1EventsWatcher) watchDownwardMessage(
 	if !common.IsHexAddress(w.cfg.ParentLayerContractAddress) {
 		return nil, fmt.Errorf("invalid address: %s", w.cfg.ParentLayerContractAddress)
 	}
-	fmt.Println("watchDownwardMessage ParentLayerContractAddress:", w.cfg.ParentLayerContractAddress)
 	filterer, err := contract.NewParentBridgeCoreFacetFilterer(common.HexToAddress(w.cfg.ParentLayerContractAddress), w.l1Client)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("Subscription created successfully")
 	return filterer.WatchDownwardMessage(&bind.WatchOpts{Context: ctx}, sink)
 }
 

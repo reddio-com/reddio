@@ -3,7 +3,6 @@ package logic
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"math/big"
 	"slices"
 
@@ -45,30 +44,20 @@ func NewL2WatcherLogic(cfg *evm.GethConfig, solidity *evm.Solidity) (*L2WatcherL
 func (f *L2WatcherLogic) L2FetcherUpwardMessageFromLogs(ctx context.Context, block *yutypes.Block, l2BlockCollectionDepth *big.Int) ([]*contract.ChildBridgeCoreFacetUpwardMessage, error) {
 	var allUpwardMessages []*contract.ChildBridgeCoreFacetUpwardMessage
 
-	//txHash := "0x8dd98713b2f4143da5a3102712b4b8c6aa55ecdf415615ccaad91b897862e57c" //txHash
-	// testBlockHash := "0x369b673ca0df222ad6e79dec2c561f070f47d6d8dbcd4c9eb9e9efd75cfa3664"
-	// testCompactBlock, err := f.solidity.Chain.GetBlock(yucommon.Hash(common.HexToHash(testBlockHash)))
-	// if err != nil {
-	// 	fmt.Println("Watcher GetCompactBlock error: ", err)
-	// 	return nil, err
-	// }
-	// fmt.Println("Watcher1111 compactBlock: ", testCompactBlock.Hash.String())
 	depth := int(l2BlockCollectionDepth.Int64())
 	blockHeight := block.Height
 	var err error
-	//testBlockHash := "0x369b673ca0df222ad6e79dec2c561f070f47d6d8dbcd4c9eb9e9efd75cfa3664"
 	for i := 0; i < depth; i++ {
 		if i > 0 {
 			block, err = f.solidity.Chain.GetBlockByHeight(blockHeight)
 			if err != nil {
-				fmt.Println("Watcher GetCompactBlock error: ", err)
+				//fmt.Println("Watcher GetCompactBlock error: ", err)
 				return nil, err
 			}
 		}
 		query := ethereum.FilterQuery{
 			// FromBlock: new(big.Int).SetUint64(from), // inclusive
 			// ToBlock:   new(big.Int).SetUint64(to),   // inclusive
-			//BlockHash: &common.Hash(block.Hash),
 			Addresses: f.addressList,
 			Topics:    make([][]common.Hash, 1),
 		}
@@ -77,14 +66,14 @@ func (f *L2WatcherLogic) L2FetcherUpwardMessageFromLogs(ctx context.Context, blo
 
 		eventLogs, err := f.FilterLogs(ctx, block, query)
 		if err != nil {
-			fmt.Println("Watcher GetCompactBlock error: ", err)
+			//fmt.Println("Watcher GetCompactBlock error: ", err)
 			return nil, err
 		}
 		if len(eventLogs) == 0 {
 			blockHeight--
 			continue
 		}
-		fmt.Println("Watcher eventLogs: ", eventLogs)
+		//fmt.Println("Watcher eventLogs: ", eventLogs)
 		upwardMessages, err := f.parser.ParseL2EventLogs(ctx, eventLogs)
 		if err != nil {
 			log.Error("Failed to parse L2 event logs 3", "err", err)
@@ -93,7 +82,6 @@ func (f *L2WatcherLogic) L2FetcherUpwardMessageFromLogs(ctx context.Context, blo
 		allUpwardMessages = append(allUpwardMessages, upwardMessages...)
 		blockHeight--
 	}
-	fmt.Println("Watcher allUpwardMessages: ", allUpwardMessages)
 	return allUpwardMessages, nil
 }
 

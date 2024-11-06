@@ -39,6 +39,7 @@ func (e *L2EventParser) ParseL2UpwardMessageEventEventLogs(ctx context.Context, 
 	for _, vlog := range logs {
 		switch vlog.Topics[0] {
 		case backendabi.L2UpwardMessageEventSig:
+			fmt.Println("catch L2UpwardMessageEventSig")
 			event := new(contract.ChildBridgeCoreFacetUpwardMessage)
 			err := utils.UnpackLog(backendabi.IL2ChildBridgeCoreFacetABI, event, "UpwardMessage", vlog)
 			if err != nil {

@@ -2,7 +2,6 @@ package controller
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"math/big"
@@ -42,25 +41,25 @@ func (w *L2EventsWatcher) WatchUpwardMessage(ctx context.Context, block *yutypes
 
 	upwardMessage, err := w.l2WatcherLogic.L2FetcherUpwardMessageFromLogs(ctx, block, w.cfg.L2BlockCollectionDepth)
 	if err != nil {
-		fmt.Println("Watcher L2FetcherUpwardMessageFromLogs error: ", err)
-		return err
+		//fmt.Println("Watcher L2FetcherUpwardMessageFromLogs error: ", err)
+		return fmt.Errorf("failed to fetch upward message from logs: %v", err)
 	}
 
 	if len(upwardMessage) == 0 {
-		fmt.Println("No upward messages found")
+		//fmt.Println("No upward messages found")
 		return nil
 	}
 	// print for test
-	jsonData, err := json.MarshalIndent(upwardMessage, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal upwardMessage to JSON: %v", err)
-	}
+	// jsonData, err := json.MarshalIndent(upwardMessage, "", "  ")
+	// if err != nil {
+	// 	return fmt.Errorf("failed to marshal upwardMessage to JSON: %v", err)
+	// }
 
-	fmt.Println("WatchUpwardMessage: ", string(jsonData))
+	// fmt.Println("WatchUpwardMessage: ", string(jsonData))
 	err = w.l2toL1Relayer.HandleUpwardMessage(upwardMessage)
 	if err != nil {
-		fmt.Println("Watcher HandleUpwardMessage error: ", err)
-		return err
+		//fmt.Println("Watcher HandleUpwardMessage error: ", err)
+		return fmt.Errorf("failed to handle upward message: %v", err)
 	}
 	return nil
 
@@ -96,7 +95,7 @@ func (w *L2EventsWatcher) InitChain(block *yutypes.Block) {
 		//w.evmBridgeDB = db
 
 	}
-	logrus.Info("Watcher InitChain")
+	//logrus.Info("Watcher InitChain")
 }
 
 func (w *L2EventsWatcher) StartBlock(block *yutypes.Block) {
@@ -107,25 +106,13 @@ func (w *L2EventsWatcher) EndBlock(block *yutypes.Block) {
 
 func (w *L2EventsWatcher) FinalizeBlock(block *yutypes.Block) {
 	if w.cfg.EnableBridge {
-		// upwardSequence, err := w.GetSequence("upwardSequence")
-		// if err != nil {
-		// 	fmt.Println("GetSequence error", "err", err)
-		// 	return
-		// }
-		// if upwardSequence == 0 {
-		// 	fmt.Println("upwardSequence is 0")
-		// }
-		// fmt.Println("upwardSequence", upwardSequence)
 		//watch upward message
 		blockHeightBigInt := big.NewInt(int64(block.Header.Height))
 		if big.NewInt(0).Mod(blockHeightBigInt, w.cfg.L2BlockCollectionDepth).Cmp(big.NewInt(0)) == 0 {
 			err := w.WatchUpwardMessage(context.Background(), block, w.solidity)
 			if err != nil {
-				fmt.Println("WatchUpwardMessage error", "err", err)
-				return
+				logrus.Errorf("WatchUpwardMessage error: %v", err)
 			}
 		}
-		// upwardSequence++
-		// w.SetSequence("upwardSequence", upwardSequence)
 	}
 }

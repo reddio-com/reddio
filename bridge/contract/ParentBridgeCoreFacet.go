@@ -5,7 +5,6 @@ package contract
 
 import (
 	"errors"
-	"fmt"
 	"math/big"
 	"strings"
 
@@ -438,7 +437,7 @@ func (_ParentBridgeCoreFacet *ParentBridgeCoreFacetFilterer) WatchDownwardMessag
 			select {
 			case log := <-logs:
 				// New log arrived, parse the event and forward to the user
-				fmt.Println("ParentBridgeCoreFacet WatchDownwardMessage log:", log)
+				//fmt.Println("ParentBridgeCoreFacet WatchDownwardMessage log:", log)
 				event := new(ParentBridgeCoreFacetDownwardMessage)
 				if err := _ParentBridgeCoreFacet.contract.UnpackLog(event, "DownwardMessage", log); err != nil {
 					return err
@@ -453,10 +452,10 @@ func (_ParentBridgeCoreFacet *ParentBridgeCoreFacetFilterer) WatchDownwardMessag
 					return nil
 				}
 			case err := <-sub.Err():
-				fmt.Println("ParentBridgeCoreFacet WatchDownwardMessage error:", err)
+				//fmt.Println("ParentBridgeCoreFacet WatchDownwardMessage error:", err)
 				return err
 			case <-quit:
-			fmt.Println("ParentBridgeCoreFacet WatchDownwardMessage quit")
+			//fmt.Println("ParentBridgeCoreFacet WatchDownwardMessage quit")
 				return nil
 			}
 		}

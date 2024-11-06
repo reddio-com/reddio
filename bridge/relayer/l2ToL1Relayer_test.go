@@ -52,43 +52,11 @@ func TestGenerateUpwardMessageMultiSignatures(t *testing.T) {
 		t.Fatalf("Failed to generate multi-signatures: %v", err)
 	}
 
-	// // Log signatures in JSON format
-	// signaturesJSON, err := json.MarshalIndent(signatures, "", "  ")
-	// if err != nil {
-	// 	t.Fatalf("Failed to marshal signatures to JSON: %v", err)
-	// }
-	// t.Log("Signatures JSON:\n", string(signaturesJSON))
-
-	// // Log upwardMessages in JSON format
-	// upwardMessagesJSON, err := json.MarshalIndent(upwardMessages, "", "  ")
-	// if err != nil {
-	// 	t.Fatalf("Failed to marshal upwardMessages to JSON: %v", err)
-	// }
-	// t.Logf("UpwardMessages JSON:\n%s\n", string(upwardMessagesJSON))
-
-	// Assert no error
 	assert.NoError(t, err)
 
 	// Assert the length of signatures
 	assert.Equal(t, len(privateKeys), len(signatures))
-	// for print
-	// Recover the public key
 
-	// , err := crypto.Ecrecover(dataHash.Bytes(), signatures[0])
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-
-	// // Convert public key to address
-	// publicKeyECDSA, err := crypto.UnmarshalPubkey(sigPublicKey)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// address := crypto.PubkeyToAddress(*publicKeyECDSA)
-
-	// fmt.Printf("Signed hash: %x\n", signaturesArray[0])
-	// fmt.Printf("Signer address: %s\n", address.Hex())
-	// Verify the signatures
 	for i, sig := range signatures {
 		privateKey, err := crypto.HexToECDSA(privateKeys[i])
 		assert.NoError(t, err)

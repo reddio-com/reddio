@@ -107,6 +107,82 @@ var (
 		},
 		[]string{},
 	)
+	DownwardMessageSuccessCounter = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "reddio",
+			Subsystem: "bridge",
+			Name:      "downward_success_total",
+			Help:      "Total number of successfully processed downward messages",
+		},
+		[]string{TypeLbl},
+	)
+
+	DownwardMessageFailureCounter = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "reddio",
+			Subsystem: "bridge",
+			Name:      "downward_failure_total",
+			Help:      "Total number of failed downward message processing attempts",
+		},
+		[]string{TypeLbl},
+	)
+
+	DownwardMessageReceivedCounter = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "reddio",
+			Subsystem: "bridge",
+			Name:      "downward_received_total",
+			Help:      "Total number of received downward messages",
+		},
+		[]string{TypeLbl},
+	)
+
+	UpwardMessageSuccessCounter = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "reddio",
+			Subsystem: "bridge",
+			Name:      "upward_success_total",
+			Help:      "Total number of successfully processed upward messages",
+		},
+		[]string{TypeLbl},
+	)
+
+	UpwardMessageFailureCounter = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "reddio",
+			Subsystem: "bridge",
+			Name:      "upward_failure_total",
+			Help:      "Total number of failed upward message processing attempts",
+		},
+		[]string{TypeLbl},
+	)
+
+	UpwardMessageReceivedCounter = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "reddio",
+			Subsystem: "bridge",
+			Name:      "upward_received_total",
+			Help:      "Total number of received upward messages",
+		},
+		[]string{TypeLbl},
+	)
+	L1EventWatcherFailureCounter = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Namespace: "reddio",
+			Subsystem: "l1_event_watcher",
+			Name:      "failure_total",
+			Help:      "Total number of L1 event watcher failures",
+		},
+	)
+
+	L1EventWatcherRetryCounter = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Namespace: "reddio",
+			Subsystem: "l1_event_watcher",
+			Name:      "retry_total",
+			Help:      "Total number of L1 event watcher retries",
+		},
+	)
 )
 
 func init() {
@@ -122,6 +198,16 @@ func init() {
 	prometheus.MustRegister(BatchTxnCounter)
 	prometheus.MustRegister(BatchTxnSplitCounter)
 	prometheus.MustRegister(BatchTxnDuration)
+
+	prometheus.MustRegister(DownwardMessageSuccessCounter)
+	prometheus.MustRegister(DownwardMessageFailureCounter)
+	prometheus.MustRegister(DownwardMessageReceivedCounter)
+	prometheus.MustRegister(UpwardMessageSuccessCounter)
+	prometheus.MustRegister(UpwardMessageFailureCounter)
+	prometheus.MustRegister(UpwardMessageReceivedCounter)
+
+	prometheus.MustRegister(L1EventWatcherFailureCounter)
+	prometheus.MustRegister(L1EventWatcherRetryCounter)
 }
 
 var TxnBuckets = []float64{.00005, .0001, .00025, .0005, .001, .0025, .005, 0.01, 0.025, 0.05, 0.1}

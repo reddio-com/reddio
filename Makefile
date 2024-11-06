@@ -88,6 +88,8 @@ PARENTBRIDGECOREFACET_ABI = bridge/contract/ParentBridgeCoreFacet.abi
 UPWARDMESSAGEDISPATCHERFACET_ABI = bridge/contract/UpwardMessageDispatcherFacet.abi
 DOWNWARDMESSAGEDISPATCHERFACET_ABI = bridge/contract/DownwardMessageDispatcherFacet.abi
 ERC20TOKEN_ABI = bridge/test/bindings/ERC20Token.abi
+ERC721TOKEN_ABI = bridge/test/bindings/ERC721Token.abi
+ERC1155TOKEN_ABI = bridge/test/bindings/ERC1155Token.abi
 
 
 # Define the output paths for the generated Go files
@@ -101,6 +103,8 @@ PARENTBRIDGECOREFACET_GO = bridge/contract/ParentBridgeCoreFacet.go
 UPWARDMESSAGEDISPATCHERFACET_GO = bridge/contract/UpwardMessageDispatcherFacet.go
 DOWNWARDMESSAGEDISPATCHERFACET_GO = bridge/contract/DownwardMessageDispatcherFacet.go
 ERC20TOKEN_GO = bridge/test/bindings/ERC20Token.go
+ERC721TOKEN_GO = bridge/test/bindings/ERC721Token.go
+ERC1155TOKEN_GO = bridge/test/bindings/ERC1155Token.go
 
 
 # Define the package name
@@ -128,3 +132,5 @@ TEST_PKG = bindings
 
 generate_intergration_test_bindings:
 	$(ABIGEN) --abi $(ERC20TOKEN_ABI) --pkg $(TEST_PKG) --type ERC20Token --out $(ERC20TOKEN_GO)
+	$(ABIGEN) --abi $(ERC721TOKEN_ABI) --pkg $(TEST_PKG) --type ERC721Token --out $(ERC721TOKEN_GO)
+	$(ABIGEN) --abi $(ERC1155TOKEN_ABI) --pkg $(TEST_PKG) --type ERC1155Token --out $(ERC1155TOKEN_GO)

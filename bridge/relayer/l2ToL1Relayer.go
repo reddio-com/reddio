@@ -17,6 +17,7 @@ import (
 	"github.com/reddio-com/reddio/bridge/contract"
 	"github.com/reddio-com/reddio/bridge/utils"
 	"github.com/reddio-com/reddio/evm"
+	"github.com/reddio-com/reddio/metrics"
 )
 
 type L2ToL1Relayer struct {
@@ -52,7 +53,9 @@ func (b *L2ToL1Relayer) HandleUpwardMessage(msgs []*contract.ChildBridgeCoreFace
 	// 1. parse upward message
 	// 2. setup auth
 	// 3. send upward message to parent layer contract by calling upwardMessageDispatcher.ReceiveUpwardMessages
-
+	for _, msg := range msgs {
+		metrics.UpwardMessageReceivedCounter.WithLabelValues(fmt.Sprintf("%d", msg.PayloadType)).Inc()
+	}
 	upwardMessageDispatcher, err := contract.NewUpwardMessageDispatcherFacet(common.HexToAddress(b.cfg.ParentLayerContractAddress), b.l1Client)
 	if err != nil {
 		return err
@@ -74,9 +77,6 @@ func (b *L2ToL1Relayer) HandleUpwardMessage(msgs []*contract.ChildBridgeCoreFace
 	if err != nil {
 		log.Fatalf("Failed to create authorized transactor: %v", err)
 	}
-	//for test ,set  msg.Sequence manually///
-	//msg.Sequence = big.NewInt(1)		////
-	////////////////////////////////////////
 
 	var upwardMessages []contract.UpwardMessage
 	for _, msg := range msgs {
@@ -112,10 +112,16 @@ func (b *L2ToL1Relayer) HandleUpwardMessage(msgs []*contract.ChildBridgeCoreFace
 	tx, err := upwardMessageDispatcher.ReceiveUpwardMessages(auth, upwardMessages, signaturesArray)
 	if err != nil {
 		log.Printf("Failed to send transaction: %v", err)
+		for _, msg := range msgs {
+			metrics.UpwardMessageFailureCounter.WithLabelValues(fmt.Sprintf("%d", msg.PayloadType)).Inc()
+		}
 		return err
 	}
 
 	log.Printf("Transaction sent: %s", tx.Hash().Hex())
+	for _, msg := range msgs {
+		metrics.UpwardMessageSuccessCounter.WithLabelValues(fmt.Sprintf("%d", msg.PayloadType)).Inc()
+	}
 	return nil
 }
 

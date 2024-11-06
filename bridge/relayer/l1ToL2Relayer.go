@@ -20,6 +20,7 @@ import (
 	"github.com/reddio-com/reddio/bridge/contract"
 	"github.com/reddio-com/reddio/bridge/utils"
 	"github.com/reddio-com/reddio/evm"
+	"github.com/reddio-com/reddio/metrics"
 	yucommon "github.com/yu-org/yu/common"
 	"github.com/yu-org/yu/core/kernel"
 	"github.com/yu-org/yu/core/protocol"
@@ -131,6 +132,7 @@ func (b *L1ToL2Relayer) HandleDownwardMessageWithSystemCall(msg *contract.Parent
 			Nonce:       utils.GenerateNonce(),
 		},
 	}
+	metrics.DownwardMessageReceivedCounter.WithLabelValues(fmt.Sprintf("%d", msg.PayloadType)).Inc()
 	log.Printf("Sending downward messages: %v", downwardMessages)
 	// 将 downwardMessages 转换为 JSON 格式
 	jsonData, err := json.MarshalIndent(downwardMessages, "", "  ")
@@ -138,7 +140,6 @@ func (b *L1ToL2Relayer) HandleDownwardMessageWithSystemCall(msg *contract.Parent
 		log.Fatalf("Failed to marshal downward messages: %v", err)
 	}
 
-	// 打印 JSON 数据
 	fmt.Printf("Downward messages in JSON format:\n%s\n", string(jsonData))
 	nonce := uint64(0)
 	value := big.NewInt(0)
@@ -165,9 +166,12 @@ func (b *L1ToL2Relayer) HandleDownwardMessageWithSystemCall(msg *contract.Parent
 	err = b.systemCall(context.Background(), tx)
 	if err != nil {
 		log.Fatalf("Failed to send transaction: %v", err)
+		metrics.DownwardMessageFailureCounter.WithLabelValues(fmt.Sprintf("%d", msg.PayloadType)).Inc()
 		return err
 	}
 	log.Printf("Transaction sent: %s", tx.Hash().Hex())
+	metrics.DownwardMessageSuccessCounter.WithLabelValues(fmt.Sprintf("%d", msg.PayloadType)).Inc()
+
 	return nil
 }
 
