@@ -422,6 +422,9 @@ func (e *EthAPIBackend) GetTransaction(ctx context.Context, txHash common.Hash) 
 	if err != nil {
 		return false, nil, common.Hash{}, 0, 0, err
 	}
+	if receipt == nil {
+		return false, nil, common.Hash{}, 0, 0, nil
+	}
 
 	//resp, err := e.adaptChainRead(rcptReq, "GetReceipt")
 	//if err != nil {
@@ -436,7 +439,6 @@ func (e *EthAPIBackend) GetTransaction(ctx context.Context, txHash common.Hash) 
 	blockHash := receipt.BlockHash
 	blockNumber := receipt.Height
 	var index uint64
-
 	if receipt.Extra != nil {
 		ethRcpt := new(types.Receipt)
 		err = json.Unmarshal(receipt.Extra, ethRcpt)
@@ -446,7 +448,7 @@ func (e *EthAPIBackend) GetTransaction(ctx context.Context, txHash common.Hash) 
 		}
 		index = uint64(ethRcpt.TransactionIndex)
 	}
-	
+
 	return true, ethTxn, common.Hash(blockHash), uint64(blockNumber), index, nil
 }
 
