@@ -2,7 +2,6 @@ package relayer
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"math/big"
@@ -87,14 +86,14 @@ func (b *L2ToL1Relayer) HandleUpwardMessage(msgs []*contract.ChildBridgeCoreFace
 		})
 	}
 
-	upwardMessagesJSON, err := json.MarshalIndent(upwardMessages, "", "  ")
-	if err != nil {
-		fmt.Printf("Error marshalling upwardMessages to JSON: %v\n", err)
-		return err
-	}
+	// upwardMessagesJSON, err := json.MarshalIndent(upwardMessages, "", "  ")
+	// if err != nil {
+	// 	fmt.Printf("Error marshalling upwardMessages to JSON: %v\n", err)
+	// 	return err
+	// }
 
-	// Print JSON
-	fmt.Printf("UpwardMessages JSON:\n%s\n", string(upwardMessagesJSON))
+	// // Print JSON
+	// fmt.Printf("UpwardMessages JSON:\n%s\n", string(upwardMessagesJSON))
 
 	privateKeys := []string{
 		privateKey,
@@ -148,7 +147,7 @@ func generateUpwardMessageMultiSignatures(upwardMessages []contract.UpwardMessag
 		return nil, err
 	}
 
-	fmt.Println("newdataHash:", dataHash)
+	//fmt.Println("newdataHash:", dataHash)
 	// Generate multiple signatures
 	var signaturesArray [][]byte
 	for _, pk := range privateKeys {
@@ -167,20 +166,20 @@ func generateUpwardMessageMultiSignatures(upwardMessages []contract.UpwardMessag
 
 	// for print
 	// Recover the public key
-	sigPublicKey, err := crypto.Ecrecover(dataHash.Bytes(), signaturesArray[0])
-	if err != nil {
-		log.Fatal(err)
-	}
+	// sigPublicKey, err := crypto.Ecrecover(dataHash.Bytes(), signaturesArray[0])
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
 
-	// Convert public key to address
-	publicKeyECDSA, err := crypto.UnmarshalPubkey(sigPublicKey)
-	if err != nil {
-		log.Fatal(err)
-	}
-	address := crypto.PubkeyToAddress(*publicKeyECDSA)
+	// // Convert public key to address
+	// publicKeyECDSA, err := crypto.UnmarshalPubkey(sigPublicKey)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// address := crypto.PubkeyToAddress(*publicKeyECDSA)
 
-	fmt.Printf("Signed hash: %x\n", signaturesArray[0])
-	fmt.Printf("Signer address: %s\n", address.Hex())
+	// fmt.Printf("Signed hash: %x\n", signaturesArray[0])
+	// fmt.Printf("Signer address: %s\n", address.Hex())
 
 	return signaturesArray, nil
 }

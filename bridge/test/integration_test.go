@@ -26,10 +26,10 @@ var (
 	sepoliaHelpConfig = helpConfig{
 		testAdmin:                  "32e3b56c9f2763d2332e6e4188e4755815ac96441e899de121969845e343c2ff",
 		L1ClientAddress:            "",
-		L2ClientAddress:            "",
-		ParentlayerContractAddress: "0x947019D76FbFc03b99C9EF02a50e45E5C6ec444B",
+		L2ClientAddress:            "http://localhost:9092",
+		ParentlayerContractAddress: "0xd0E062C30c253CC0bfD7044067dd1F3A9BD75ad9",
 		ChildlayerContractAddress:  "0xeC054c6ee2DbbeBC9EbCA50CdBF94A94B02B2E40",
-		testPublicKey1:             "0x7888b7B844B4B16c03F8daCACef7dDa0F5188645",
+		testPublicKey1:             "0x0CC0cD4A9024A2d15BbEdd348Fbf7Cd69B5489bA",
 		testPublicKey2:             "0x66eb032B3a74d85C8b6965a4df788f3C31678b1a",
 		adminPublicKey:             "0x7Bd36074b61Cfe75a53e1B9DF7678C96E6463b02",
 		maxRetries:                 300,
@@ -104,7 +104,7 @@ func TestDepositETH(t *testing.T) {
 				log.Fatalf("failed to create ERC20Token contract: %v", err)
 			}
 
-			startBalance, err = l2BridgeERC20Token.BalanceOf(callOpts, common.HexToAddress(sepoliaHelpConfig.testPublicKey2))
+			startBalance, err = l2BridgeERC20Token.BalanceOf(callOpts, common.HexToAddress(sepoliaHelpConfig.testPublicKey1))
 			if err != nil {
 				log.Fatalf("failed to get balance of testPublicKey: %v", err)
 			}
@@ -141,7 +141,7 @@ func TestDepositETH(t *testing.T) {
 			log.Fatalf("failed to create ParentTokenMessageTransmitterFacet contract: %v", err)
 		}
 		auth.Value = depositAmount
-		tx, err := ParentTokenMessageTransmitterFacet.DepositETH(auth, common.HexToAddress(sepoliaHelpConfig.testPublicKey2), depositAmount, big.NewInt(0))
+		tx, err := ParentTokenMessageTransmitterFacet.DepositETH(auth, common.HexToAddress(sepoliaHelpConfig.testPublicKey1), depositAmount, big.NewInt(0))
 		if err != nil {
 			log.Fatalf("failed to deposit eth: %v", err)
 		}
@@ -166,7 +166,7 @@ func TestDepositETH(t *testing.T) {
 			log.Fatalf("failed to create ERC20Token contract: %v", err)
 		}
 		fmt.Println("L2BridgeTokenAddress: ", l2BridgeTokenAddress)
-		balance, err := l2BridgeERC20Token.BalanceOf(callOpts, common.HexToAddress(sepoliaHelpConfig.testPublicKey2))
+		balance, err := l2BridgeERC20Token.BalanceOf(callOpts, common.HexToAddress(sepoliaHelpConfig.testPublicKey1))
 		if err != nil {
 			log.Fatalf("failed to get balance of testPublicKey: %v", err)
 		}
@@ -183,7 +183,7 @@ func TestDepositETH(t *testing.T) {
 // 3. check the balance of testPublicKey2 in l2 is increased by depositAmount
 func TestDepositERC20(t *testing.T) {
 	t.Run("DepositERC20", func(t *testing.T) {
-		fmt.Println("DepositERC20")
+		fmt.Println("DepositERC202")
 		depositAmount := big.NewInt(100)
 		// Arrange
 		l1Client, err := ethclient.Dial(sepoliaHelpConfig.L1ClientAddress)
@@ -211,7 +211,7 @@ func TestDepositERC20(t *testing.T) {
 			l2RC20Token, err := bindings.NewERC20Token(l2TokenAddress, l2Client)
 			require.NoError(t, err)
 
-			startBalance, err = l2RC20Token.BalanceOf(callOpts, common.HexToAddress(sepoliaHelpConfig.testPublicKey2))
+			startBalance, err = l2RC20Token.BalanceOf(callOpts, common.HexToAddress(sepoliaHelpConfig.testPublicKey1))
 			require.NoError(t, err)
 		}
 
@@ -242,7 +242,7 @@ func TestDepositERC20(t *testing.T) {
 
 		ParentTokenMessageTransmitterFacet, err := bindings.NewParentTokenMessageTransmitterFacet(common.HexToAddress(sepoliaHelpConfig.ParentlayerContractAddress), l1Client)
 		require.NoError(t, err)
-		tx, err = ParentTokenMessageTransmitterFacet.DepositERC20Token(auth, common.HexToAddress(sepoliaHelpConfig.L1ERC20Address), common.HexToAddress(sepoliaHelpConfig.testPublicKey2), depositAmount, big.NewInt(0))
+		tx, err = ParentTokenMessageTransmitterFacet.DepositERC20Token(auth, common.HexToAddress(sepoliaHelpConfig.L1ERC20Address), common.HexToAddress(sepoliaHelpConfig.testPublicKey1), depositAmount, big.NewInt(0))
 		require.NoError(t, err)
 		fmt.Println("DepositERC20 transaction sent: ", tx.Hash().Hex())
 
@@ -255,7 +255,7 @@ func TestDepositERC20(t *testing.T) {
 		fmt.Println("L2 ERC20 Token Address2: ", l2TokenAddress)
 		l2RC20Token, err := bindings.NewERC20Token(l2TokenAddress, l2Client)
 		require.NoError(t, err)
-		balance, err := l2RC20Token.BalanceOf(callOpts, common.HexToAddress(sepoliaHelpConfig.testPublicKey2))
+		balance, err := l2RC20Token.BalanceOf(callOpts, common.HexToAddress(sepoliaHelpConfig.testPublicKey1))
 		require.NoError(t, err)
 		fmt.Println("Balance of testPublicKey: ", balance)
 		expectedBalance := new(big.Int).Add(depositAmount, startBalance)
@@ -482,7 +482,7 @@ func TestWithdrawETH(t *testing.T) {
 		l2BridgeERC20Token, err := bindings.NewERC20Token(L2BridgeTokenAddress, l2Client)
 		require.NoError(t, err)
 
-		startBalance, err := l2BridgeERC20Token.BalanceOf(callOpts, common.HexToAddress(sepoliaHelpConfig.testPublicKey2))
+		startBalance, err := l2BridgeERC20Token.BalanceOf(callOpts, common.HexToAddress(sepoliaHelpConfig.testPublicKey1))
 		require.NoError(t, err)
 
 		//TransferL2ETH(t, l2Client, sepoliaHelpConfig.testAdmin, common.HexToAddress(sepoliaHelpConfig.testPublicKey), big.NewInt(1e18))
@@ -505,7 +505,7 @@ func TestWithdrawETH(t *testing.T) {
 		ChildTokenMessageTransmitterFacet, err := bindings.NewChildTokenMessageTransmitterFacet(common.HexToAddress(sepoliaHelpConfig.ChildlayerContractAddress), l2Client)
 		require.NoError(t, err)
 
-		tx, err := ChildTokenMessageTransmitterFacet.WithdrawETH(auth, common.HexToAddress(sepoliaHelpConfig.testPublicKey2), withdrawAmount)
+		tx, err := ChildTokenMessageTransmitterFacet.WithdrawETH(auth, common.HexToAddress(sepoliaHelpConfig.testPublicKey1), withdrawAmount)
 		require.NoError(t, err)
 		fmt.Println("Transaction sent: ", tx.Hash().Hex())
 
@@ -514,7 +514,7 @@ func TestWithdrawETH(t *testing.T) {
 		assert.True(t, success)
 
 		// check testPublicKey L2eth balance
-		balance, err := l2BridgeERC20Token.BalanceOf(callOpts, common.HexToAddress(sepoliaHelpConfig.testPublicKey2))
+		balance, err := l2BridgeERC20Token.BalanceOf(callOpts, common.HexToAddress(sepoliaHelpConfig.testPublicKey1))
 		require.NoError(t, err)
 		fmt.Println("Balance of testPublicKey: ", balance)
 		expectedBalance := new(big.Int).Sub(startBalance, withdrawAmount)
@@ -551,7 +551,7 @@ func TestWithdrawERC20(t *testing.T) {
 		l2BridgeERC20Token, err := bindings.NewERC20Token(L2BridgeTokenAddress, l2Client)
 		require.NoError(t, err)
 
-		startBalance, err := l2BridgeERC20Token.BalanceOf(callOpts, common.HexToAddress(sepoliaHelpConfig.testPublicKey2))
+		startBalance, err := l2BridgeERC20Token.BalanceOf(callOpts, common.HexToAddress(sepoliaHelpConfig.testPublicKey1))
 		require.NoError(t, err)
 
 		gasPrice, err := l2Client.SuggestGasPrice(context.Background())
@@ -572,7 +572,7 @@ func TestWithdrawERC20(t *testing.T) {
 		ChildTokenMessageTransmitterFacet, err := bindings.NewChildTokenMessageTransmitterFacet(common.HexToAddress(sepoliaHelpConfig.ChildlayerContractAddress), l2Client)
 		require.NoError(t, err)
 
-		tx, err := ChildTokenMessageTransmitterFacet.WithdrawErc20Token(auth, common.HexToAddress(sepoliaHelpConfig.L1ERC20Address), common.HexToAddress(sepoliaHelpConfig.testPublicKey2), withdrawAmount)
+		tx, err := ChildTokenMessageTransmitterFacet.WithdrawErc20Token(auth, common.HexToAddress(sepoliaHelpConfig.L1ERC20Address), common.HexToAddress(sepoliaHelpConfig.testPublicKey1), withdrawAmount)
 		require.NoError(t, err)
 		fmt.Println("Transaction sent: ", tx.Hash().Hex())
 
@@ -580,7 +580,7 @@ func TestWithdrawERC20(t *testing.T) {
 		require.NoError(t, err)
 		assert.True(t, success)
 
-		balance, err := l2BridgeERC20Token.BalanceOf(callOpts, common.HexToAddress(sepoliaHelpConfig.testPublicKey2))
+		balance, err := l2BridgeERC20Token.BalanceOf(callOpts, common.HexToAddress(sepoliaHelpConfig.testPublicKey1))
 		require.NoError(t, err)
 		fmt.Println("Balance of testPublicKey: ", balance)
 		expectedBalance := new(big.Int).Sub(startBalance, withdrawAmount)

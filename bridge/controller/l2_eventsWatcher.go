@@ -28,7 +28,6 @@ type L2EventsWatcher struct {
 func NewL2EventsWatcher(cfg *evm.GethConfig,
 ) *L2EventsWatcher {
 	tri := tripod.NewTripod()
-	logrus.Info("NewWatcher tripod")
 	c := &L2EventsWatcher{
 		//ctx:            ctx,
 		cfg:    cfg,

@@ -2,7 +2,6 @@ package logic
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
@@ -39,11 +38,10 @@ func (e *L2EventParser) ParseL2UpwardMessageEventEventLogs(ctx context.Context, 
 	for _, vlog := range logs {
 		switch vlog.Topics[0] {
 		case backendabi.L2UpwardMessageEventSig:
-			fmt.Println("catch L2UpwardMessageEventSig")
+			//fmt.Println("catch L2UpwardMessageEventSig")
 			event := new(contract.ChildBridgeCoreFacetUpwardMessage)
 			err := utils.UnpackLog(backendabi.IL2ChildBridgeCoreFacetABI, event, "UpwardMessage", vlog)
 			if err != nil {
-				fmt.Println("Failed to unpack UpwardMessage event", "err", err)
 				log.Error("Failed to unpack UpwardMessage event", "err", err)
 				return nil, err
 			}

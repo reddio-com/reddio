@@ -2,7 +2,6 @@ package relayer
 
 import (
 	"context"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -134,21 +133,19 @@ func (b *L1ToL2Relayer) HandleDownwardMessageWithSystemCall(msg *contract.Parent
 	}
 	metrics.DownwardMessageReceivedCounter.WithLabelValues(fmt.Sprintf("%d", msg.PayloadType)).Inc()
 	log.Printf("Sending downward messages: %v", downwardMessages)
-	// 将 downwardMessages 转换为 JSON 格式
-	jsonData, err := json.MarshalIndent(downwardMessages, "", "  ")
-	if err != nil {
-		log.Fatalf("Failed to marshal downward messages: %v", err)
-	}
-
-	fmt.Printf("Downward messages in JSON format:\n%s\n", string(jsonData))
-	nonce := uint64(0)
-	value := big.NewInt(0)
-	gasLimit := uint64(3e6)
-	// gasPrice, err := b.l2Client.SuggestGasPrice(context.Background())
+	// jsonData, err := json.MarshalIndent(downwardMessages, "", "  ")
 	// if err != nil {
-	// 	log.Fatalf("Failed to suggest gas price: %v", err)
+	// 	log.Fatalf("Failed to marshal downward messages: %v", err)
 	// }
-	gasPrice := big.NewInt(1e9)
+
+	// fmt.Printf("Downward messages in JSON format:\n%s\n", string(jsonData))
+	txNonce := uint64(0)
+	value := big.NewInt(0)
+	gasLimit := uint64(6e6)
+	gasPrice, err := b.l2Client.SuggestGasPrice(context.Background())
+	if err != nil {
+		log.Fatalf("Failed to suggest gas price: %v", err)
+	}
 
 	contractABI, err := abi.JSON(strings.NewReader(contract.DownwardMessageDispatcherFacetABI))
 	if err != nil {
@@ -159,9 +156,9 @@ func (b *L1ToL2Relayer) HandleDownwardMessageWithSystemCall(msg *contract.Parent
 	if err != nil {
 		log.Fatalf("Failed to pack data: %v", err)
 	}
-	fmt.Printf("Packed data: %s\n", hex.EncodeToString(data))
+	//fmt.Printf("Packed data: %s\n", hex.EncodeToString(data))
 
-	tx := types.NewTransaction(nonce, common.HexToAddress(b.cfg.ChildLayerContractAddress), value, gasLimit, gasPrice, data)
+	tx := types.NewTransaction(txNonce, common.HexToAddress(b.cfg.ChildLayerContractAddress), value, gasLimit, gasPrice, data)
 
 	err = b.systemCall(context.Background(), tx)
 	if err != nil {
@@ -246,6 +243,7 @@ func (b *L1ToL2Relayer) systemCall(ctx context.Context, signedTx *types.Transact
 	// fmt.Printf("v: %s\n", v.String())
 	// fmt.Printf("r: %s\n", r.String())
 	// fmt.Printf("s: %s\n", s.String())
+
 	v, r, s := signedTx.RawSignatureValues()
 	txArg := newTxArgsFromTx(signedTx)
 	txArgByte, _ := json.Marshal(txArg)
@@ -257,7 +255,6 @@ func (b *L1ToL2Relayer) systemCall(ctx context.Context, signedTx *types.Transact
 		GasPrice:       signedTx.GasPrice(),
 		Value:          signedTx.Value(),
 		Hash:           signedTx.Hash(),
-		Nonce:          signedTx.Nonce(),
 		V:              v,
 		R:              r,
 		S:              s,
@@ -265,12 +262,18 @@ func (b *L1ToL2Relayer) systemCall(ctx context.Context, signedTx *types.Transact
 
 		OriginArgs: txArgByte,
 	}
-	jsonData, err := json.MarshalIndent(txReq, "", "    ")
-	if err != nil {
-		log.Fatalf("Failed to marshal txReq to JSON: %v", err)
-	}
 
-	fmt.Println("systemCall jsonData:", string(jsonData))
+	txNonce, err := b.l2Client.PendingNonceAt(context.Background(), txReq.Origin)
+	if err != nil {
+		log.Fatalf("Failed to get nonce: %v", err)
+	}
+	txReq.Nonce = txNonce
+	// jsonData, err := json.MarshalIndent(txReq, "", "    ")
+	// if err != nil {
+	// 	log.Fatalf("Failed to marshal txReq to JSON: %v", err)
+	// }
+
+	// fmt.Println("systemCall jsonData:", string(jsonData))
 	byt, err := json.Marshal(txReq)
 	if err != nil {
 		log.Fatalf("json.Marshal(txReq) failed: %v", err)
@@ -283,8 +286,8 @@ func (b *L1ToL2Relayer) systemCall(ctx context.Context, signedTx *types.Transact
 			Params:     string(byt),
 		},
 	}
-	fmt.Println("signedWrCall", signedWrCall)
-	fmt.Println("signedWrCall", signedWrCall.Call.Params)
+	// fmt.Println("signedWrCall", signedWrCall)
+	// fmt.Println("signedWrCall", signedWrCall.Call.Params)
 
 	err = b.chain.HandleTxn(signedWrCall)
 	if err != nil {
