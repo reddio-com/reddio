@@ -1,7 +1,7 @@
 # This workflow will build a golang project
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
 
-name: state_root_test
+name: uniswap_test
 
 on:
   push:
@@ -16,7 +16,7 @@ on:
       - "**/README.md"
 
 jobs:
-  test-state-root:
+  test:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
@@ -27,13 +27,13 @@ jobs:
         with:
           go-version: "1.23"
 
-      - name: Build State Root Test
-        run: make build_state_root_test
-      - name: Clean Env
-        run: make reset
-      - name: Run State Root Gen Test
-        run: make state_root_test_gen
-      - name: Clean Env
-        run: make reset
-      - name: Run State Root Assert Test
-        run: make state_root_test_assert
+      - name: Run Makefile check-mod-tidy
+        run: make check-mod-tidy
+      - name: Build
+        run: make build
+      - name: Build Uniswap Test
+        run: make build_uniswap_test_race
+      - name: Parallel Uniswap Test
+        run: make ci_parallel_uniswap_test
+      - name: Serial Uniswap Test
+        run: make ci_serial_uniswap_test
