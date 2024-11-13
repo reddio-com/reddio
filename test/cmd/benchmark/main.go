@@ -16,11 +16,12 @@ import (
 )
 
 var (
-	configPath    string
-	evmConfigPath string
-	qps           int
-	duration      time.Duration
-	action        string
+	configPath       string
+	evmConfigPath    string
+	qps              int
+	duration         time.Duration
+	action           string
+	preCreateWallets int
 )
 
 func init() {
@@ -29,6 +30,7 @@ func init() {
 	flag.IntVar(&qps, "qps", 10000, "")
 	flag.DurationVar(&duration, "duration", 5*time.Minute, "")
 	flag.StringVar(&action, "action", "run", "")
+	flag.IntVar(&preCreateWallets, "preCreateWallets", 100, "")
 }
 
 func main() {
@@ -49,7 +51,7 @@ func prepareBenchmark(evmCfg *evm.GethConfig) error {
 	ethManager := &transfer.EthManager{}
 	cfg := conf.Config.EthCaseConf
 	ethManager.Configure(cfg, evmCfg)
-	wallets, err := ethManager.PreCreateWallets(100, cfg.InitialEthCount)
+	wallets, err := ethManager.PreCreateWallets(preCreateWallets, cfg.InitialEthCount)
 	if err != nil {
 		return err
 	}
@@ -91,7 +93,7 @@ func blockBenchmark(evmCfg *evm.GethConfig, qps int) error {
 	cfg := conf.Config.EthCaseConf
 	ethManager.Configure(cfg, evmCfg)
 	limiter := rate.NewLimiter(rate.Limit(qps), qps)
-	ethManager.AddTestCase(transfer.NewRandomBenchmarkTest("[rand_test 100 account, 1000 transfer]", 100, cfg.InitialEthCount, 50, wallets, limiter))
+	ethManager.AddTestCase(transfer.NewRandomBenchmarkTest("[rand_test 1000 transfer]", cfg.InitialEthCount, 50, wallets, limiter))
 	runBenchmark(ethManager)
 	return nil
 }

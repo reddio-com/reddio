@@ -10,7 +10,6 @@ import (
 
 type RandomBenchmarkTest struct {
 	CaseName     string
-	walletCount  int
 	initialCount uint64
 	steps        int
 	tm           *pkg.TransferManager
@@ -18,10 +17,9 @@ type RandomBenchmarkTest struct {
 	rm           *rate.Limiter
 }
 
-func NewRandomBenchmarkTest(name string, count int, initial uint64, steps int, wallets []*pkg.EthWallet, rm *rate.Limiter) *RandomBenchmarkTest {
+func NewRandomBenchmarkTest(name string, initial uint64, steps int, wallets []*pkg.EthWallet, rm *rate.Limiter) *RandomBenchmarkTest {
 	return &RandomBenchmarkTest{
 		CaseName:     name,
-		walletCount:  count,
 		initialCount: initial,
 		steps:        steps,
 		tm:           pkg.NewTransferManager(),

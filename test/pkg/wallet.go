@@ -60,23 +60,28 @@ func (m *WalletManager) GenerateRandomWallets(count int, initialEthCount uint64)
 	return wallets, nil
 }
 
-func (m *WalletManager) BatchGenerateRandomWallets(count int, initialEthCount uint64) ([]*EthWallet, error) {
-	var wallets []*EthWallet
-	var txs []*RawTxReq
-	for i := 0; i < count; i++ {
-		privateKey, address := generatePrivateKey()
-		wallets = append(wallets, &EthWallet{
-			PK:      privateKey,
-			Address: address,
-		})
-		txs = append(txs, &RawTxReq{
-			privateKeyHex: GenesisPrivateKey,
-			toAddress:     address,
-			amount:        initialEthCount,
-		})
+func (m *WalletManager) AssertWallet(w *EthWallet, count uint64) {
+	for {
+		got, err := m.QueryEth(w)
+		if err == nil && got >= count {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
-	err := m.batchTransferEth(txs)
-	return wallets, err
+}
+
+func (m *WalletManager) BatchGenerateRandomWallets(count int, initialEthCount uint64) ([]*EthWallet, error) {
+	wallets := make([]*EthWallet, 0)
+	for i := 0; i < count; i++ {
+		wallet, err := m.createEthWallet(initialEthCount)
+		if err != nil {
+			return nil, err
+		}
+		m.AssertWallet(wallet, initialEthCount)
+		wallets = append(wallets, wallet)
+		fmt.Println(fmt.Sprintf("create %v/%v wallet", i+1, count))
+	}
+	return wallets, nil
 }
 
 func (m *WalletManager) createEthWallet(initialEthCount uint64) (*EthWallet, error) {
