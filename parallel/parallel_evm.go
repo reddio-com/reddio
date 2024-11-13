@@ -9,7 +9,6 @@ import (
 
 	"github.com/yu-org/yu/core/tripod"
 
-	common2 "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 
 	"github.com/yu-org/yu/common"
@@ -279,12 +278,7 @@ func (k *ParallelEVM) CopyStateDb(originStateDB *state.StateDB, list []*txnCtx) 
 		k.Solidity.Unlock()
 	}()
 	for i := 0; i < len(list); i++ {
-		needCopy := make(map[common2.Address]struct{})
-		if list[i].req.Address != nil {
-			needCopy[*list[i].req.Address] = struct{}{}
-		}
-		needCopy[list[i].req.Origin] = struct{}{}
-		copiedStateDBList = append(copiedStateDBList, originStateDB.SimpleCopy(needCopy))
+		copiedStateDBList = append(copiedStateDBList, originStateDB.Copy())
 	}
 	return copiedStateDBList
 }
