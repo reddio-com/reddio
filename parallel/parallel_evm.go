@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	common2 "github.com/ethereum/go-ethereum/common"
 	"github.com/yu-org/yu/core/tripod"
 
 	"github.com/ethereum/go-ethereum/core/state"
@@ -66,7 +65,7 @@ func (k *ParallelEVM) updateStateDbSub(txns []*txnCtx) {
 }
 
 func (k *ParallelEVM) Execute(block *types.Block) error {
-	k.Solidity.StateDB().ClearAddrInPendingCommit(common2.Address(common.Address{}))
+	k.Solidity.StateDB().ClearAddrInPendingCommit()
 	statManager := &BlockTxnStatManager{TxnCount: len(block.Txns)}
 	start := time.Now()
 	defer func() {
