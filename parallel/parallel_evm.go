@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	common2 "github.com/ethereum/go-ethereum/common"
 	"github.com/yu-org/yu/core/tripod"
 
 	"github.com/ethereum/go-ethereum/core/state"
@@ -278,7 +279,12 @@ func (k *ParallelEVM) CopyStateDb(originStateDB *state.StateDB, list []*txnCtx) 
 		k.Solidity.Unlock()
 	}()
 	for i := 0; i < len(list); i++ {
-		copiedStateDBList = append(copiedStateDBList, originStateDB.Copy())
+		needCopy := make(map[common2.Address]struct{})
+		if list[i].req.Address != nil {
+			needCopy[*list[i].req.Address] = struct{}{}
+		}
+		needCopy[list[i].req.Origin] = struct{}{}
+		copiedStateDBList = append(copiedStateDBList, originStateDB.SimpleCopy(needCopy))
 	}
 	return copiedStateDBList
 }
