@@ -174,7 +174,6 @@ require (
 	github.com/quic-go/quic-go v0.45.2 // indirect
 	github.com/quic-go/webtransport-go v0.8.0 // indirect
 	github.com/raulk/go-watchdog v1.3.0 // indirect
-	github.com/reddio-com/go-ethereum v1.10.19-0.20241113115738-fb8324fe8a9f // indirect
 	github.com/rivo/uniseg v0.4.2 // indirect
 	github.com/rogpeppe/go-internal v1.12.0 // indirect
 	github.com/sasha-s/go-deadlock v0.3.1 // indirect
