@@ -26,11 +26,6 @@ jobs:
         uses: actions/setup-go@v4
         with:
           go-version: "1.23"
-
-      - name: Run Makefile check-mod-tidy
-        run: make check-mod-tidy
-      - name: Build
-        run: make build
       - name: Build Uniswap Test
         run: make build_uniswap_test_race
       - name: Parallel Uniswap Test

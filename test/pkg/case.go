@@ -51,6 +51,22 @@ func (m *TransferManager) GenerateRandomTransferSteps(stepCount int, wallets []*
 	return t
 }
 
+func (m *TransferManager) GenerateTransferSteps(wallets []*CaseEthWallet) *TransferCase {
+	t := &TransferCase{
+		Original: getCopy(wallets),
+		Expect:   getCopy(wallets),
+	}
+	steps := make([]*Step, 0)
+	curTransfer := 1
+	for i := 0; i < len(wallets); i += 2 {
+		steps = append(steps, generateStep(wallets[i], wallets[i+1], curTransfer))
+		curTransfer++
+	}
+	t.Steps = steps
+	calculateExpect(t)
+	return t
+}
+
 func (m *TransferManager) GenerateSameTargetTransferSteps(stepCount int, wallets []*CaseEthWallet, target *CaseEthWallet) *TransferCase {
 	t := &TransferCase{
 		Original: getCopy(wallets),
@@ -137,6 +153,14 @@ func generateRandomStep(r *rand.Rand, wallets []*CaseEthWallet, transfer int) *S
 	return &Step{
 		From:  wallets[from].EthWallet,
 		To:    wallets[to].EthWallet,
+		Count: uint64(transfer),
+	}
+}
+
+func generateStep(from, to *CaseEthWallet, transfer int) *Step {
+	return &Step{
+		From:  from.EthWallet,
+		To:    to.EthWallet,
 		Count: uint64(transfer),
 	}
 }
