@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	common2 "github.com/ethereum/go-ethereum/common"
 	"github.com/yu-org/yu/core/tripod"
 
 	"github.com/ethereum/go-ethereum/core/state"
@@ -42,7 +43,30 @@ func NewParallelEVM() *ParallelEVM {
 	}
 }
 
+func (k *ParallelEVM) updateStateDbInc(txns []*txnCtx) {
+	for _, txn := range txns {
+		addr1 := txn.req.Address
+		if addr1 != nil {
+			k.Solidity.StateDB().AddrInPendingCommitInc(*addr1)
+		}
+		addr2 := txn.req.Origin
+		k.Solidity.StateDB().AddrInPendingCommitInc(addr2)
+	}
+}
+
+func (k *ParallelEVM) updateStateDbSub(txns []*txnCtx) {
+	for _, txn := range txns {
+		addr1 := txn.req.Address
+		if addr1 != nil {
+			k.Solidity.StateDB().AddrInPendingCommitSub(*addr1)
+		}
+		addr2 := txn.req.Origin
+		k.Solidity.StateDB().AddrInPendingCommitSub(addr2)
+	}
+}
+
 func (k *ParallelEVM) Execute(block *types.Block) error {
+	k.Solidity.StateDB().ClearAddrInPendingCommit(common2.Address(common.Address{}))
 	statManager := &BlockTxnStatManager{TxnCount: len(block.Txns)}
 	start := time.Now()
 	defer func() {
@@ -50,6 +74,7 @@ func (k *ParallelEVM) Execute(block *types.Block) error {
 		statManager.UpdateMetrics()
 	}()
 	txnCtxList, receipts := k.prepareTxnList(block, statManager)
+	k.updateStateDbInc(txnCtxList)
 	got := k.splitTxnCtxList(txnCtxList)
 	got = k.executeAllTxn(got, statManager)
 	for _, subList := range got {
@@ -171,6 +196,7 @@ func (k *ParallelEVM) executeTxnCtxList(list []*txnCtx) []*txnCtx {
 	if config.GetGlobalConfig().IsParallel {
 		defer func() {
 			k.Solidity.StateDB().PendingCommit(true)
+			k.updateStateDbSub(list)
 		}()
 		metrics.BatchTxnSplitCounter.WithLabelValues(strconv.FormatInt(int64(len(list)), 10)).Inc()
 		return k.executeTxnCtxListInConcurrency(k.Solidity.StateDB(), list)
