@@ -5,13 +5,18 @@ default: build
 build:
 	go build -v -o $(PROJECT) ./cmd/node/main.go ./cmd/node/testrequest.go
 
+## for local dev
+
+build_transfer_test_no_race:
+	go build -v -o transfer_test ./test/cmd/transfer/main.go
+
+build_uniswap_test_no_race:
+	go build -v -o uniswap_test ./test/cmd/uniswap/main.go
+
 ## for ci
 
 build_transfer_test_race:
 	go build -race -v -o transfer_test ./test/cmd/transfer/main.go
-
-build_transfer_test_no_race:
-	go build -v -o transfer_test ./test/cmd/transfer/main.go
 
 build_uniswap_test_race:
 	go build -race -v -o uniswap_test ./test/cmd/uniswap/main.go
