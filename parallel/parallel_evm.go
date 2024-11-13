@@ -9,6 +9,7 @@ import (
 
 	"github.com/yu-org/yu/core/tripod"
 
+	common2 "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 
 	"github.com/yu-org/yu/common"
@@ -170,7 +171,7 @@ func checkAddressConflict(curTxn *txnCtx, curList []*txnCtx) bool {
 func (k *ParallelEVM) executeTxnCtxList(list []*txnCtx) []*txnCtx {
 	if config.GetGlobalConfig().IsParallel {
 		defer func() {
-			k.Solidity.StateDB().IntermediateRoot(true)
+			k.Solidity.StateDB().Finalise(true)
 		}()
 		metrics.BatchTxnSplitCounter.WithLabelValues(strconv.FormatInt(int64(len(list)), 10)).Inc()
 		return k.executeTxnCtxListInConcurrency(k.Solidity.StateDB(), list)
@@ -278,7 +279,12 @@ func (k *ParallelEVM) CopyStateDb(originStateDB *state.StateDB, list []*txnCtx) 
 		k.Solidity.Unlock()
 	}()
 	for i := 0; i < len(list); i++ {
-		copiedStateDBList = append(copiedStateDBList, originStateDB.Copy())
+		needCopy := make(map[common2.Address]struct{})
+		if list[i].req.Address != nil {
+			needCopy[*list[i].req.Address] = struct{}{}
+		}
+		needCopy[list[i].req.Origin] = struct{}{}
+		copiedStateDBList = append(copiedStateDBList, originStateDB.SimpleCopy(needCopy))
 	}
 	return copiedStateDBList
 }

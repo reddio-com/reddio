@@ -2,6 +2,7 @@ package transfer
 
 import (
 	"context"
+	"time"
 
 	"golang.org/x/time/rate"
 
@@ -11,17 +12,15 @@ import (
 type RandomBenchmarkTest struct {
 	CaseName     string
 	initialCount uint64
-	steps        int
 	tm           *pkg.TransferManager
 	wallets      []*pkg.EthWallet
 	rm           *rate.Limiter
 }
 
-func NewRandomBenchmarkTest(name string, initial uint64, steps int, wallets []*pkg.EthWallet, rm *rate.Limiter) *RandomBenchmarkTest {
+func NewRandomBenchmarkTest(name string, initial uint64, wallets []*pkg.EthWallet, rm *rate.Limiter) *RandomBenchmarkTest {
 	return &RandomBenchmarkTest{
 		CaseName:     name,
 		initialCount: initial,
-		steps:        steps,
 		tm:           pkg.NewTransferManager(),
 		wallets:      wallets,
 		rm:           rm,
@@ -33,12 +32,12 @@ func (tc *RandomBenchmarkTest) Name() string {
 }
 
 func (tc *RandomBenchmarkTest) Run(ctx context.Context, m *pkg.WalletManager) error {
-	transferCase := tc.tm.GenerateRandomTransferSteps(tc.steps, pkg.GenerateCaseWallets(tc.initialCount, tc.wallets))
+	transferCase := tc.tm.GenerateTransferSteps(pkg.GenerateCaseWallets(tc.initialCount, tc.wallets))
 	for i, step := range transferCase.Steps {
 		if err := tc.rm.Wait(ctx); err != nil {
 			return err
 		}
-		m.TransferEth(step.From, step.To, step.Count, uint64(i))
+		m.TransferEth(step.From, step.To, step.Count, uint64(i)+uint64(time.Now().UnixNano()))
 	}
 	return nil
 }

@@ -93,7 +93,7 @@ func blockBenchmark(evmCfg *evm.GethConfig, qps int) error {
 	cfg := conf.Config.EthCaseConf
 	ethManager.Configure(cfg, evmCfg)
 	limiter := rate.NewLimiter(rate.Limit(qps), qps)
-	ethManager.AddTestCase(transfer.NewRandomBenchmarkTest("[rand_test 1000 transfer]", cfg.InitialEthCount, 50, wallets, limiter))
+	ethManager.AddTestCase(transfer.NewRandomBenchmarkTest("[rand_test 1000 transfer]", cfg.InitialEthCount, wallets, limiter))
 	runBenchmark(ethManager)
 	return nil
 }
