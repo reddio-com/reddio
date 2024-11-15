@@ -29,11 +29,7 @@ jobs:
 
       - name: Build State Root Test
         run: make build_state_root_test
-      - name: Clean Env
-        run: make reset
       - name: Run State Root Gen Test
         run: make state_root_test_gen
-      - name: Clean Env
-        run: make reset
       - name: Run State Root Assert Test
         run: make state_root_test_assert
