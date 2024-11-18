@@ -51,6 +51,12 @@ func (s *Solidity) StateDB() *state.StateDB {
 	return s.ethState.StateDB()
 }
 
+func (s *Solidity) FinaliseStateDB(deleteEmptyObjects bool) {
+	s.Lock()
+	defer s.Unlock()
+	s.ethState.StateDB().Finalise(deleteEmptyObjects)
+}
+
 func (s *Solidity) SetStateDB(d *state.StateDB) {
 	s.Lock()
 	defer s.Unlock()
