@@ -40,7 +40,7 @@ func main() {
 		yuCfg := startup.InitKernelConfigFromPath(yuConfigPath)
 		poaCfg := poa.LoadCfgFromPath(poaConfigPath)
 		evmCfg := evm.LoadEvmConfig(evmConfigPath)
-		poaCfg.BlockInterval = 30 * 1000
+		poaCfg.BlockInterval = 10 * 1000
 		poaCfg.PrettyLog = true
 		app.StartUpChain(yuCfg, poaCfg, evmCfg)
 	}()
@@ -54,7 +54,7 @@ func main() {
 			}
 		}()
 	}
-	time.Sleep(5 * time.Second)
+	time.Sleep(time.Second)
 	log.Println("finish start reddio")
 	switch action {
 	case "gen":
