@@ -25,14 +25,14 @@ func (to *TxOrdered) PackOrder(tx *types.SignedTxn) bool {
 		logrus.Fatalf("PackOrder BindJson txRequest(%s): %v", tx.TxnHash.String(), err)
 		return false
 	}
-	nonce, ok := to.packingNonces[req.Origin]
+	oldNonce, ok := to.packingNonces[req.Origin]
 	if !ok {
 		to.packingNonces[req.Origin] = to.state.GetNonce(req.Origin)
 	}
 
-	logrus.Infof("PackOrder Address(%s), current Nonce(%d), request tx Nonce(%d)", req.Address.String(), nonce, req.Nonce)
+	logrus.Infof("PackOrder Address(%s), current Nonce(%d), request tx Nonce(%d)", req.Address.String(), oldNonce, req.Nonce)
 
-	if req.Nonce == nonce+1 {
+	if req.Nonce == oldNonce {
 		to.packingNonces[req.Origin]++
 		return true
 	}
