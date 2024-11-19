@@ -30,7 +30,7 @@ func (to *TxOrdered) PackOrder(tx *types.SignedTxn) bool {
 		to.packingNonces[req.Origin] = to.state.GetNonce(req.Origin)
 	}
 
-	logrus.Infof("PackOrder Address(%s), Nonce(%d)", req.Address.String(), nonce)
+	logrus.Infof("PackOrder Address(%s), current Nonce(%d), request tx Nonce(%d)", req.Address.String(), nonce, req.Nonce)
 
 	if req.Nonce == nonce+1 {
 		to.packingNonces[req.Origin]++
