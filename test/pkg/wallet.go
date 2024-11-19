@@ -60,6 +60,8 @@ func (m *WalletManager) GenerateRandomWallets(count int, initialEthCount uint64)
 		}
 	}
 	m.AssertWallet(wallets[len(wallets)-1], initialEthCount)
+	// wait block ready
+	time.Sleep(4 * time.Second)
 	return wallets, nil
 }
 
