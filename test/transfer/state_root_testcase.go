@@ -61,7 +61,7 @@ type StateRootTestResult struct {
 }
 
 func getStateRoot() (yucommon.Hash, error) {
-	b, err := pkg.GetDefaultBlockManager().GetBlockByIndex(2)
+	b, err := pkg.GetDefaultBlockManager().GetBlockByIndex(3)
 	if err != nil {
 		return [32]byte{}, err
 	}
@@ -82,12 +82,15 @@ func (s *StateRootAssertTestCase) Run(ctx context.Context, m *pkg.WalletManager)
 	if err := json.Unmarshal(s.content, result); err != nil {
 		return err
 	}
+	var lastWallet *pkg.EthWallet
+	var err error
 	for _, wallet := range result.Wallets {
-		_, err := m.CreateEthWalletByAddress(s.initial, wallet.PK, wallet.Address)
+		lastWallet, err = m.CreateEthWalletByAddress(s.initial, wallet.PK, wallet.Address)
 		if err != nil {
 			return err
 		}
 	}
+	m.AssertWallet(lastWallet, s.initial)
 	if err := runAndAssert(result.TransferCase, m, getWallets(result.Wallets)); err != nil {
 		return err
 	}

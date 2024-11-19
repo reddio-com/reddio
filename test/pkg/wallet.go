@@ -48,15 +48,18 @@ func NewWalletManager(cfg *evm.GethConfig, hostAddress string) *WalletManager {
 
 func (m *WalletManager) GenerateRandomWallets(count int, initialEthCount uint64) ([]*EthWallet, error) {
 	wallets := make([]*EthWallet, 0)
-	for i := 0; i < count; i++ {
+	for i := 1; i <= count; i++ {
 		wallet, err := m.createEthWallet(initialEthCount)
 		if err != nil {
 			return nil, err
 		}
 		wallets = append(wallets, wallet)
+		if i%2000 == 0 {
+			m.AssertWallet(wallet, initialEthCount)
+			log.Printf("assert %v/%v wallet done", i, count)
+		}
 	}
-	// wait block ready
-	time.Sleep(4 * time.Second)
+	m.AssertWallet(wallets[len(wallets)-1], initialEthCount)
 	return wallets, nil
 }
 
@@ -111,18 +114,6 @@ func (m *WalletManager) TransferEth(from, to *EthWallet, amount, nonce uint64) e
 	return nil
 }
 
-func (m *WalletManager) BatchTransferETH(steps []*Step) error {
-	var batch []*RawTxReq
-	for _, step := range steps {
-		batch = append(batch, &RawTxReq{
-			privateKeyHex: step.From.PK,
-			toAddress:     step.To.Address,
-			amount:        step.Count,
-		})
-	}
-	return m.batchTransferEth(batch)
-}
-
 func (m *WalletManager) QueryEth(wallet *EthWallet) (uint64, error) {
 	requestBody := fmt.Sprintf(
 		`	{
@@ -159,10 +150,6 @@ type queryResponse struct {
 
 func (m *WalletManager) transferEth(privateKeyHex string, toAddress string, amount, nonce uint64) error {
 	return m.sendRawTx(privateKeyHex, toAddress, amount, nonce)
-}
-
-func (m *WalletManager) batchTransferEth(rawTxs []*RawTxReq) error {
-	return m.sendBatchRawTxs(rawTxs)
 }
 
 var counter = uint64(0)
