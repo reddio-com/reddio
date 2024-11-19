@@ -2,6 +2,7 @@ package evm
 
 import (
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/sirupsen/logrus"
 	"github.com/yu-org/yu/core/types"
 )
 
@@ -21,12 +22,15 @@ func (to *TxOrdered) PackOrder(tx *types.SignedTxn) bool {
 	req := new(TxRequest)
 	err := tx.BindJson(req)
 	if err != nil {
+		logrus.Fatalf("PackOrder BindJson txRequest(%s): %v", tx.TxnHash.String(), err)
 		return false
 	}
 	nonce, ok := to.packingNonces[req.Origin]
 	if !ok {
 		to.packingNonces[req.Origin] = to.state.GetNonce(req.Origin)
 	}
+
+	logrus.Infof("PackOrder Address(%s), Nonce(%d)", req.Address.String(), nonce)
 
 	if req.Nonce == nonce+1 {
 		to.packingNonces[req.Origin]++
