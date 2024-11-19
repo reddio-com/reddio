@@ -30,7 +30,7 @@ const (
 	amountADesired           = 1e15
 	amountBDesired           = 1e15
 	stepCount                = 5000
-	tokenContractNum         = 1
+	tokenContractNum         = 2
 )
 
 type UniswapV2TPSStatisticsTestCase struct {
