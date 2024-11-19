@@ -145,6 +145,10 @@ func (s *Solidity) InitChain(genesisBlock *yu_types.Block) {
 	}
 
 	genesisBlock.StateRoot = yu_common.Hash(genesisStateRoot)
+
+	// sort by geth Nonce
+	txOrdered := NewTxOrdered(ethState)
+	s.Pool.SetPackFilter(txOrdered.PackOrder)
 }
 
 func NewSolidity(gethConfig *GethConfig) *Solidity {
