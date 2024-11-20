@@ -48,35 +48,46 @@ func NewWalletManager(cfg *evm.GethConfig, hostAddress string) *WalletManager {
 
 func (m *WalletManager) GenerateRandomWallets(count int, initialEthCount uint64) ([]*EthWallet, error) {
 	wallets := make([]*EthWallet, 0)
-	for i := 0; i < count; i++ {
+	for i := 1; i <= count; i++ {
 		wallet, err := m.createEthWallet(initialEthCount)
 		if err != nil {
 			return nil, err
 		}
 		wallets = append(wallets, wallet)
+		if i%2000 == 0 {
+			m.AssertWallet(wallet, initialEthCount)
+			log.Printf("assert %v/%v wallet done", i, count)
+		}
 	}
-	// wait block ready
-	time.Sleep(4 * time.Second)
+	m.AssertWallet(wallets[len(wallets)-1], initialEthCount)
 	return wallets, nil
 }
 
-func (m *WalletManager) BatchGenerateRandomWallets(count int, initialEthCount uint64) ([]*EthWallet, error) {
-	var wallets []*EthWallet
-	var txs []*RawTxReq
-	for i := 0; i < count; i++ {
-		privateKey, address := generatePrivateKey()
-		wallets = append(wallets, &EthWallet{
-			PK:      privateKey,
-			Address: address,
-		})
-		txs = append(txs, &RawTxReq{
-			privateKeyHex: GenesisPrivateKey,
-			toAddress:     address,
-			amount:        initialEthCount,
-		})
+func (m *WalletManager) AssertWallet(w *EthWallet, count uint64) {
+	for {
+		got, err := m.QueryEth(w)
+		if err == nil && got >= count {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
-	err := m.batchTransferEth(txs)
-	return wallets, err
+}
+
+func (m *WalletManager) BatchGenerateRandomWallets(count int, initialEthCount uint64) ([]*EthWallet, error) {
+	wallets := make([]*EthWallet, 0)
+	for i := 1; i <= count; i++ {
+		wallet, err := m.createEthWallet(initialEthCount)
+		if err != nil {
+			return nil, err
+		}
+		if i%5000 == 0 {
+			m.AssertWallet(wallet, initialEthCount)
+			fmt.Println(fmt.Sprintf("assert %v  wallet success", i))
+		}
+		wallets = append(wallets, wallet)
+		fmt.Println(fmt.Sprintf("create %v/%v wallet", i, count))
+	}
+	return wallets, nil
 }
 
 func (m *WalletManager) createEthWallet(initialEthCount uint64) (*EthWallet, error) {
@@ -84,8 +95,11 @@ func (m *WalletManager) createEthWallet(initialEthCount uint64) (*EthWallet, err
 	return m.CreateEthWalletByAddress(initialEthCount, privateKey, address)
 }
 
+var nonceCount int
+
 func (m *WalletManager) CreateEthWalletByAddress(initialEthCount uint64, privateKey, address string) (*EthWallet, error) {
-	if err := m.transferEth(GenesisPrivateKey, address, initialEthCount, 0); err != nil {
+	nonceCount++
+	if err := m.transferEth(GenesisPrivateKey, address, initialEthCount, uint64(time.Now().UnixNano()+int64(nonceCount))); err != nil {
 		return nil, err
 	}
 	// log.Println(fmt.Sprintf("create wallet %v", address))
@@ -98,18 +112,6 @@ func (m *WalletManager) TransferEth(from, to *EthWallet, amount, nonce uint64) e
 		return err
 	}
 	return nil
-}
-
-func (m *WalletManager) BatchTransferETH(steps []*Step) error {
-	var batch []*RawTxReq
-	for _, step := range steps {
-		batch = append(batch, &RawTxReq{
-			privateKeyHex: step.From.PK,
-			toAddress:     step.To.Address,
-			amount:        step.Count,
-		})
-	}
-	return m.batchTransferEth(batch)
 }
 
 func (m *WalletManager) QueryEth(wallet *EthWallet) (uint64, error) {
@@ -148,10 +150,6 @@ type queryResponse struct {
 
 func (m *WalletManager) transferEth(privateKeyHex string, toAddress string, amount, nonce uint64) error {
 	return m.sendRawTx(privateKeyHex, toAddress, amount, nonce)
-}
-
-func (m *WalletManager) batchTransferEth(rawTxs []*RawTxReq) error {
-	return m.sendBatchRawTxs(rawTxs)
 }
 
 var counter = uint64(0)

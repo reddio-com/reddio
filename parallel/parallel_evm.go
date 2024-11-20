@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	common2 "github.com/ethereum/go-ethereum/common"
 	"github.com/yu-org/yu/core/tripod"
 
 	"github.com/ethereum/go-ethereum/core/state"
@@ -33,7 +34,8 @@ const (
 
 type ParallelEVM struct {
 	*tripod.Tripod
-	Solidity *evm.Solidity `tripod:"solidity"`
+	Solidity    *evm.Solidity `tripod:"solidity"`
+	statManager *BlockTxnStatManager
 }
 
 func NewParallelEVM() *ParallelEVM {
@@ -43,35 +45,35 @@ func NewParallelEVM() *ParallelEVM {
 }
 
 func (k *ParallelEVM) Execute(block *types.Block) error {
-	statManager := &BlockTxnStatManager{TxnCount: len(block.Txns)}
+	k.statManager = &BlockTxnStatManager{TxnCount: len(block.Txns)}
 	start := time.Now()
 	defer func() {
-		statManager.ExecuteDuration = time.Since(start)
-		statManager.UpdateMetrics()
+		k.statManager.ExecuteDuration = time.Since(start)
+		k.statManager.UpdateMetrics()
 	}()
-	txnCtxList, receipts := k.prepareTxnList(block, statManager)
+	txnCtxList, receipts := k.prepareTxnList(block)
 	got := k.splitTxnCtxList(txnCtxList)
-	got = k.executeAllTxn(got, statManager)
+	got = k.executeAllTxn(got)
 	for _, subList := range got {
 		for _, c := range subList {
 			receipts[c.txn.TxnHash] = c.receipt
 		}
 	}
-	return k.Commit(block, receipts, statManager)
+	return k.Commit(block, receipts)
 }
 
-func (k *ParallelEVM) Commit(block *types.Block, receipts map[common.Hash]*types.Receipt, statManager *BlockTxnStatManager) error {
+func (k *ParallelEVM) Commit(block *types.Block, receipts map[common.Hash]*types.Receipt) error {
 	commitStart := time.Now()
 	defer func() {
-		statManager.CommitDuration = time.Since(commitStart)
+		k.statManager.CommitDuration = time.Since(commitStart)
 	}()
 	return k.PostExecute(block, receipts)
 }
 
-func (k *ParallelEVM) executeAllTxn(got [][]*txnCtx, statManager *BlockTxnStatManager) [][]*txnCtx {
+func (k *ParallelEVM) executeAllTxn(got [][]*txnCtx) [][]*txnCtx {
 	start := time.Now()
 	defer func() {
-		statManager.ExecuteTxnDuration = time.Since(start)
+		k.statManager.ExecuteTxnDuration = time.Since(start)
 	}()
 	for index, subList := range got {
 		k.executeTxnCtxList(subList)
@@ -80,10 +82,10 @@ func (k *ParallelEVM) executeAllTxn(got [][]*txnCtx, statManager *BlockTxnStatMa
 	return got
 }
 
-func (k *ParallelEVM) prepareTxnList(block *types.Block, statManager *BlockTxnStatManager) ([]*txnCtx, map[common.Hash]*types.Receipt) {
+func (k *ParallelEVM) prepareTxnList(block *types.Block) ([]*txnCtx, map[common.Hash]*types.Receipt) {
 	start := time.Now()
 	defer func() {
-		statManager.PrepareDuration = time.Since(start)
+		k.statManager.PrepareDuration = time.Since(start)
 	}()
 	stxns := block.Txns
 	receipts := make(map[common.Hash]*types.Receipt)
@@ -170,7 +172,7 @@ func checkAddressConflict(curTxn *txnCtx, curList []*txnCtx) bool {
 func (k *ParallelEVM) executeTxnCtxList(list []*txnCtx) []*txnCtx {
 	if config.GetGlobalConfig().IsParallel {
 		defer func() {
-			k.Solidity.StateDB().IntermediateRoot(true)
+			k.Solidity.FinaliseStateDB(true)
 		}()
 		metrics.BatchTxnSplitCounter.WithLabelValues(strconv.FormatInt(int64(len(list)), 10)).Inc()
 		return k.executeTxnCtxListInConcurrency(k.Solidity.StateDB(), list)
@@ -274,11 +276,18 @@ func (k *ParallelEVM) mergeStateDB(originStateDB *state.StateDB, list []*txnCtx)
 func (k *ParallelEVM) CopyStateDb(originStateDB *state.StateDB, list []*txnCtx) []*state.StateDB {
 	copiedStateDBList := make([]*state.StateDB, 0)
 	k.Solidity.Lock()
+	start := time.Now()
 	defer func() {
+		k.statManager.CopyDuration += time.Since(start)
 		k.Solidity.Unlock()
 	}()
 	for i := 0; i < len(list); i++ {
-		copiedStateDBList = append(copiedStateDBList, originStateDB.Copy())
+		needCopy := make(map[common2.Address]struct{})
+		if list[i].req.Address != nil {
+			needCopy[*list[i].req.Address] = struct{}{}
+		}
+		needCopy[list[i].req.Origin] = struct{}{}
+		copiedStateDBList = append(copiedStateDBList, originStateDB.SimpleCopy(needCopy))
 	}
 	return copiedStateDBList
 }
@@ -312,6 +321,7 @@ type BlockTxnStatManager struct {
 	ExecuteTxnDuration time.Duration
 	PrepareDuration    time.Duration
 	CommitDuration     time.Duration
+	CopyDuration       time.Duration
 }
 
 func (stat *BlockTxnStatManager) UpdateMetrics() {
@@ -321,6 +331,8 @@ func (stat *BlockTxnStatManager) UpdateMetrics() {
 	metrics.BlockTxnPrepareDurationGauge.WithLabelValues().Set(float64(stat.PrepareDuration.Seconds()))
 	metrics.BlockTxnCommitDurationGauge.WithLabelValues().Set(float64(stat.CommitDuration.Seconds()))
 	if config.GlobalConfig.IsBenchmarkMode {
-		log.Printf("execute %v txn, total:%v, execute cost:%v, prepare:%v, commit:%v", stat.TxnCount, stat.ExecuteDuration.String(), stat.ExecuteTxnDuration.String(), stat.PrepareDuration.String(), stat.CommitDuration.String())
+		log.Printf("execute %v txn, total:%v, execute cost:%v, prepare:%v, copy:%v, commit:%v",
+			stat.TxnCount, stat.ExecuteDuration.String(), stat.ExecuteTxnDuration.String(),
+			stat.PrepareDuration.String(), stat.CopyDuration.String(), stat.CommitDuration.String())
 	}
 }

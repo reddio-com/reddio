@@ -17,7 +17,7 @@ require (
 	github.com/sourcegraph/conc v0.3.0
 	github.com/stretchr/testify v1.9.0
 	github.com/tendermint/tendermint v0.34.24
-	github.com/yu-org/yu v1.2.5
+	github.com/yu-org/yu v1.2.10
 	golang.org/x/time v0.5.0
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -215,3 +215,5 @@ require (
 	lukechampine.com/blake3 v1.3.0 // indirect
 	rsc.io/tmplfunc v0.0.3 // indirect
 )
+
+replace github.com/ethereum/go-ethereum => github.com/reddio-com/go-ethereum v1.10.19-0.20241114012045-c5df922599f2

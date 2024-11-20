@@ -1,7 +1,7 @@
 # This workflow will build a golang project
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
 
-name: ci
+name: uniswap_test
 
 on:
   push:
@@ -26,14 +26,9 @@ jobs:
         uses: actions/setup-go@v4
         with:
           go-version: "1.23"
-
-      - name: Run Makefile check-mod-tidy
-        run: make check-mod-tidy
-      - name: Build
-        run: make build
-      - name: Build Test
-        run: make build_transfer_test_race
-      - name: Parallel Transfer Test
-        run: make ci_parallel_transfer_test
-      - name: Serial Transfer Test
-        run: make ci_serial_transfer_test
+      - name: Build Uniswap Test
+        run: make build_uniswap_test_race
+      - name: Parallel Uniswap Test
+        run: make ci_parallel_uniswap_test
+      - name: Serial Uniswap Test
+        run: make ci_serial_uniswap_test
