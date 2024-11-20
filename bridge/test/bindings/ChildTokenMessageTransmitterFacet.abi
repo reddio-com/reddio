@@ -90,5 +90,18 @@
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "recipient",
+          "type": "address"
+        }
+      ],
+      "name": "withdrawRED",
+      "outputs": [],
+      "stateMutability": "payable",
+      "type": "function"
     }
   ]

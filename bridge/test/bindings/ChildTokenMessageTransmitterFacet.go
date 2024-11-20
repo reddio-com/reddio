@@ -31,7 +31,7 @@ var (
 
 // ChildTokenMessageTransmitterFacetMetaData contains all meta data concerning the ChildTokenMessageTransmitterFacet contract.
 var ChildTokenMessageTransmitterFacetMetaData = &bind.MetaData{
-	ABI: "[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"recipient\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"withdrawETH\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"tokenAddress\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"recipient\",\"type\":\"address\"},{\"internalType\":\"uint256[]\",\"name\":\"tokenIds\",\"type\":\"uint256[]\"},{\"internalType\":\"uint256[]\",\"name\":\"amounts\",\"type\":\"uint256[]\"}],\"name\":\"withdrawErc1155BatchToken\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"tokenAddress\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"recipient\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"withdrawErc20Token\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"tokenAddress\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"recipient\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"tokenId\",\"type\":\"uint256\"}],\"name\":\"withdrawErc721Token\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
+	ABI: "[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"recipient\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"withdrawETH\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"tokenAddress\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"recipient\",\"type\":\"address\"},{\"internalType\":\"uint256[]\",\"name\":\"tokenIds\",\"type\":\"uint256[]\"},{\"internalType\":\"uint256[]\",\"name\":\"amounts\",\"type\":\"uint256[]\"}],\"name\":\"withdrawErc1155BatchToken\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"tokenAddress\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"recipient\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"withdrawErc20Token\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"tokenAddress\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"recipient\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"tokenId\",\"type\":\"uint256\"}],\"name\":\"withdrawErc721Token\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"recipient\",\"type\":\"address\"}],\"name\":\"withdrawRED\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"}]",
 }
 
 // ChildTokenMessageTransmitterFacetABI is the input ABI used to generate the binding from.
@@ -262,4 +262,25 @@ func (_ChildTokenMessageTransmitterFacet *ChildTokenMessageTransmitterFacetSessi
 // Solidity: function withdrawErc721Token(address tokenAddress, address recipient, uint256 tokenId) returns()
 func (_ChildTokenMessageTransmitterFacet *ChildTokenMessageTransmitterFacetTransactorSession) WithdrawErc721Token(tokenAddress common.Address, recipient common.Address, tokenId *big.Int) (*types.Transaction, error) {
 	return _ChildTokenMessageTransmitterFacet.Contract.WithdrawErc721Token(&_ChildTokenMessageTransmitterFacet.TransactOpts, tokenAddress, recipient, tokenId)
+}
+
+// WithdrawRED is a paid mutator transaction binding the contract method 0x71f5f10f.
+//
+// Solidity: function withdrawRED(address recipient) payable returns()
+func (_ChildTokenMessageTransmitterFacet *ChildTokenMessageTransmitterFacetTransactor) WithdrawRED(opts *bind.TransactOpts, recipient common.Address) (*types.Transaction, error) {
+	return _ChildTokenMessageTransmitterFacet.contract.Transact(opts, "withdrawRED", recipient)
+}
+
+// WithdrawRED is a paid mutator transaction binding the contract method 0x71f5f10f.
+//
+// Solidity: function withdrawRED(address recipient) payable returns()
+func (_ChildTokenMessageTransmitterFacet *ChildTokenMessageTransmitterFacetSession) WithdrawRED(recipient common.Address) (*types.Transaction, error) {
+	return _ChildTokenMessageTransmitterFacet.Contract.WithdrawRED(&_ChildTokenMessageTransmitterFacet.TransactOpts, recipient)
+}
+
+// WithdrawRED is a paid mutator transaction binding the contract method 0x71f5f10f.
+//
+// Solidity: function withdrawRED(address recipient) payable returns()
+func (_ChildTokenMessageTransmitterFacet *ChildTokenMessageTransmitterFacetTransactorSession) WithdrawRED(recipient common.Address) (*types.Transaction, error) {
+	return _ChildTokenMessageTransmitterFacet.Contract.WithdrawRED(&_ChildTokenMessageTransmitterFacet.TransactOpts, recipient)
 }

@@ -31,7 +31,7 @@ var (
 
 // ChildBridgeCoreFacetMetaData contains all meta data concerning the ChildBridgeCoreFacet contract.
 var ChildBridgeCoreFacetMetaData = &bind.MetaData{
-	ABI: "[{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"index\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"bytes32\",\"name\":\"messageHash\",\"type\":\"bytes32\"}],\"name\":\"AppendMessageEvent\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"xDomainCalldataHash\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"nonce\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint32\",\"name\":\"payloadType\",\"type\":\"uint32\"},{\"indexed\":false,\"internalType\":\"bytes\",\"name\":\"payload\",\"type\":\"bytes\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"gasLimit\",\"type\":\"uint256\"}],\"name\":\"SentMessage\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint32\",\"name\":\"payloadType\",\"type\":\"uint32\"},{\"indexed\":false,\"internalType\":\"bytes\",\"name\":\"payload\",\"type\":\"bytes\"}],\"name\":\"UpwardMessage\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"erc1155Address\",\"type\":\"address\"}],\"name\":\"getBridgedERC1155TokenChild\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"erc20Address\",\"type\":\"address\"}],\"name\":\"getBridgedERC20TokenChild\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"erc721Address\",\"type\":\"address\"}],\"name\":\"getBridgedERC721TokenChild\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"bridgedERC1155TokenAddress\",\"type\":\"address\"}],\"name\":\"getERC1155TokenChild\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"bridgedERC20Address\",\"type\":\"address\"}],\"name\":\"getERC20TokenChild\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"initialize\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"pauseBridge\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"pauseStatusBridge\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint32\",\"name\":\"payloadType\",\"type\":\"uint32\"},{\"internalType\":\"bytes\",\"name\":\"payload\",\"type\":\"bytes\"}],\"name\":\"sendUpwardMessage\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"unpauseBridge\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
+	ABI: "[{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"index\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"bytes32\",\"name\":\"messageHash\",\"type\":\"bytes32\"}],\"name\":\"AppendMessageEvent\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"xDomainCalldataHash\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"nonce\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint32\",\"name\":\"payloadType\",\"type\":\"uint32\"},{\"indexed\":false,\"internalType\":\"bytes\",\"name\":\"payload\",\"type\":\"bytes\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"gasLimit\",\"type\":\"uint256\"}],\"name\":\"SentMessage\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint32\",\"name\":\"payloadType\",\"type\":\"uint32\"},{\"indexed\":false,\"internalType\":\"bytes\",\"name\":\"payload\",\"type\":\"bytes\"}],\"name\":\"UpwardMessage\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"erc1155Address\",\"type\":\"address\"}],\"name\":\"getBridgedERC1155TokenChild\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"erc20Address\",\"type\":\"address\"}],\"name\":\"getBridgedERC20TokenChild\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"erc721Address\",\"type\":\"address\"}],\"name\":\"getBridgedERC721TokenChild\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"bridgedERC1155TokenAddress\",\"type\":\"address\"}],\"name\":\"getERC1155TokenChild\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"bridgedERC20Address\",\"type\":\"address\"}],\"name\":\"getERC20TokenChild\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"gettL1RedTokenAddress\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"initialize\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"pauseBridge\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"pauseStatusBridge\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint32\",\"name\":\"payloadType\",\"type\":\"uint32\"},{\"internalType\":\"bytes\",\"name\":\"payload\",\"type\":\"bytes\"}],\"name\":\"sendUpwardMessage\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"l1RedTokenAddress\",\"type\":\"address\"}],\"name\":\"setRedTokenAddress\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"unpauseBridge\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
 }
 
 // ChildBridgeCoreFacetABI is the input ABI used to generate the binding from.
@@ -335,6 +335,37 @@ func (_ChildBridgeCoreFacet *ChildBridgeCoreFacetCallerSession) GetERC20TokenChi
 	return _ChildBridgeCoreFacet.Contract.GetERC20TokenChild(&_ChildBridgeCoreFacet.CallOpts, bridgedERC20Address)
 }
 
+// GettL1RedTokenAddress is a free data retrieval call binding the contract method 0xdada7d76.
+//
+// Solidity: function gettL1RedTokenAddress() view returns(address)
+func (_ChildBridgeCoreFacet *ChildBridgeCoreFacetCaller) GettL1RedTokenAddress(opts *bind.CallOpts) (common.Address, error) {
+	var out []interface{}
+	err := _ChildBridgeCoreFacet.contract.Call(opts, &out, "gettL1RedTokenAddress")
+
+	if err != nil {
+		return *new(common.Address), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
+
+	return out0, err
+
+}
+
+// GettL1RedTokenAddress is a free data retrieval call binding the contract method 0xdada7d76.
+//
+// Solidity: function gettL1RedTokenAddress() view returns(address)
+func (_ChildBridgeCoreFacet *ChildBridgeCoreFacetSession) GettL1RedTokenAddress() (common.Address, error) {
+	return _ChildBridgeCoreFacet.Contract.GettL1RedTokenAddress(&_ChildBridgeCoreFacet.CallOpts)
+}
+
+// GettL1RedTokenAddress is a free data retrieval call binding the contract method 0xdada7d76.
+//
+// Solidity: function gettL1RedTokenAddress() view returns(address)
+func (_ChildBridgeCoreFacet *ChildBridgeCoreFacetCallerSession) GettL1RedTokenAddress() (common.Address, error) {
+	return _ChildBridgeCoreFacet.Contract.GettL1RedTokenAddress(&_ChildBridgeCoreFacet.CallOpts)
+}
+
 // PauseStatusBridge is a free data retrieval call binding the contract method 0xe7616cb0.
 //
 // Solidity: function pauseStatusBridge() view returns(bool)
@@ -427,6 +458,27 @@ func (_ChildBridgeCoreFacet *ChildBridgeCoreFacetSession) SendUpwardMessage(payl
 // Solidity: function sendUpwardMessage(uint32 payloadType, bytes payload) returns()
 func (_ChildBridgeCoreFacet *ChildBridgeCoreFacetTransactorSession) SendUpwardMessage(payloadType uint32, payload []byte) (*types.Transaction, error) {
 	return _ChildBridgeCoreFacet.Contract.SendUpwardMessage(&_ChildBridgeCoreFacet.TransactOpts, payloadType, payload)
+}
+
+// SetRedTokenAddress is a paid mutator transaction binding the contract method 0xfd3d6a8d.
+//
+// Solidity: function setRedTokenAddress(address l1RedTokenAddress) returns()
+func (_ChildBridgeCoreFacet *ChildBridgeCoreFacetTransactor) SetRedTokenAddress(opts *bind.TransactOpts, l1RedTokenAddress common.Address) (*types.Transaction, error) {
+	return _ChildBridgeCoreFacet.contract.Transact(opts, "setRedTokenAddress", l1RedTokenAddress)
+}
+
+// SetRedTokenAddress is a paid mutator transaction binding the contract method 0xfd3d6a8d.
+//
+// Solidity: function setRedTokenAddress(address l1RedTokenAddress) returns()
+func (_ChildBridgeCoreFacet *ChildBridgeCoreFacetSession) SetRedTokenAddress(l1RedTokenAddress common.Address) (*types.Transaction, error) {
+	return _ChildBridgeCoreFacet.Contract.SetRedTokenAddress(&_ChildBridgeCoreFacet.TransactOpts, l1RedTokenAddress)
+}
+
+// SetRedTokenAddress is a paid mutator transaction binding the contract method 0xfd3d6a8d.
+//
+// Solidity: function setRedTokenAddress(address l1RedTokenAddress) returns()
+func (_ChildBridgeCoreFacet *ChildBridgeCoreFacetTransactorSession) SetRedTokenAddress(l1RedTokenAddress common.Address) (*types.Transaction, error) {
+	return _ChildBridgeCoreFacet.Contract.SetRedTokenAddress(&_ChildBridgeCoreFacet.TransactOpts, l1RedTokenAddress)
 }
 
 // UnpauseBridge is a paid mutator transaction binding the contract method 0xa82f143c.

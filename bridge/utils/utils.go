@@ -24,6 +24,7 @@ const (
 	ParentERC20Token
 	ParentERC721Token
 	ParentERC1155Token
+	ParentRedToken
 )
 
 // Loop Run the f func periodically.

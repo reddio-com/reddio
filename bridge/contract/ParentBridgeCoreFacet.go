@@ -31,7 +31,7 @@ var (
 
 // ParentBridgeCoreFacetMetaData contains all meta data concerning the ParentBridgeCoreFacet contract.
 var ParentBridgeCoreFacetMetaData = &bind.MetaData{
-	ABI: "[{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint32\",\"name\":\"payloadType\",\"type\":\"uint32\"},{\"indexed\":false,\"internalType\":\"bytes\",\"name\":\"payload\",\"type\":\"bytes\"}],\"name\":\"DownwardMessage\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"hash\",\"type\":\"bytes32\"},{\"indexed\":true,\"internalType\":\"uint64\",\"name\":\"queueIndex\",\"type\":\"uint64\"},{\"indexed\":false,\"internalType\":\"uint32\",\"name\":\"payloadType\",\"type\":\"uint32\"},{\"indexed\":false,\"internalType\":\"bytes\",\"name\":\"payload\",\"type\":\"bytes\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"gasLimit\",\"type\":\"uint256\"}],\"name\":\"QueueTransaction\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"messageHash\",\"type\":\"bytes32\"}],\"name\":\"RelayedMessage\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_gasLimit\",\"type\":\"uint256\"}],\"name\":\"estimateCrossMessageFee\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"nextCrossDomainMessageIndex\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"pauseBridge\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"pauseStatusBridge\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint32\",\"name\":\"payloadType\",\"type\":\"uint32\"},{\"internalType\":\"bytes\",\"name\":\"payload\",\"type\":\"bytes\"},{\"internalType\":\"uint256\",\"name\":\"ethAmount\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"gasLimit\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"value\",\"type\":\"uint256\"}],\"name\":\"sendDownwardMessage\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"unpauseBridge\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
+	ABI: "[{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint32\",\"name\":\"payloadType\",\"type\":\"uint32\"},{\"indexed\":false,\"internalType\":\"bytes\",\"name\":\"payload\",\"type\":\"bytes\"}],\"name\":\"DownwardMessage\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"hash\",\"type\":\"bytes32\"},{\"indexed\":true,\"internalType\":\"uint64\",\"name\":\"queueIndex\",\"type\":\"uint64\"},{\"indexed\":false,\"internalType\":\"uint32\",\"name\":\"payloadType\",\"type\":\"uint32\"},{\"indexed\":false,\"internalType\":\"bytes\",\"name\":\"payload\",\"type\":\"bytes\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"gasLimit\",\"type\":\"uint256\"}],\"name\":\"QueueTransaction\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"messageHash\",\"type\":\"bytes32\"}],\"name\":\"RelayedMessage\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_gasLimit\",\"type\":\"uint256\"}],\"name\":\"estimateCrossMessageFee\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"gettL1RedTokenAddress\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"nextCrossDomainMessageIndex\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"pauseBridge\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"pauseStatusBridge\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint32\",\"name\":\"payloadType\",\"type\":\"uint32\"},{\"internalType\":\"bytes\",\"name\":\"payload\",\"type\":\"bytes\"},{\"internalType\":\"uint256\",\"name\":\"ethAmount\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"gasLimit\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"value\",\"type\":\"uint256\"}],\"name\":\"sendDownwardMessage\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"l1RedTokenAddress\",\"type\":\"address\"}],\"name\":\"setL1RedTokenAddress\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"unpauseBridge\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
 }
 
 // ParentBridgeCoreFacetABI is the input ABI used to generate the binding from.
@@ -211,6 +211,37 @@ func (_ParentBridgeCoreFacet *ParentBridgeCoreFacetCallerSession) EstimateCrossM
 	return _ParentBridgeCoreFacet.Contract.EstimateCrossMessageFee(&_ParentBridgeCoreFacet.CallOpts, _gasLimit)
 }
 
+// GettL1RedTokenAddress is a free data retrieval call binding the contract method 0xdada7d76.
+//
+// Solidity: function gettL1RedTokenAddress() view returns(address)
+func (_ParentBridgeCoreFacet *ParentBridgeCoreFacetCaller) GettL1RedTokenAddress(opts *bind.CallOpts) (common.Address, error) {
+	var out []interface{}
+	err := _ParentBridgeCoreFacet.contract.Call(opts, &out, "gettL1RedTokenAddress")
+
+	if err != nil {
+		return *new(common.Address), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
+
+	return out0, err
+
+}
+
+// GettL1RedTokenAddress is a free data retrieval call binding the contract method 0xdada7d76.
+//
+// Solidity: function gettL1RedTokenAddress() view returns(address)
+func (_ParentBridgeCoreFacet *ParentBridgeCoreFacetSession) GettL1RedTokenAddress() (common.Address, error) {
+	return _ParentBridgeCoreFacet.Contract.GettL1RedTokenAddress(&_ParentBridgeCoreFacet.CallOpts)
+}
+
+// GettL1RedTokenAddress is a free data retrieval call binding the contract method 0xdada7d76.
+//
+// Solidity: function gettL1RedTokenAddress() view returns(address)
+func (_ParentBridgeCoreFacet *ParentBridgeCoreFacetCallerSession) GettL1RedTokenAddress() (common.Address, error) {
+	return _ParentBridgeCoreFacet.Contract.GettL1RedTokenAddress(&_ParentBridgeCoreFacet.CallOpts)
+}
+
 // NextCrossDomainMessageIndex is a free data retrieval call binding the contract method 0xfd0ad31e.
 //
 // Solidity: function nextCrossDomainMessageIndex() view returns(uint256)
@@ -313,6 +344,27 @@ func (_ParentBridgeCoreFacet *ParentBridgeCoreFacetSession) SendDownwardMessage(
 // Solidity: function sendDownwardMessage(uint32 payloadType, bytes payload, uint256 ethAmount, uint256 gasLimit, uint256 value) returns()
 func (_ParentBridgeCoreFacet *ParentBridgeCoreFacetTransactorSession) SendDownwardMessage(payloadType uint32, payload []byte, ethAmount *big.Int, gasLimit *big.Int, value *big.Int) (*types.Transaction, error) {
 	return _ParentBridgeCoreFacet.Contract.SendDownwardMessage(&_ParentBridgeCoreFacet.TransactOpts, payloadType, payload, ethAmount, gasLimit, value)
+}
+
+// SetL1RedTokenAddress is a paid mutator transaction binding the contract method 0x1224811e.
+//
+// Solidity: function setL1RedTokenAddress(address l1RedTokenAddress) returns()
+func (_ParentBridgeCoreFacet *ParentBridgeCoreFacetTransactor) SetL1RedTokenAddress(opts *bind.TransactOpts, l1RedTokenAddress common.Address) (*types.Transaction, error) {
+	return _ParentBridgeCoreFacet.contract.Transact(opts, "setL1RedTokenAddress", l1RedTokenAddress)
+}
+
+// SetL1RedTokenAddress is a paid mutator transaction binding the contract method 0x1224811e.
+//
+// Solidity: function setL1RedTokenAddress(address l1RedTokenAddress) returns()
+func (_ParentBridgeCoreFacet *ParentBridgeCoreFacetSession) SetL1RedTokenAddress(l1RedTokenAddress common.Address) (*types.Transaction, error) {
+	return _ParentBridgeCoreFacet.Contract.SetL1RedTokenAddress(&_ParentBridgeCoreFacet.TransactOpts, l1RedTokenAddress)
+}
+
+// SetL1RedTokenAddress is a paid mutator transaction binding the contract method 0x1224811e.
+//
+// Solidity: function setL1RedTokenAddress(address l1RedTokenAddress) returns()
+func (_ParentBridgeCoreFacet *ParentBridgeCoreFacetTransactorSession) SetL1RedTokenAddress(l1RedTokenAddress common.Address) (*types.Transaction, error) {
+	return _ParentBridgeCoreFacet.Contract.SetL1RedTokenAddress(&_ParentBridgeCoreFacet.TransactOpts, l1RedTokenAddress)
 }
 
 // UnpauseBridge is a paid mutator transaction binding the contract method 0xa82f143c.
@@ -437,7 +489,6 @@ func (_ParentBridgeCoreFacet *ParentBridgeCoreFacetFilterer) WatchDownwardMessag
 			select {
 			case log := <-logs:
 				// New log arrived, parse the event and forward to the user
-				//fmt.Println("ParentBridgeCoreFacet WatchDownwardMessage log:", log)
 				event := new(ParentBridgeCoreFacetDownwardMessage)
 				if err := _ParentBridgeCoreFacet.contract.UnpackLog(event, "DownwardMessage", log); err != nil {
 					return err
@@ -452,10 +503,8 @@ func (_ParentBridgeCoreFacet *ParentBridgeCoreFacetFilterer) WatchDownwardMessag
 					return nil
 				}
 			case err := <-sub.Err():
-				//fmt.Println("ParentBridgeCoreFacet WatchDownwardMessage error:", err)
 				return err
 			case <-quit:
-			//fmt.Println("ParentBridgeCoreFacet WatchDownwardMessage quit")
 				return nil
 			}
 		}

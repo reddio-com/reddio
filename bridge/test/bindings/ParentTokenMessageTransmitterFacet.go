@@ -31,7 +31,7 @@ var (
 
 // ParentTokenMessageTransmitterFacetMetaData contains all meta data concerning the ParentTokenMessageTransmitterFacet contract.
 var ParentTokenMessageTransmitterFacetMetaData = &bind.MetaData{
-	ABI: "[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"target\",\"type\":\"address\"}],\"name\":\"AddressEmptyCode\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"}],\"name\":\"AddressInsufficientBalance\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"FailedInnerCall\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"token\",\"type\":\"address\"}],\"name\":\"SafeERC20FailedOperation\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"tokenAddress\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"recipient\",\"type\":\"address\"},{\"internalType\":\"uint256[]\",\"name\":\"tokenIds\",\"type\":\"uint256[]\"},{\"internalType\":\"uint256[]\",\"name\":\"amounts\",\"type\":\"uint256[]\"},{\"internalType\":\"uint256\",\"name\":\"gasLimit\",\"type\":\"uint256\"}],\"name\":\"depositERC1155Token\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"tokenAddress\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"recipient\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"gasLimit\",\"type\":\"uint256\"}],\"name\":\"depositERC20Token\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"tokenAddress\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"recipient\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"tokenId\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"gasLimit\",\"type\":\"uint256\"}],\"name\":\"depositERC721Token\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"recipient\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"gasLimit\",\"type\":\"uint256\"}],\"name\":\"depositETH\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"}]",
+	ABI: "[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"target\",\"type\":\"address\"}],\"name\":\"AddressEmptyCode\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"}],\"name\":\"AddressInsufficientBalance\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"FailedInnerCall\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"token\",\"type\":\"address\"}],\"name\":\"SafeERC20FailedOperation\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"tokenAddress\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"recipient\",\"type\":\"address\"},{\"internalType\":\"uint256[]\",\"name\":\"tokenIds\",\"type\":\"uint256[]\"},{\"internalType\":\"uint256[]\",\"name\":\"amounts\",\"type\":\"uint256[]\"},{\"internalType\":\"uint256\",\"name\":\"gasLimit\",\"type\":\"uint256\"}],\"name\":\"depositERC1155Token\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"tokenAddress\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"recipient\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"gasLimit\",\"type\":\"uint256\"}],\"name\":\"depositERC20Token\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"tokenAddress\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"recipient\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"tokenId\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"gasLimit\",\"type\":\"uint256\"}],\"name\":\"depositERC721Token\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"recipient\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"gasLimit\",\"type\":\"uint256\"}],\"name\":\"depositETH\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"recipient\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"gasLimit\",\"type\":\"uint256\"}],\"name\":\"depositRED\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"},{\"internalType\":\"uint256[]\",\"name\":\"\",\"type\":\"uint256[]\"},{\"internalType\":\"uint256[]\",\"name\":\"\",\"type\":\"uint256[]\"},{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"name\":\"onERC1155BatchReceived\",\"outputs\":[{\"internalType\":\"bytes4\",\"name\":\"\",\"type\":\"bytes4\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"},{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"name\":\"onERC1155Received\",\"outputs\":[{\"internalType\":\"bytes4\",\"name\":\"\",\"type\":\"bytes4\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"},{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"name\":\"onERC721Received\",\"outputs\":[{\"internalType\":\"bytes4\",\"name\":\"\",\"type\":\"bytes4\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
 }
 
 // ParentTokenMessageTransmitterFacetABI is the input ABI used to generate the binding from.
@@ -262,4 +262,88 @@ func (_ParentTokenMessageTransmitterFacet *ParentTokenMessageTransmitterFacetSes
 // Solidity: function depositETH(address recipient, uint256 amount, uint256 gasLimit) payable returns()
 func (_ParentTokenMessageTransmitterFacet *ParentTokenMessageTransmitterFacetTransactorSession) DepositETH(recipient common.Address, amount *big.Int, gasLimit *big.Int) (*types.Transaction, error) {
 	return _ParentTokenMessageTransmitterFacet.Contract.DepositETH(&_ParentTokenMessageTransmitterFacet.TransactOpts, recipient, amount, gasLimit)
+}
+
+// DepositRED is a paid mutator transaction binding the contract method 0x06e2aa65.
+//
+// Solidity: function depositRED(address recipient, uint256 amount, uint256 gasLimit) payable returns()
+func (_ParentTokenMessageTransmitterFacet *ParentTokenMessageTransmitterFacetTransactor) DepositRED(opts *bind.TransactOpts, recipient common.Address, amount *big.Int, gasLimit *big.Int) (*types.Transaction, error) {
+	return _ParentTokenMessageTransmitterFacet.contract.Transact(opts, "depositRED", recipient, amount, gasLimit)
+}
+
+// DepositRED is a paid mutator transaction binding the contract method 0x06e2aa65.
+//
+// Solidity: function depositRED(address recipient, uint256 amount, uint256 gasLimit) payable returns()
+func (_ParentTokenMessageTransmitterFacet *ParentTokenMessageTransmitterFacetSession) DepositRED(recipient common.Address, amount *big.Int, gasLimit *big.Int) (*types.Transaction, error) {
+	return _ParentTokenMessageTransmitterFacet.Contract.DepositRED(&_ParentTokenMessageTransmitterFacet.TransactOpts, recipient, amount, gasLimit)
+}
+
+// DepositRED is a paid mutator transaction binding the contract method 0x06e2aa65.
+//
+// Solidity: function depositRED(address recipient, uint256 amount, uint256 gasLimit) payable returns()
+func (_ParentTokenMessageTransmitterFacet *ParentTokenMessageTransmitterFacetTransactorSession) DepositRED(recipient common.Address, amount *big.Int, gasLimit *big.Int) (*types.Transaction, error) {
+	return _ParentTokenMessageTransmitterFacet.Contract.DepositRED(&_ParentTokenMessageTransmitterFacet.TransactOpts, recipient, amount, gasLimit)
+}
+
+// OnERC1155BatchReceived is a paid mutator transaction binding the contract method 0xbc197c81.
+//
+// Solidity: function onERC1155BatchReceived(address , address , uint256[] , uint256[] , bytes ) returns(bytes4)
+func (_ParentTokenMessageTransmitterFacet *ParentTokenMessageTransmitterFacetTransactor) OnERC1155BatchReceived(opts *bind.TransactOpts, arg0 common.Address, arg1 common.Address, arg2 []*big.Int, arg3 []*big.Int, arg4 []byte) (*types.Transaction, error) {
+	return _ParentTokenMessageTransmitterFacet.contract.Transact(opts, "onERC1155BatchReceived", arg0, arg1, arg2, arg3, arg4)
+}
+
+// OnERC1155BatchReceived is a paid mutator transaction binding the contract method 0xbc197c81.
+//
+// Solidity: function onERC1155BatchReceived(address , address , uint256[] , uint256[] , bytes ) returns(bytes4)
+func (_ParentTokenMessageTransmitterFacet *ParentTokenMessageTransmitterFacetSession) OnERC1155BatchReceived(arg0 common.Address, arg1 common.Address, arg2 []*big.Int, arg3 []*big.Int, arg4 []byte) (*types.Transaction, error) {
+	return _ParentTokenMessageTransmitterFacet.Contract.OnERC1155BatchReceived(&_ParentTokenMessageTransmitterFacet.TransactOpts, arg0, arg1, arg2, arg3, arg4)
+}
+
+// OnERC1155BatchReceived is a paid mutator transaction binding the contract method 0xbc197c81.
+//
+// Solidity: function onERC1155BatchReceived(address , address , uint256[] , uint256[] , bytes ) returns(bytes4)
+func (_ParentTokenMessageTransmitterFacet *ParentTokenMessageTransmitterFacetTransactorSession) OnERC1155BatchReceived(arg0 common.Address, arg1 common.Address, arg2 []*big.Int, arg3 []*big.Int, arg4 []byte) (*types.Transaction, error) {
+	return _ParentTokenMessageTransmitterFacet.Contract.OnERC1155BatchReceived(&_ParentTokenMessageTransmitterFacet.TransactOpts, arg0, arg1, arg2, arg3, arg4)
+}
+
+// OnERC1155Received is a paid mutator transaction binding the contract method 0xf23a6e61.
+//
+// Solidity: function onERC1155Received(address , address , uint256 , uint256 , bytes ) returns(bytes4)
+func (_ParentTokenMessageTransmitterFacet *ParentTokenMessageTransmitterFacetTransactor) OnERC1155Received(opts *bind.TransactOpts, arg0 common.Address, arg1 common.Address, arg2 *big.Int, arg3 *big.Int, arg4 []byte) (*types.Transaction, error) {
+	return _ParentTokenMessageTransmitterFacet.contract.Transact(opts, "onERC1155Received", arg0, arg1, arg2, arg3, arg4)
+}
+
+// OnERC1155Received is a paid mutator transaction binding the contract method 0xf23a6e61.
+//
+// Solidity: function onERC1155Received(address , address , uint256 , uint256 , bytes ) returns(bytes4)
+func (_ParentTokenMessageTransmitterFacet *ParentTokenMessageTransmitterFacetSession) OnERC1155Received(arg0 common.Address, arg1 common.Address, arg2 *big.Int, arg3 *big.Int, arg4 []byte) (*types.Transaction, error) {
+	return _ParentTokenMessageTransmitterFacet.Contract.OnERC1155Received(&_ParentTokenMessageTransmitterFacet.TransactOpts, arg0, arg1, arg2, arg3, arg4)
+}
+
+// OnERC1155Received is a paid mutator transaction binding the contract method 0xf23a6e61.
+//
+// Solidity: function onERC1155Received(address , address , uint256 , uint256 , bytes ) returns(bytes4)
+func (_ParentTokenMessageTransmitterFacet *ParentTokenMessageTransmitterFacetTransactorSession) OnERC1155Received(arg0 common.Address, arg1 common.Address, arg2 *big.Int, arg3 *big.Int, arg4 []byte) (*types.Transaction, error) {
+	return _ParentTokenMessageTransmitterFacet.Contract.OnERC1155Received(&_ParentTokenMessageTransmitterFacet.TransactOpts, arg0, arg1, arg2, arg3, arg4)
+}
+
+// OnERC721Received is a paid mutator transaction binding the contract method 0x150b7a02.
+//
+// Solidity: function onERC721Received(address , address , uint256 , bytes ) returns(bytes4)
+func (_ParentTokenMessageTransmitterFacet *ParentTokenMessageTransmitterFacetTransactor) OnERC721Received(opts *bind.TransactOpts, arg0 common.Address, arg1 common.Address, arg2 *big.Int, arg3 []byte) (*types.Transaction, error) {
+	return _ParentTokenMessageTransmitterFacet.contract.Transact(opts, "onERC721Received", arg0, arg1, arg2, arg3)
+}
+
+// OnERC721Received is a paid mutator transaction binding the contract method 0x150b7a02.
+//
+// Solidity: function onERC721Received(address , address , uint256 , bytes ) returns(bytes4)
+func (_ParentTokenMessageTransmitterFacet *ParentTokenMessageTransmitterFacetSession) OnERC721Received(arg0 common.Address, arg1 common.Address, arg2 *big.Int, arg3 []byte) (*types.Transaction, error) {
+	return _ParentTokenMessageTransmitterFacet.Contract.OnERC721Received(&_ParentTokenMessageTransmitterFacet.TransactOpts, arg0, arg1, arg2, arg3)
+}
+
+// OnERC721Received is a paid mutator transaction binding the contract method 0x150b7a02.
+//
+// Solidity: function onERC721Received(address , address , uint256 , bytes ) returns(bytes4)
+func (_ParentTokenMessageTransmitterFacet *ParentTokenMessageTransmitterFacetTransactorSession) OnERC721Received(arg0 common.Address, arg1 common.Address, arg2 *big.Int, arg3 []byte) (*types.Transaction, error) {
+	return _ParentTokenMessageTransmitterFacet.Contract.OnERC721Received(&_ParentTokenMessageTransmitterFacet.TransactOpts, arg0, arg1, arg2, arg3)
 }

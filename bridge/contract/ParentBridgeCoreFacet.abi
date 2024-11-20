@@ -1,4 +1,4 @@
- [
+[
     {
       "anonymous": false,
       "inputs": [
@@ -89,6 +89,19 @@
     },
     {
       "inputs": [],
+      "name": "gettL1RedTokenAddress",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
       "name": "nextCrossDomainMessageIndex",
       "outputs": [
         {
@@ -155,6 +168,19 @@
         }
       ],
       "name": "sendDownwardMessage",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "l1RedTokenAddress",
+          "type": "address"
+        }
+      ],
+      "name": "setL1RedTokenAddress",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"

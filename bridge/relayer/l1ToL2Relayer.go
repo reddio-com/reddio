@@ -2,6 +2,7 @@ package relayer
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -133,12 +134,12 @@ func (b *L1ToL2Relayer) HandleDownwardMessageWithSystemCall(msg *contract.Parent
 	}
 	metrics.DownwardMessageReceivedCounter.WithLabelValues(fmt.Sprintf("%d", msg.PayloadType)).Inc()
 	log.Printf("Sending downward messages: %v", downwardMessages)
-	// jsonData, err := json.MarshalIndent(downwardMessages, "", "  ")
-	// if err != nil {
-	// 	log.Fatalf("Failed to marshal downward messages: %v", err)
-	// }
+	jsonData, err := json.MarshalIndent(downwardMessages, "", "  ")
+	if err != nil {
+		log.Fatalf("Failed to marshal downward messages: %v", err)
+	}
 
-	// fmt.Printf("Downward messages in JSON format:\n%s\n", string(jsonData))
+	fmt.Printf("Downward messages in JSON format:\n%s\n", string(jsonData))
 	txNonce := uint64(0)
 	value := big.NewInt(0)
 	gasLimit := uint64(6e6)
@@ -156,7 +157,7 @@ func (b *L1ToL2Relayer) HandleDownwardMessageWithSystemCall(msg *contract.Parent
 	if err != nil {
 		log.Fatalf("Failed to pack data: %v", err)
 	}
-	//fmt.Printf("Packed data: %s\n", hex.EncodeToString(data))
+	fmt.Printf("Packed data: %s\n", hex.EncodeToString(data))
 
 	tx := types.NewTransaction(txNonce, common.HexToAddress(b.cfg.ChildLayerContractAddress), value, gasLimit, gasPrice, data)
 
