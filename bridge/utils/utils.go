@@ -49,9 +49,9 @@ func UnpackLog(c *abi.ABI, out interface{}, event string, log types.Log) error {
 	}
 	if len(log.Data) > 0 {
 		if err := c.UnpackIntoInterface(out, event, log.Data); err != nil {
-			fmt.Println("log.Data ", log.Data)
-			fmt.Println("event ", event)
-			fmt.Println("Failed to UnpackIntoInterface", "err", err)
+			// fmt.Println("log.Data ", log.Data)
+			// fmt.Println("event ", event)
+			// fmt.Println("Failed to UnpackIntoInterface", "err", err)
 			return err
 		}
 	}
