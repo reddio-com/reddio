@@ -29,7 +29,7 @@ const (
 	approveAmount            = 1e18
 	amountADesired           = 1e15
 	amountBDesired           = 1e15
-	stepCount                = 5000
+	stepCount                = 50000
 	tokenContractNum         = 2
 )
 
