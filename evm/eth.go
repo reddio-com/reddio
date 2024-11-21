@@ -63,7 +63,7 @@ func (s *Solidity) SetStateDB(d *state.StateDB) {
 	s.ethState.SetStateDB(d)
 }
 
-func newEVM_copy(cfg *GethConfig, req *TxRequest) *vm.EVM {
+func copyEvmFromRequest(cfg *GethConfig, req *TxRequest) *vm.EVM {
 	txContext := vm.TxContext{
 		Origin:     req.Origin,
 		GasPrice:   req.GasPrice,
@@ -242,10 +242,12 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 	if err != nil {
 		return err
 	}
-	cfg := s.cfg
 
-	vmenv := newEVM_copy(cfg, txReq)
 	pd := pending_state.NewPendingState(txReq.Origin, ctx.ExtraInterface.(*state.StateDB))
+	pd.SetNonce(txReq.Origin, pd.GetNonce(txReq.Origin)+1)
+
+	cfg := s.cfg
+	vmenv := copyEvmFromRequest(cfg, txReq)
 
 	err = preCheck(txReq, pd)
 	if err != nil {
@@ -527,7 +529,6 @@ func makeEvmReceipt(ctx *context.WriteContext, vmEvm *vm.EVM, code []byte, signe
 
 func executeContractCall(ctx *context.WriteContext, txReq *TxRequest, ethState *pending_state.PendingState, origin, coinBase common.Address, vmenv *vm.EVM, sender vm.AccountRef, rules params.Rules) (uint64, error) {
 	ethState.Prepare(rules, origin, coinBase, txReq.Address, vm.ActivePrecompiles(rules), nil)
-	ethState.SetNonce(txReq.Origin, ethState.GetNonce(sender.Address())+1)
 
 	// logrus.Printf("before transfer: account %s balance %d \n", sender.Address(), ethState.GetBalance(sender.Address()))
 
