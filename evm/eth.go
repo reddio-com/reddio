@@ -469,9 +469,7 @@ func (s *Solidity) executeContractCreation(ctx *context.WriteContext, txReq *TxR
 
 func (s *Solidity) executeContractCall(ctx *context.WriteContext, txReq *TxRequest, ethState *pending_state.PendingState, origin, coinBase common.Address, vmenv *vm.EVM, sender vm.AccountRef, rules params.Rules) (uint64, error) {
 	ethState.Prepare(rules, origin, coinBase, txReq.Address, vm.ActivePrecompiles(rules), nil)
-	s.Lock()
 	ethState.SetNonce(txReq.Origin, ethState.GetNonce(txReq.Origin)+1)
-	s.Unlock()
 
 	// logrus.Printf("before transfer: account %s balance %d \n", sender.Address(), ethState.GetBalance(sender.Address()))
 
