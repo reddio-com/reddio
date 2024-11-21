@@ -213,13 +213,6 @@ func (s *Solidity) CheckTxn(txn *yu_types.SignedTxn) error {
 		return err
 	}
 
-	s.RLock()
-	defer s.RUnlock()
-	err = preCheck(req, s.ethState.stateDB)
-	if err != nil {
-		return err
-	}
-
 	if req.IsInternalCall {
 		// TODO: use txn.Pubkey and txn.Signature to verify the tx
 	}
@@ -245,23 +238,25 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 	coinbase := common.BytesToAddress(s.cfg.Coinbase.Bytes())
 
 	// s.Lock()
-	err = ctx.BindJson(txReq)
-	if err != nil {
-		return err
-	}
+	_ = ctx.BindJson(txReq)
 
 	pd := pending_state.NewPendingState(txReq.Origin, ctx.ExtraInterface.(*state.StateDB))
 
 	cfg := s.cfg
 	vmenv := copyEvmFromRequest(cfg, txReq)
 
-	//err = preCheck(txReq, pd)
-	//if err != nil {
-	//	return err
-	//}
+	err = preCheck(txReq, pd)
+	if err != nil {
+		pd.SetNonce(txReq.Origin, pd.GetNonce(txReq.Origin)+1)
+		return err
+	}
 
 	// buy gas
-	s.buyGas(pd, txReq)
+	err = s.buyGas(pd, txReq)
+	if err != nil {
+		pd.SetNonce(txReq.Origin, pd.GetNonce(txReq.Origin)+1)
+		return err
+	}
 
 	pd.SetTxContext(common.Hash(ctx.GetTxnHash()), ctx.TxnIndex)
 	vmenv.StateDB = pd
@@ -386,15 +381,16 @@ func (s *Solidity) Commit(block *yu_types.Block) {
 	// s.gasPool.SetGas(0)
 }
 
-func (s *Solidity) buyGas(state vm.StateDB, req *TxRequest) {
+func (s *Solidity) buyGas(state vm.StateDB, req *TxRequest) error {
 	gasFee := new(big.Int).Mul(req.GasPrice, new(big.Int).SetUint64(req.GasLimit))
 	gasFeeU256, _ := uint256.FromBig(gasFee)
-	//if state.GetBalance(req.Origin).Cmp(gasFeeU256) < 0 {
-	//	return core.ErrInsufficientFunds
-	//}
+	if state.GetBalance(req.Origin).Cmp(gasFeeU256) < 0 {
+		return core.ErrInsufficientFunds
+	}
 	state.SubBalance(req.Origin, gasFeeU256, tracing.BalanceDecreaseGasBuy)
 	s.coinbaseReward.Add(gasFee.Uint64())
 	// return s.gasPool.SubGas(req.GasLimit)
+	return nil
 }
 
 func (s *Solidity) refundGas(state vm.StateDB, tx *TxRequest, gasUsed uint64, refundQuotient uint64) {
@@ -438,12 +434,6 @@ func preCheck(req *TxRequest, stateDB vm.StateDB) error {
 	if req.Nonce < stNonce {
 		return fmt.Errorf("%w: address %v, tx: %d state: %d", core.ErrNonceTooLow,
 			req.Origin.Hex(), req.Nonce, stNonce)
-	}
-
-	gasFee := new(big.Int).Mul(req.GasPrice, new(big.Int).SetUint64(req.GasLimit))
-	gasFeeU256, _ := uint256.FromBig(gasFee)
-	if stateDB.GetBalance(req.Origin).Cmp(gasFeeU256) < 0 {
-		return core.ErrInsufficientFunds
 	}
 	return nil
 }
