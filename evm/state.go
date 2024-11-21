@@ -224,3 +224,7 @@ func (s *EthState) AddBalance(addr common.Address, amount *uint256.Int, reason t
 func (s *EthState) SubBalance(addr common.Address, amount *uint256.Int, reason tracing.BalanceChangeReason) {
 	s.stateDB.SubBalance(addr, amount, reason)
 }
+
+func (s *EthState) GetBalance(addr common.Address) *uint256.Int {
+	return s.stateDB.GetBalance(addr)
+}

@@ -213,6 +213,11 @@ func (s *Solidity) CheckTxn(txn *yu_types.SignedTxn) error {
 		return err
 	}
 
+	err = s.preCheck(req)
+	if err != nil {
+		return err
+	}
+
 	if req.IsInternalCall {
 		// TODO: use txn.Pubkey and txn.Signature to verify the tx
 	}
@@ -247,16 +252,12 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 	vmenv := newEVM_copy(cfg, txReq)
 	pd := pending_state.NewPendingState(txReq.Origin, ctx.ExtraInterface.(*state.StateDB))
 
-	err = preCheck(txReq, pd)
-	if err != nil {
-		return err
-	}
+	//err = s.preCheck(txReq, pd)
+	//if err != nil {
+	//	return err
+	//}
 
-	// buy gas
-	err = s.buyGas(pd, txReq)
-	if err != nil {
-		return err
-	}
+	s.buyGas(pd, txReq)
 
 	pd.SetTxContext(common.Hash(ctx.GetTxnHash()), ctx.TxnIndex)
 	vmenv.StateDB = pd
@@ -381,15 +382,24 @@ func (s *Solidity) Commit(block *yu_types.Block) {
 	// s.gasPool.SetGas(0)
 }
 
-func (s *Solidity) buyGas(state vm.StateDB, req *TxRequest) error {
+func (s *Solidity) buyGas(state vm.StateDB, req *TxRequest) {
 	gasFee := new(big.Int).Mul(req.GasPrice, new(big.Int).SetUint64(req.GasLimit))
 	gasFeeU256, _ := uint256.FromBig(gasFee)
-	if state.GetBalance(req.Origin).Cmp(gasFeeU256) < 0 {
-		return core.ErrInsufficientFunds
-	}
+	//if state.GetBalance(req.Origin).Cmp(gasFeeU256) < 0 {
+	//	return core.ErrInsufficientFunds
+	//}
 	state.SubBalance(req.Origin, gasFeeU256, tracing.BalanceDecreaseGasBuy)
 	s.coinbaseReward.Add(gasFee.Uint64())
 	// return s.gasPool.SubGas(req.GasLimit)
+	// return nil
+}
+
+func (s *Solidity) checkFundsSufficient(req *TxRequest) error {
+	gasFee := new(big.Int).Mul(req.GasPrice, new(big.Int).SetUint64(req.GasLimit))
+	gasFeeU256, _ := uint256.FromBig(gasFee)
+	if s.ethState.GetBalance(req.Origin).Cmp(gasFeeU256) < 0 {
+		return core.ErrInsufficientFunds
+	}
 	return nil
 }
 
@@ -405,7 +415,7 @@ func (s *Solidity) refundGas(state vm.StateDB, tx *TxRequest, gasUsed uint64, re
 	// s.gasPool.AddGas(remainGas)
 }
 
-func preCheck(req *TxRequest, stateDB vm.StateDB) error {
+func (s *Solidity) preCheck(req *TxRequest) error {
 	//// Make sure this transaction's nonce is correct.
 	//stNonce := stateDB.GetNonce(tx.Origin)
 	//fmt.Printf("From(%s) stateDB.Nonce = %d, request.Nonce = %d \n", tx.Origin.Hex(), stNonce, tx.Nonce)
@@ -428,14 +438,14 @@ func preCheck(req *TxRequest, stateDB vm.StateDB) error {
 	//}
 	//
 	//return nil
-	stNonce := stateDB.GetNonce(req.Origin)
+	stNonce := s.ethState.GetNonce(req.Origin)
 
 	// fmt.Printf("address %s, tx.nonce: %d, state.nonce: %d \n", req.Origin.Hex(), req.Nonce, stNonce)
 	if req.Nonce < stNonce {
 		return fmt.Errorf("%w: address %v, tx: %d state: %d", core.ErrNonceTooLow,
 			req.Origin.Hex(), req.Nonce, stNonce)
 	}
-	return nil
+	return s.checkFundsSufficient(req)
 }
 
 func executeContractCreation(ctx *context.WriteContext, txReq *TxRequest, stateDB *pending_state.PendingState, origin, coinBase common.Address, vmenv *vm.EVM, sender vm.AccountRef, rules params.Rules) (uint64, error) {
