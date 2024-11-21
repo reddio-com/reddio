@@ -394,10 +394,10 @@ func (s *Solidity) buyGas(state vm.StateDB, req *TxRequest) {
 	// return nil
 }
 
-func (s *Solidity) checkFundsSufficient(req *TxRequest) error {
+func checkFundsSufficient(pd vm.StateDB, req *TxRequest) error {
 	gasFee := new(big.Int).Mul(req.GasPrice, new(big.Int).SetUint64(req.GasLimit))
 	gasFeeU256, _ := uint256.FromBig(gasFee)
-	if s.ethState.GetBalance(req.Origin).Cmp(gasFeeU256) < 0 {
+	if pd.GetBalance(req.Origin).Cmp(gasFeeU256) < 0 {
 		return core.ErrInsufficientFunds
 	}
 	return nil
@@ -438,14 +438,15 @@ func (s *Solidity) preCheck(req *TxRequest) error {
 	//}
 	//
 	//return nil
-	stNonce := s.ethState.GetNonce(req.Origin)
+	pd := pending_state.NewPendingState(req.Origin, s.ethState.stateDB)
+	stNonce := pd.GetNonce(req.Origin)
 
 	// fmt.Printf("address %s, tx.nonce: %d, state.nonce: %d \n", req.Origin.Hex(), req.Nonce, stNonce)
 	if req.Nonce < stNonce {
 		return fmt.Errorf("%w: address %v, tx: %d state: %d", core.ErrNonceTooLow,
 			req.Origin.Hex(), req.Nonce, stNonce)
 	}
-	return s.checkFundsSufficient(req)
+	return checkFundsSufficient(pd, req)
 }
 
 func executeContractCreation(ctx *context.WriteContext, txReq *TxRequest, stateDB *pending_state.PendingState, origin, coinBase common.Address, vmenv *vm.EVM, sender vm.AccountRef, rules params.Rules) (uint64, error) {
