@@ -46,8 +46,8 @@ type Solidity struct {
 }
 
 func (s *Solidity) StateDB() *state.StateDB {
-	s.Lock()
-	defer s.Unlock()
+	//s.Lock()
+	//defer s.Unlock()
 	return s.ethState.StateDB()
 }
 
@@ -557,14 +557,14 @@ func makeEvmReceipt(ctx *context.WriteContext, vmEvm *vm.EVM, code []byte, signe
 }
 
 func (s *Solidity) StateAt(root common.Hash) (*state.StateDB, error) {
-	s.Lock()
-	defer s.Unlock()
+	//s.Lock()
+	//defer s.Unlock()
 	return s.ethState.StateAt(root)
 }
 
 func (s *Solidity) GetEthDB() ethdb.Database {
-	s.Lock()
-	defer s.Unlock()
+	//s.Lock()
+	//defer s.Unlock()
 	return s.ethState.ethDB
 }
 
@@ -587,8 +587,8 @@ type ReceiptsResponse struct {
 }
 
 func (s *Solidity) GetReceipt(ctx *context.ReadContext) {
-	s.Lock()
-	defer s.Unlock()
+	s.RLock()
+	defer s.RUnlock()
 	var rq ReceiptRequest
 	err := ctx.BindJson(&rq)
 	if err != nil {
@@ -636,8 +636,8 @@ func (s *Solidity) getReceipt(hash common.Hash) (*types.Receipt, error) {
 }
 
 func (s *Solidity) GetReceipts(ctx *context.ReadContext) {
-	s.Lock()
-	defer s.Unlock()
+	s.RLock()
+	defer s.RUnlock()
 	var rq ReceiptsRequest
 	err := ctx.BindJson(&rq)
 	if err != nil {
