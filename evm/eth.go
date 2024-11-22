@@ -248,6 +248,7 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 	err = s.preCheck(txReq, pd)
 	if err != nil {
 		pd.SetNonce(txReq.Origin, pd.GetNonce(txReq.Origin)+1)
+		ctx.ExtraInterface = pd
 		return err
 	}
 
@@ -275,12 +276,9 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 		s.refundGas(vmenv.StateDB, txReq, gasUsed, params.RefundQuotientEIP3529)
 	}
 
-	if err != nil {
-		return err
-	}
 	ctx.ExtraInterface = pd
 
-	return nil
+	return
 }
 
 //func emitReceipt(ctx *context.WriteContext, vmEvm *vm.EVM, txReq *TxRequest, contractAddr common.Address, leftOverGas uint64, err error) error {
