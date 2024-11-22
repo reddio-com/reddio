@@ -132,13 +132,13 @@ func (b *L1ToL2Relayer) HandleDownwardMessageWithSystemCall(msg *contract.Parent
 		},
 	}
 	metrics.DownwardMessageReceivedCounter.WithLabelValues(fmt.Sprintf("%d", msg.PayloadType)).Inc()
-	// log.Printf("Sending downward messages: %v", downwardMessages)
-	// jsonData, err := json.MarshalIndent(downwardMessages, "", "  ")
-	// if err != nil {
-	// 	log.Fatalf("Failed to marshal downward messages: %v", err)
-	// }
+	log.Printf("Sending downward messages: %v", downwardMessages)
+	jsonData, err := json.MarshalIndent(downwardMessages, "", "  ")
+	if err != nil {
+		log.Fatalf("Failed to marshal downward messages: %v", err)
+	}
 
-	// fmt.Printf("Downward messages in JSON format:\n%s\n", string(jsonData))
+	fmt.Printf("Downward messages in JSON format:\n%s\n", string(jsonData))
 	txNonce := uint64(0)
 	value := big.NewInt(0)
 	gasLimit := uint64(6e6)
@@ -268,12 +268,12 @@ func (b *L1ToL2Relayer) systemCall(ctx context.Context, signedTx *types.Transact
 		log.Fatalf("Failed to get nonce: %v", err)
 	}
 	txReq.Nonce = txNonce
-	// jsonData, err := json.MarshalIndent(txReq, "", "    ")
-	// if err != nil {
-	// 	log.Fatalf("Failed to marshal txReq to JSON: %v", err)
-	// }
+	jsonData, err := json.MarshalIndent(txReq, "", "    ")
+	if err != nil {
+		log.Fatalf("Failed to marshal txReq to JSON: %v", err)
+	}
 
-	// fmt.Println("systemCall jsonData:", string(jsonData))
+	fmt.Println("systemCall jsonData:", string(jsonData))
 	byt, err := json.Marshal(txReq)
 	if err != nil {
 		log.Fatalf("json.Marshal(txReq) failed: %v", err)
