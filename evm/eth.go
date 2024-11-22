@@ -245,14 +245,7 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 	cfg := s.cfg
 	vmenv := copyEvmFromRequest(cfg, txReq)
 
-	err = preCheck(txReq, pd)
-	if err != nil {
-		pd.SetNonce(txReq.Origin, pd.GetNonce(txReq.Origin)+1)
-		return err
-	}
-
-	// buy gas
-	err = s.buyGas(pd, txReq)
+	err = s.preCheck(txReq, pd)
 	if err != nil {
 		pd.SetNonce(txReq.Origin, pd.GetNonce(txReq.Origin)+1)
 		return err
@@ -405,7 +398,7 @@ func (s *Solidity) refundGas(state vm.StateDB, tx *TxRequest, gasUsed uint64, re
 	// s.gasPool.AddGas(remainGas)
 }
 
-func preCheck(req *TxRequest, stateDB vm.StateDB) error {
+func (s *Solidity) preCheck(req *TxRequest, stateDB vm.StateDB) error {
 	//// Make sure this transaction's nonce is correct.
 	//stNonce := stateDB.GetNonce(tx.Origin)
 	//fmt.Printf("From(%s) stateDB.Nonce = %d, request.Nonce = %d \n", tx.Origin.Hex(), stNonce, tx.Nonce)
@@ -435,7 +428,7 @@ func preCheck(req *TxRequest, stateDB vm.StateDB) error {
 		return fmt.Errorf("%w: address %v, tx: %d state: %d", core.ErrNonceTooLow,
 			req.Origin.Hex(), req.Nonce, stNonce)
 	}
-	return nil
+	return s.buyGas(stateDB, req)
 }
 
 func (s *Solidity) executeContractCreation(ctx *context.WriteContext, txReq *TxRequest, stateDB *pending_state.PendingState, origin, coinBase common.Address, vmenv *vm.EVM, sender vm.AccountRef, rules params.Rules) (uint64, error) {
