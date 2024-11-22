@@ -24,11 +24,13 @@ var (
 	// Testnet
 	//use your own l1 and l2 endpoint
 	sepoliaHelpConfig = helpConfig{
-		testAdmin:                  "",
-		L1ClientAddress:            "wss://sepolia.infura.io/ws/v3/80b72ad34e16495595abeb6ccc30255a",
+		testAdmin:       "32e3b56c9f2763d2332e6e4188e4755815ac96441e899de121969845e343c2ff",
+		L1ClientAddress: "",
+		//L2ClientAddress: "https://reddio-evm-bridge.reddio.com/",
 		L2ClientAddress:            "http://localhost:9092",
 		ParentlayerContractAddress: "0x9F7e49fcAB7eD379451e8422D20908bF439011A5",
-		ChildlayerContractAddress:  "0xeC054c6ee2DbbeBC9EbCA50CdBF94A94B02B2E40",
+		//ChildlayerContractAddress:  "0xe54eBA8bC87E43dF13109b4b2Fbcc111CAd6b4B4",
+		ChildlayerContractAddress: "0xeC054c6ee2DbbeBC9EbCA50CdBF94A94B02B2E40",
 		//testPublicKey1:             "0x0CC0cD4A9024A2d15BbEdd348Fbf7Cd69B5489bA",
 		testPublicKey1:          "0x7888b7B844B4B16c03F8daCACef7dDa0F5188645",
 		testPublicKey2:          "0x66eb032B3a74d85C8b6965a4df788f3C31678b1a",
@@ -73,7 +75,7 @@ func SetupForkedChain() error {
 // 2. check the balance of testPublicKey2 in l2 is increased by depositAmount
 func TestDepositETH(t *testing.T) {
 	t.Run("DepositETH", func(t *testing.T) {
-		fmt.Println("DepositETH1")
+		fmt.Println("DepositETH11")
 		depositAmount := big.NewInt(100)
 		//Arrange
 		l1Client, err := ethclient.Dial(sepoliaHelpConfig.L1ClientAddress)
@@ -274,7 +276,7 @@ func TestDepositERC20(t *testing.T) {
 func TestDepositRED(t *testing.T) {
 	t.Run("DepositRED", func(t *testing.T) {
 		fmt.Println("DepositRED")
-		depositAmount := big.NewInt(1e8)
+		depositAmount := big.NewInt(1e14)
 		// Arrange
 		l1Client, err := ethclient.Dial(sepoliaHelpConfig.L1ClientAddress)
 		require.NoError(t, err)
@@ -572,7 +574,7 @@ func TestWithdrawETH(t *testing.T) {
 		auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainid)
 		require.NoError(t, err)
 		auth.GasPrice = gasPrice
-
+		auth.GasLimit = 3000000
 		ChildTokenMessageTransmitterFacet, err := bindings.NewChildTokenMessageTransmitterFacet(common.HexToAddress(sepoliaHelpConfig.ChildlayerContractAddress), l2Client)
 		require.NoError(t, err)
 
