@@ -21,25 +21,24 @@ import (
 )
 
 const (
-	nodeUrl                      = "http://localhost:9092"
-	accountInitialFunds          = 1e18
-	gasLimit                     = 6e7
-	chainID                      = 50341
-	accountInitialERC20Token     = 1e18
-	approveAmount                = 1e18
-	amountADesired               = 1e15
-	amountBDesired               = 1e15
-	allowFailedTransactionsCount = 10
-	stepCount                    = 5000
-	retriesInterval              = 3 * time.Second
-	tokenContractNum             = 10
+	nodeUrl                  = "http://localhost:9092"
+	accountInitialFunds      = 1e18
+	gasLimit                 = 6e7
+	chainID                  = 50341
+	accountInitialERC20Token = 1e18
+	approveAmount            = 1e18
+	amountADesired           = 1e15
+	amountBDesired           = 1e15
+	stepCount                = 50000
+	tokenContractNum         = 2
 )
 
 type UniswapV2TPSStatisticsTestCase struct {
-	testUsers     int
-	deployedUsers int
+	TestUsers     int
+	DeployedUsers int
 	rm            *rate.Limiter
 	CaseName      string
+	loadTestData  TestData
 }
 
 type TPSStats struct {
@@ -54,13 +53,22 @@ func (cd *UniswapV2TPSStatisticsTestCase) Name() string {
 	return cd.CaseName
 }
 
-func NewUniswapV2TPSStatisticsTestCase(name string, rm *rate.Limiter) *UniswapV2TPSStatisticsTestCase {
-	return &UniswapV2TPSStatisticsTestCase{
-		deployedUsers: 25,
-		testUsers:     100,
+func NewUniswapV2TPSStatisticsTestCase(name string, t, d int, rm *rate.Limiter, needLoad bool) *UniswapV2TPSStatisticsTestCase {
+	tc := &UniswapV2TPSStatisticsTestCase{
+		DeployedUsers: t,
+		TestUsers:     d,
 		CaseName:      name,
 		rm:            rm,
 	}
+	if needLoad {
+		loadedTestData, err := loadTestDataFromFile("test/tmp/prepared_test_data.json")
+		if err != nil {
+			log.Fatalf("Failed to load test data: %v", err)
+			return nil
+		}
+		tc.loadTestData = loadedTestData
+	}
+	return tc
 }
 
 // TestUniswapTPS is a test case to measure the transactions per second (TPS) of Uniswap.
@@ -82,7 +90,7 @@ func NewUniswapV2TPSStatisticsTestCase(name string, rm *rate.Limiter) *UniswapV2
 // 3. Assert
 //   - Calculate and report the transactions per second (TPS) achieved during the test
 func (cd *UniswapV2TPSStatisticsTestCase) Run(ctx context.Context, m *pkg.WalletManager) error {
-	err := cd.executeTest(nodeUrl, chainID, gasLimit, stepCount, allowFailedTransactionsCount)
+	err := cd.executeTest(nodeUrl, chainID, gasLimit, stepCount)
 	if err != nil {
 		log.Fatalf("Failed to execute test and calculate TPS: %v", err)
 	}
@@ -123,6 +131,7 @@ func (cd *UniswapV2TPSStatisticsTestCase) prepareDeployerContract(deployerUser *
 	if !isConfirmed {
 		return [20]byte{}, nil, fmt.Errorf("transaction was not confirmed")
 	}
+	log.Println("deploy contracts done")
 	err = dispatchTestToken(client, depolyerAuth, ERC20DeployedContracts, testUsers, big.NewInt(accountInitialERC20Token))
 	if err != nil {
 		return [20]byte{}, nil, fmt.Errorf("failed to dispatch test tokens: %v", err)
@@ -156,6 +165,7 @@ func (cd *UniswapV2TPSStatisticsTestCase) prepareDeployerContract(deployerUser *
 	if !isConfirmed {
 		return [20]byte{}, nil, fmt.Errorf("transaction %s was not confirmed", lastTxHash.Hex())
 	}
+	log.Println("dispatchTestToken done")
 	tokenPairs := generateTokenPairs(ERC20DeployedContracts)
 	// add liquidity
 	for _, pair := range tokenPairs {
@@ -183,15 +193,16 @@ func (cd *UniswapV2TPSStatisticsTestCase) prepareDeployerContract(deployerUser *
 	if !isConfirmed {
 		return [20]byte{}, nil, errors.New("add liquidity transaction was not confirmed")
 	}
+	log.Println("generateTokenPairs done")
 	return uniswapV2Contract.uniswapV2Router01Address, tokenPairs, nil
 }
 
 func (cd *UniswapV2TPSStatisticsTestCase) Prepare(ctx context.Context, m *pkg.WalletManager) error {
-	deployerUsers, err := m.GenerateRandomWallets(cd.deployedUsers, accountInitialFunds)
+	deployerUsers, err := m.GenerateRandomWallets(cd.DeployedUsers, accountInitialFunds)
 	if err != nil {
 		return fmt.Errorf("failed to generate deployer user: %v", err.Error())
 	}
-	testUsers, err := m.GenerateRandomWallets(cd.testUsers, accountInitialFunds)
+	testUsers, err := m.GenerateRandomWallets(cd.TestUsers, accountInitialFunds)
 	if err != nil {
 		return fmt.Errorf("failed to generate test users: %v", err)
 	}
@@ -200,12 +211,10 @@ func (cd *UniswapV2TPSStatisticsTestCase) Prepare(ctx context.Context, m *pkg.Wa
 		return fmt.Errorf("failed to connect to the Ethereum client: %v", err)
 	}
 	defer client.Close()
+	fmt.Println("create testUsers done")
 
 	// get gas price
-	gasPrice, err := client.SuggestGasPrice(context.Background())
-	if err != nil {
-		return fmt.Errorf("failed to suggest gas price: %v", err)
-	}
+	gasPrice := big.NewInt(1)
 	preparedTestData := TestData{
 		TestUsers:     testUsers,
 		TestContracts: make([]TestContract, 0),
@@ -217,29 +226,23 @@ func (cd *UniswapV2TPSStatisticsTestCase) Prepare(ctx context.Context, m *pkg.Wa
 			return fmt.Errorf("prepare contract failed, err:%v", err)
 		}
 		preparedTestData.TestContracts = append(preparedTestData.TestContracts, TestContract{router, tokenPairs})
+		log.Println(fmt.Sprintf("create %v deploy contract done", index+1))
 	}
 	saveTestDataToFile("test/tmp/prepared_test_data.json", preparedTestData)
 	return err
 }
 
-func (cd *UniswapV2TPSStatisticsTestCase) executeTest(nodeUrl string, chainID int64, gasLimit uint64, stepCount int, allowFailedTransactionsCount int) error {
-	loadedTestData, err := loadTestDataFromFile("test/tmp/prepared_test_data.json")
-	if err != nil {
-		log.Fatalf("Failed to load test data: %v", err)
-		return err
-	}
-	// randomswap from token A to token A
-	steps := generateRandomSwapSteps(loadedTestData, stepCount)
+func (cd *UniswapV2TPSStatisticsTestCase) executeTest(nodeUrl string, chainID int64, gasLimit uint64, stepCount int) error {
+	steps := generateRandomSwapSteps(cd.loadTestData, stepCount)
 	client, err := ethclient.Dial(nodeUrl)
 	if err != nil {
-		log.Fatalf("Failed to connect to the Ethereum client: %v", err)
+		log.Printf("Failed to connect to the Ethereum client: %v", err)
 		return err
 	}
-	// FixME: should use gasPrice from the chain
-	gasPrice := new(big.Int).SetUint64(2000000000)
+	gasPrice := new(big.Int).SetUint64(1)
 	err = cd.executeSwapSteps(client, steps, chainID, gasPrice, gasLimit)
 	if err != nil {
-		log.Fatalf("Failed to perform swap steps: %v", err)
+		log.Printf("Failed to perform swap steps: %v", err)
 		return err
 	}
 	return nil

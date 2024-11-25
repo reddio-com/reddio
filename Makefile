@@ -13,6 +13,9 @@ build_transfer_test_no_race:
 build_uniswap_test_no_race:
 	go build -v -o uniswap_test ./test/cmd/uniswap/main.go
 
+build_uniswap_benchmark_test:
+	go build -v -o uniswap_benchmark_test ./test/cmd/uniswap_benchmark/main.go
+
 ## for ci
 
 build_transfer_test_race:
@@ -52,9 +55,6 @@ parallel_benchmark_test:
 
 serial_benchmark_test:
 	./benchmark_test --parallel=false --maxBlock=50 --qps=1000 --embedded=false
-
-build_uniswap_benchmark_test:
-	go build -v -o uniswap_benchmark_test ./test/cmd/uniswap_benchmark/main.go
 
 reset:
 	@if [ -d "yu" ]; then \

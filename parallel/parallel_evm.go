@@ -221,7 +221,7 @@ func checkAddressConflict(curTxn *txnCtx, curList []*txnCtx) bool {
 func (k *ParallelEVM) executeTxnCtxList(list []*txnCtx) []*txnCtx {
 	if config.GetGlobalConfig().IsParallel {
 		defer func() {
-			k.Solidity.StateDB().Finalise(true)
+			k.Solidity.FinaliseStateDB(true)
 		}()
 		metrics.BatchTxnSplitCounter.WithLabelValues(strconv.FormatInt(int64(len(list)), 10)).Inc()
 		return k.executeTxnCtxListInConcurrency(k.Solidity.StateDB(), list)
