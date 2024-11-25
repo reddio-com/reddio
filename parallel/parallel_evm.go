@@ -247,9 +247,9 @@ func (k *ParallelEVM) executeTxnCtxListInOrder(originStateDB *state.StateDB, lis
 			tctx.receipt = k.handleTxnError(err, tctx.ctx, tctx.ctx.Block, tctx.txn)
 		} else {
 			tctx.receipt = k.handleTxnEvent(tctx.ctx, tctx.ctx.Block, tctx.txn, isRedo)
-			tctx.ps = tctx.ctx.ExtraInterface.(*pending_state.PendingState)
-			currStateDb = tctx.ps.GetStateDB()
 		}
+		tctx.ps = tctx.ctx.ExtraInterface.(*pending_state.PendingState)
+		currStateDb = tctx.ps.GetStateDB()
 		list[index] = tctx
 	}
 	k.Solidity.SetStateDB(currStateDb)
@@ -279,17 +279,15 @@ func (k *ParallelEVM) executeTxnCtxListInConcurrency(originStateDB *state.StateD
 				tctx.receipt = k.handleTxnError(err, tctx.ctx, tctx.ctx.Block, tctx.txn)
 			} else {
 				tctx.receipt = k.handleTxnEvent(tctx.ctx, tctx.ctx.Block, tctx.txn, false)
-				tctx.ps = tctx.ctx.ExtraInterface.(*pending_state.PendingState)
 			}
+			tctx.ps = tctx.ctx.ExtraInterface.(*pending_state.PendingState)
+
 			list[index] = tctx
 		}(i, c, copiedStateDBList[i])
 	}
 	wg.Wait()
 	curtCtx := pending_state.NewStateContext()
 	for _, tctx := range list {
-		if tctx.err != nil {
-			continue
-		}
 		if curtCtx.IsConflict(tctx.ps.GetCtx()) {
 			conflict = true
 			break
@@ -318,9 +316,6 @@ func (k *ParallelEVM) gcCopiedStateDB(copiedStateDBList []*state.StateDB, list [
 func (k *ParallelEVM) mergeStateDB(originStateDB *state.StateDB, list []*txnCtx) {
 	k.Solidity.Lock()
 	for _, tctx := range list {
-		if tctx.err != nil {
-			continue
-		}
 		tctx.ps.MergeInto(originStateDB)
 	}
 	k.Solidity.Unlock()
