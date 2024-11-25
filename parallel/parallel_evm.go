@@ -36,11 +36,58 @@ type ParallelEVM struct {
 	*tripod.Tripod
 	Solidity    *evm.Solidity `tripod:"solidity"`
 	statManager *BlockTxnStatManager
+	objectInc   map[common2.Address]int
 }
 
 func NewParallelEVM() *ParallelEVM {
 	return &ParallelEVM{
 		Tripod: tripod.NewTripod(),
+	}
+}
+
+func (k *ParallelEVM) prepareExecute() {
+	k.Solidity.StateDB().ClearPendingCommitMark()
+	k.clearObjInc()
+}
+
+func (k *ParallelEVM) clearObjInc() {
+	k.objectInc = make(map[common2.Address]int)
+}
+
+func (k *ParallelEVM) updateTxnObjSub(txns []*txnCtx) {
+	sub := func(key common2.Address) {
+		v, ok := k.objectInc[key]
+		if ok {
+			if v == 1 {
+				delete(k.objectInc, key)
+				return
+			}
+			k.objectInc[key] = v - 1
+		}
+	}
+	for _, txn := range txns {
+		addr1 := txn.req.Address
+		if addr1 != nil {
+			sub(*addr1)
+		}
+		sub(txn.req.Origin)
+	}
+}
+func (k *ParallelEVM) updateTxnObjInc(txns []*txnCtx) {
+	inc := func(key common2.Address) {
+		v, ok := k.objectInc[key]
+		if ok {
+			k.objectInc[key] = v + 1
+			return
+		}
+		k.objectInc[key] = 1
+	}
+	for _, txn := range txns {
+		addr1 := txn.req.Address
+		if addr1 != nil {
+			inc(*addr1)
+		}
+		inc(txn.req.Origin)
 	}
 }
 
@@ -51,7 +98,9 @@ func (k *ParallelEVM) Execute(block *types.Block) error {
 		k.statManager.ExecuteDuration = time.Since(start)
 		k.statManager.UpdateMetrics()
 	}()
+	k.prepareExecute()
 	txnCtxList, receipts := k.prepareTxnList(block)
+	k.updateTxnObjInc(txnCtxList)
 	got := k.splitTxnCtxList(txnCtxList)
 	got = k.executeAllTxn(got)
 	for _, subList := range got {
@@ -177,6 +226,10 @@ func (k *ParallelEVM) executeTxnCtxList(list []*txnCtx) []*txnCtx {
 		metrics.BatchTxnSplitCounter.WithLabelValues(strconv.FormatInt(int64(len(list)), 10)).Inc()
 		return k.executeTxnCtxListInConcurrency(k.Solidity.StateDB(), list)
 	}
+	defer func() {
+		k.updateTxnObjSub(list)
+		k.Solidity.StateDB().PendingCommit(true, k.objectInc)
+	}()
 	return k.executeTxnCtxListInOrder(k.Solidity.StateDB(), list, false)
 }
 
@@ -194,9 +247,9 @@ func (k *ParallelEVM) executeTxnCtxListInOrder(originStateDB *state.StateDB, lis
 			tctx.receipt = k.handleTxnError(err, tctx.ctx, tctx.ctx.Block, tctx.txn)
 		} else {
 			tctx.receipt = k.handleTxnEvent(tctx.ctx, tctx.ctx.Block, tctx.txn, isRedo)
-			tctx.ps = tctx.ctx.ExtraInterface.(*pending_state.PendingState)
-			currStateDb = tctx.ps.GetStateDB()
 		}
+		tctx.ps = tctx.ctx.ExtraInterface.(*pending_state.PendingState)
+		currStateDb = tctx.ps.GetStateDB()
 		list[index] = tctx
 	}
 	k.Solidity.SetStateDB(currStateDb)
@@ -226,17 +279,15 @@ func (k *ParallelEVM) executeTxnCtxListInConcurrency(originStateDB *state.StateD
 				tctx.receipt = k.handleTxnError(err, tctx.ctx, tctx.ctx.Block, tctx.txn)
 			} else {
 				tctx.receipt = k.handleTxnEvent(tctx.ctx, tctx.ctx.Block, tctx.txn, false)
-				tctx.ps = tctx.ctx.ExtraInterface.(*pending_state.PendingState)
 			}
+			tctx.ps = tctx.ctx.ExtraInterface.(*pending_state.PendingState)
+
 			list[index] = tctx
 		}(i, c, copiedStateDBList[i])
 	}
 	wg.Wait()
 	curtCtx := pending_state.NewStateContext()
 	for _, tctx := range list {
-		if tctx.err != nil {
-			continue
-		}
 		if curtCtx.IsConflict(tctx.ps.GetCtx()) {
 			conflict = true
 			break
@@ -265,9 +316,6 @@ func (k *ParallelEVM) gcCopiedStateDB(copiedStateDBList []*state.StateDB, list [
 func (k *ParallelEVM) mergeStateDB(originStateDB *state.StateDB, list []*txnCtx) {
 	k.Solidity.Lock()
 	for _, tctx := range list {
-		if tctx.err != nil {
-			continue
-		}
 		tctx.ps.MergeInto(originStateDB)
 	}
 	k.Solidity.Unlock()

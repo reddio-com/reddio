@@ -39,10 +39,10 @@ ci_serial_uniswap_test: reset
 build_state_root_test:
 	go build -v -o state_root_test ./test/cmd/state_root/main.go
 
-state_root_test_gen:
+state_root_test_gen: reset
 	./state_root_test --action=gen
 
-state_root_test_assert:
+state_root_test_assert: reset
 	./state_root_test --action=assert
 
 ## for local benchmark
