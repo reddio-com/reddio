@@ -21,10 +21,10 @@ type MessagePayloadType int
 
 const (
 	ETH MessagePayloadType = iota
-	ParentERC20Token
-	ParentERC721Token
-	ParentERC1155Token
-	ParentRedToken
+	ERC20
+	ERC721
+	ERC1155
+	RED
 )
 
 // Loop Run the f func periodically.

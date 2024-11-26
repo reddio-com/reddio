@@ -81,7 +81,7 @@ func StartupL1Watcher(chain *kernel.Kernel, cfg *evm.GethConfig) {
 	if err != nil {
 		log.Fatal("failed to connect to L2 geth", "endpoint", cfg.L2ClientAddress, "err", err)
 	}
-	l1ToL2Relayer, err := relayer.NewL1ToL2Relayer(ctx, cfg, l2Client, chain)
+	l1ToL2Relayer, err := relayer.NewL1ToL2Relayer(ctx, cfg, l1Client, l2Client, chain)
 	if err != nil {
 		logrus.Fatal("init bridge relayer failed: ", err)
 	}
