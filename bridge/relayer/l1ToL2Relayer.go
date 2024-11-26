@@ -100,13 +100,13 @@ func (b *L1ToL2Relayer) HandleDownwardMessageWithSystemCall(msg *contract.Parent
 		},
 	}
 	metrics.DownwardMessageReceivedCounter.WithLabelValues(fmt.Sprintf("%d", msg.PayloadType)).Inc()
-	log.Printf("Sending downward messages: %v", downwardMessages)
-	jsonData, err := json.MarshalIndent(downwardMessages, "", "  ")
-	if err != nil {
-		log.Fatalf("Failed to marshal downward messages: %v", err)
-	}
+	// log.Printf("Sending downward messages: %v", downwardMessages)
+	// jsonData, err := json.MarshalIndent(downwardMessages, "", "  ")
+	// if err != nil {
+	// 	log.Fatalf("Failed to marshal downward messages: %v", err)
+	// }
 
-	fmt.Printf("Downward messages in JSON format:\n%s\n", string(jsonData))
+	// fmt.Printf("Downward messages in JSON format:\n%s\n", string(jsonData))
 	txNonce := uint64(0)
 	value := big.NewInt(0)
 	gasLimit := uint64(6e6)
@@ -132,11 +132,6 @@ func (b *L1ToL2Relayer) HandleDownwardMessageWithSystemCall(msg *contract.Parent
 	if err != nil {
 		log.Printf("Failed to parse L1 cross chain payload: %v", err)
 	}
-	fmt.Println("crossMessages L1TokenAddress", crossMessages[0].L1TokenAddress)
-	fmt.Println("crossMessages sender", crossMessages[0].Sender)
-	fmt.Println("crossMessages receiver", crossMessages[0].Receiver)
-	fmt.Println("crossMessages tokenAmounts", crossMessages[0].TokenAmounts)
-	fmt.Println("crossMessages tokenType", crossMessages[0].TokenType)
 
 	err = b.systemCall(context.Background(), tx)
 	if err != nil {
@@ -253,17 +248,17 @@ func (b *L1ToL2Relayer) systemCall(ctx context.Context, signedTx *types.Transact
 		OriginArgs: txArgByte,
 	}
 
-	txNonce, err := b.l2Client.PendingNonceAt(context.Background(), txReq.Origin)
-	if err != nil {
-		log.Printf("Failed to get nonce: %v", err)
-	}
-	txReq.Nonce = txNonce
-	jsonData, err := json.MarshalIndent(txReq, "", "    ")
-	if err != nil {
-		log.Printf("Failed to marshal txReq to JSON: %v", err)
-	}
+	// txNonce, err := b.l2Client.PendingNonceAt(context.Background(), txReq.Origin)
+	// if err != nil {
+	// 	log.Printf("Failed to get nonce: %v", err)
+	// }
+	// txReq.Nonce = txNonce
+	// jsonData, err := json.MarshalIndent(txReq, "", "    ")
+	// if err != nil {
+	// 	log.Printf("Failed to marshal txReq to JSON: %v", err)
+	// }
 
-	fmt.Println("systemCall jsonData:", string(jsonData))
+	// fmt.Println("systemCall jsonData:", string(jsonData))
 	byt, err := json.Marshal(txReq)
 	if err != nil {
 		log.Printf("json.Marshal(txReq) failed: %v", err)
