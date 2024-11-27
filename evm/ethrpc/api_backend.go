@@ -452,8 +452,8 @@ func (e *EthAPIBackend) GetTransaction(ctx context.Context, txHash common.Hash) 
 	return true, ethTxn, common.Hash(blockHash), uint64(blockNumber), index, nil
 }
 
-func (e *EthAPIBackend) GetReceipts(ctx context.Context, hash common.Hash) (types.Receipts, error) {
-	compactBlock, err := e.chain.Chain.GetCompactBlock(yucommon.Hash(hash))
+func (e *EthAPIBackend) GetReceipts(ctx context.Context, blockHash common.Hash) (types.Receipts, error) {
+	compactBlock, err := e.chain.Chain.GetCompactBlock(yucommon.Hash(blockHash))
 	if err != nil {
 		return nil, err
 	}
