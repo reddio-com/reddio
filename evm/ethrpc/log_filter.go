@@ -224,8 +224,6 @@ func (f *LogFilter) Logs(ctx context.Context) ([]*types.Log, error) {
 			return nil, err
 		}
 
-		logrus.Info("LogFilter.Logs() blockHash: ", yuHeader.Hash.String())
-
 		return f.FilterLogs(ctx, yuHeader)
 	} else {
 		var result []*types.Log
@@ -255,7 +253,6 @@ func (f *LogFilter) FilterLogs(ctx context.Context, yuHeader *yutypes.Header) ([
 	var logIdx uint
 	for i, txLogs := range logs {
 		for _, vLog := range txLogs {
-			logrus.Infof("blockHash(%s) log: %s", yuHeader.Hash.String(), vLog.TxHash.String())
 			vLog.BlockHash = common.Hash(yuHeader.Hash)
 			vLog.BlockNumber = uint64(yuHeader.Height)
 			vLog.TxIndex = uint(i)
@@ -263,7 +260,6 @@ func (f *LogFilter) FilterLogs(ctx context.Context, yuHeader *yutypes.Header) ([
 			logIdx++
 
 			if f.checkMatches(ctx, vLog) {
-				logrus.Infof("---- checkMatch: blockHash(%s) log: %s", yuHeader.Hash.String(), vLog.TxHash.String())
 				result = append(result, vLog)
 			}
 		}

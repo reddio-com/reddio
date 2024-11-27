@@ -72,10 +72,6 @@ func (s *EthereumAPI) GetLogs(ctx context.Context, crit FilterCriteria) ([]*type
 		return nil, err
 	}
 
-	for _, flog := range logs {
-		logrus.Infof("EthereumAPI.GetLogs() blockHash(%s) log: %s", crit.BlockHash.String(), flog.TxHash.String())
-	}
-
 	if logs == nil {
 		return []*types.Log{}, nil
 	}
