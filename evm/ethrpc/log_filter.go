@@ -275,6 +275,9 @@ func (f *LogFilter) FilterLogs(ctx context.Context, yuHeader *yutypes.Header) ([
 func (f *LogFilter) checkMatches(ctx context.Context, vLog *types.Log) bool {
 	if len(f.addresses) > 0 {
 		if !slices.Contains(f.addresses, vLog.Address) {
+			for _, address := range f.addresses {
+				logrus.Infof("checkMatches() f.addresses(%s), vLog.Address(%s)", address, vLog.Address.String())
+			}
 			return false
 		}
 	}
