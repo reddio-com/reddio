@@ -255,6 +255,7 @@ func (f *LogFilter) FilterLogs(ctx context.Context, yuHeader *yutypes.Header) ([
 	var logIdx uint
 	for i, txLogs := range logs {
 		for _, vLog := range txLogs {
+			logrus.Infof("blockHash(%s) log: %s", yuHeader.Hash.String(), vLog.TxHash.String())
 			vLog.BlockHash = common.Hash(yuHeader.Hash)
 			vLog.BlockNumber = uint64(yuHeader.Height)
 			vLog.TxIndex = uint(i)
@@ -262,6 +263,7 @@ func (f *LogFilter) FilterLogs(ctx context.Context, yuHeader *yutypes.Header) ([
 			logIdx++
 
 			if f.checkMatches(ctx, vLog) {
+				logrus.Infof("---- checkMatch: blockHash(%s) log: %s", yuHeader.Hash.String(), vLog.TxHash.String())
 				result = append(result, vLog)
 			}
 		}
@@ -273,6 +275,9 @@ func (f *LogFilter) FilterLogs(ctx context.Context, yuHeader *yutypes.Header) ([
 func (f *LogFilter) checkMatches(ctx context.Context, vLog *types.Log) bool {
 	if len(f.addresses) > 0 {
 		if !slices.Contains(f.addresses, vLog.Address) {
+			for _, address := range f.addresses {
+				logrus.Infof("checkMatches() f.addresses(%s), vLog.Address(%s)", address, vLog.Address.String())
+			}
 			return false
 		}
 	}
