@@ -249,7 +249,7 @@ func (f *LogFilter) FilterLogs(ctx context.Context, yuHeader *yutypes.Header) ([
 		return nil, err
 	}
 
-	logrus.Infof("LogFilter.FilterLogs() blockHash(%s) logs: %v", yuHeader.Hash, logs)
+	logrus.Infof("LogFilter.FilterLogs() blockHash(%s) logs: %v", yuHeader.Hash.String(), logs)
 
 	result := make([]*types.Log, 0)
 	var logIdx uint
