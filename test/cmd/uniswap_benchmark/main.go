@@ -29,7 +29,7 @@ func init() {
 	flag.StringVar(&evmConfigPath, "evmConfigPath", "./conf/evm.toml", "")
 	flag.IntVar(&maxBlock, "maxBlock", 500, "")
 	flag.IntVar(&qps, "qps", 1500, "")
-	flag.StringVar(&action, "action", "prepare", "")
+	flag.StringVar(&action, "action", "run", "")
 	flag.DurationVar(&duration, "duration", time.Minute*5, "")
 	flag.IntVar(&deployUsers, "deployUsers", 10, "")
 	flag.IntVar(&testUsers, "testUsers", 100, "")
@@ -49,7 +49,7 @@ func main() {
 	limiter := rate.NewLimiter(rate.Limit(qps), qps)
 	ethManager.Configure(cfg, evmConfig)
 	ethManager.AddTestCase(
-		uniswap.NewUniswapV2TPSStatisticsTestCase("UniswapV2 TPS StatisticsTestCase", deployUsers, testUsers, limiter, action == "prepare"))
+		uniswap.NewUniswapV2TPSStatisticsTestCase("UniswapV2 TPS StatisticsTestCase", deployUsers, testUsers, limiter, action == "run"))
 	switch action {
 	case "prepare":
 		prepareBenchmark(context.Background(), ethManager)

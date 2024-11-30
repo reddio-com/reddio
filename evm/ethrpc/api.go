@@ -71,6 +71,7 @@ func (s *EthereumAPI) GetLogs(ctx context.Context, crit FilterCriteria) ([]*type
 	if err != nil {
 		return nil, err
 	}
+
 	if logs == nil {
 		return []*types.Log{}, nil
 	}
