@@ -227,7 +227,7 @@ func (f *LogFilter) Logs(ctx context.Context) ([]*types.Log, error) {
 		return f.FilterLogs(ctx, yuHeader)
 	} else {
 		var result []*types.Log
-		for ; f.begin < f.end; f.begin++ {
+		for ; f.begin <= f.end; f.begin++ {
 			_, yuHeader, err := f.b.HeaderByNumber(ctx, rpc.BlockNumber(f.begin))
 			if err != nil {
 				logrus.Errorf("[GetLog] Failed to getHeaderByNumber %v", f.begin)
