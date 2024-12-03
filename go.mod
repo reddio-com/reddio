@@ -8,6 +8,8 @@ require (
 	github.com/common-nighthawk/go-figure v0.0.0-20210622060536-734e95fb86be
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 	github.com/ethereum/go-ethereum v1.14.0
+	github.com/gin-contrib/cors v1.7.2
+	github.com/gin-gonic/gin v1.9.1
 	github.com/holiman/uint256 v1.2.4
 	github.com/joho/godotenv v1.5.1
 	github.com/pkg/errors v0.9.1
@@ -18,6 +20,7 @@ require (
 	github.com/stretchr/testify v1.9.0
 	github.com/tendermint/tendermint v0.34.24
 	github.com/yu-org/yu v1.2.10
+	golang.org/x/sync v0.7.0
 	golang.org/x/time v0.5.0
 	gopkg.in/yaml.v3 v3.0.1
 	gorm.io/driver/postgres v1.0.8
@@ -39,8 +42,6 @@ require (
 	github.com/bytedance/sonic/loader v0.1.1 // indirect
 	github.com/celestiaorg/smt v0.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/chenzhuoyu/base64x v0.0.0-20230717121745-296ad89f973d // indirect
-	github.com/chenzhuoyu/iasm v0.9.0 // indirect
 	github.com/cloudwego/base64x v0.1.4 // indirect
 	github.com/cloudwego/iasm v0.2.0 // indirect
 	github.com/cockroachdb/errors v1.11.3 // indirect
@@ -69,9 +70,7 @@ require (
 	github.com/gballet/go-libpcsclite v0.0.0-20190607065134-2772fd86a8ff // indirect
 	github.com/gballet/go-verkle v0.1.1-0.20231031103413-a67434b50f46 // indirect
 	github.com/getsentry/sentry-go v0.27.0 // indirect
-	github.com/gin-contrib/cors v1.7.2 // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect
-	github.com/gin-gonic/gin v1.9.1 // indirect
 	github.com/go-kit/log v0.2.1 // indirect
 	github.com/go-logfmt/logfmt v0.5.1 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
@@ -208,7 +207,6 @@ require (
 	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56 // indirect
 	golang.org/x/mod v0.19.0 // indirect
 	golang.org/x/net v0.27.0 // indirect
-	golang.org/x/sync v0.7.0 // indirect
 	golang.org/x/sys v0.22.0 // indirect
 	golang.org/x/text v0.16.0 // indirect
 	golang.org/x/tools v0.23.0 // indirect
