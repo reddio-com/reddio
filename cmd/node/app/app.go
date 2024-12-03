@@ -105,6 +105,7 @@ func StartupL1Watcher(chain *kernel.Kernel, cfg *evm.GethConfig) {
 		if err != nil {
 			log.Fatal("failed to init db", "err", err)
 		}
+
 		// defer func() {
 		// 	fmt.Println("closing rpc db")
 		// 	if deferErr := database.CloseDB(db); deferErr != nil {

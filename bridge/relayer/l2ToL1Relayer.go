@@ -33,7 +33,7 @@ type L2ToL1Relayer struct {
 }
 
 func NewL2ToL1Relayer(ctx context.Context, cfg *evm.GethConfig, l1Client *ethclient.Client) (*L2ToL1Relayer, error) {
-	fmt.Println("cfg.BridgeDBConfig: ", cfg.BridgeDBConfig)
+	//fmt.Println("cfg.BridgeDBConfig: ", cfg.BridgeDBConfig)
 	db, err := database.InitDB(cfg.BridgeDBConfig)
 	if err != nil {
 		log.Fatal("failed to init db", "err", err)

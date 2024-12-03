@@ -22,6 +22,6 @@ func Route(router *gin.Engine) {
 	r := router.Group("bridge/")
 	// bridgeApi := api.NewBridgeAPI(db)
 	// r.GET("/test", bridgeApi.GetStatus)
-	r.GET("/withdrawals", api.L2UnclaimedWithdrawalsByAddressCtl.GetL2UnclaimedWithdrawalsByAddress)
+	r.POST("/withdrawals", api.L2UnclaimedWithdrawalsByAddressCtl.GetL2UnclaimedWithdrawalsByAddress)
 
 }

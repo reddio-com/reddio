@@ -38,6 +38,9 @@ type HistoryLogic struct {
 
 // NewHistoryLogic returns bridge history services.
 func NewHistoryLogic(db *gorm.DB) *HistoryLogic {
+	if err := db.AutoMigrate(&orm.CrossMessage{}); err != nil {
+		log.Error("Failed to auto migrate: %v", err)
+	}
 	logic := &HistoryLogic{
 		crossMessageOrm: orm.NewCrossMessage(db),
 	}
