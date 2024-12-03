@@ -29,7 +29,7 @@ type CrossMessage struct {
 	TokenIDs           string     `json:"token_ids" gorm:"column:token_ids"`
 	TokenAmounts       string     `json:"token_amounts" gorm:"column:token_amounts"`
 	BlockTimestamp     uint64     `json:"block_timestamp" gorm:"column:block_timestamp"`
-	MessageHash        string     `json:"message_hash" gorm:"column:message_hash;uniqueIndex"` // unique message hash
+	MessageHash        string     `json:"message_hash" gorm:"column:message_hash;type:varchar(256);uniqueIndex"` // unique message hash
 	MessagePayloadType int        `json:"message_payloadtype" gorm:"column:message_payloadtype"`
 	MessagePayload     string     `json:"message_payload" gorm:"column:message_payload"`
 	MessageFrom        string     `json:"message_from" gorm:"column:message_from;index"`

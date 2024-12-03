@@ -23,7 +23,7 @@ require (
 	golang.org/x/sync v0.7.0
 	golang.org/x/time v0.5.0
 	gopkg.in/yaml.v3 v3.0.1
-	gorm.io/driver/postgres v1.0.8
+	gorm.io/driver/mysql v1.0.5
 	gorm.io/gorm v1.21.4
 )
 
@@ -212,7 +212,7 @@ require (
 	golang.org/x/tools v0.23.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	google.golang.org/protobuf v1.34.2 // indirect
-	gorm.io/driver/mysql v1.0.5 // indirect
+	gorm.io/driver/postgres v1.0.8 // indirect
 	gorm.io/driver/sqlite v1.1.4 // indirect
 	lukechampine.com/blake3 v1.3.0 // indirect
 	rsc.io/tmplfunc v0.0.3 // indirect

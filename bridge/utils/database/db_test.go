@@ -9,8 +9,8 @@ import (
 )
 
 var MockConfig = &Config{
-	DSN:        "user=testuser password=123456 dbname=testdb host=localhost port=5432 sslmode=disable",
-	DriverName: "postgres",
+	DSN:        "testuser:123456@tcp(localhost:3306)/testdb?charset=utf8mb4&parseTime=True&loc=Local",
+	DriverName: "mysql",
 	MaxOpenNum: 10,
 	MaxIdleNum: 5,
 }

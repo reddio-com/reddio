@@ -9,14 +9,13 @@ import (
 
 	btypes "github.com/reddio-com/reddio/bridge/types"
 	"github.com/reddio-com/reddio/bridge/utils/database"
-	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
 var MockConfig = &database.Config{
-	DSN:        "user=testuser password=123456 dbname=testdb host=localhost port=5432 sslmode=disable",
-	DriverName: "postgres",
+	DSN:        "testuser:123456@tcp(localhost:3306)/testdb?charset=utf8mb4&parseTime=True&loc=Local",
+	DriverName: "mysql",
 	MaxOpenNum: 10,
 	MaxIdleNum: 5,
 }
@@ -157,11 +156,15 @@ func TestUpsertCrossMessage(t *testing.T) {
 	}
 }
 func TestInsertOrUpdateL2Messages(t *testing.T) {
-	dsn := "user=testuser password=123456 dbname=testdb host=localhost port=5432 sslmode=disable"
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	db, err := database.InitDB(MockConfig)
 	if err != nil {
-		t.Fatalf("Failed to connect to database: %v", err)
+		t.Fatalf("Failed to initialize database: %v", err)
 	}
+	defer func() {
+		if err := database.CloseDB(db); err != nil {
+			t.Fatalf("Failed to close database: %v", err)
+		}
+	}()
 
 	if err := db.AutoMigrate(&CrossMessage{}); err != nil {
 		t.Fatalf("Failed to auto migrate: %v", err)
@@ -217,10 +220,9 @@ func TestInsertOrUpdateL2Messages(t *testing.T) {
 }
 
 func TestGetL2UnclaimedWithdrawalsByAddress(t *testing.T) {
-	dsn := "user=testuser password=123456 dbname=testdb host=localhost port=5432 sslmode=disable"
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	db, err := database.InitDB(MockConfig)
 	if err != nil {
-		t.Fatalf("Failed to connect to database: %v", err)
+		t.Fatalf("Failed to initialize database: %v", err)
 	}
 
 	if err := db.AutoMigrate(&CrossMessage{}); err != nil {
@@ -228,90 +230,90 @@ func TestGetL2UnclaimedWithdrawalsByAddress(t *testing.T) {
 	}
 
 	sender := "0x7888b7B844B4B16c03F8daCACef7dDa0F5188645"
-	// crossMessages := []*CrossMessage{
-	// 	{
-	// 		MessageType:        1,
-	// 		TxStatus:           1,
-	// 		TokenType:          1,
-	// 		Sender:             "sender",
-	// 		Receiver:           "receiver",
-	// 		MessageHash:        "message_hash1",
-	// 		L1TxHash:           "l1_tx_hash",
-	// 		L2TxHash:           "l2_tx_hash",
-	// 		L1BlockNumber:      100,
-	// 		L2BlockNumber:      200,
-	// 		L1TokenAddress:     "l1_token_address",
-	// 		L2TokenAddress:     "l2_token_address",
-	// 		TokenIDs:           "token_ids",
-	// 		TokenAmounts:       "token_amounts",
-	// 		BlockTimestamp:     1234567890,
-	// 		MessagePayloadType: 1,
-	// 		MessagePayload:     "payload",
-	// 		MessageFrom:        "sender",
-	// 		MessageTo:          "receiver",
-	// 		MessageValue:       "message_value",
-	// 		MessageNonce:       1,
-	// 		MultiSignProof:     "multiSign_proof",
-	// 		CreatedAt:          time.Now().UTC(),
-	// 		UpdatedAt:          time.Now().UTC(),
-	// 	},
-	// 	{
-	// 		MessageType:        2,
-	// 		TxStatus:           0,
-	// 		TokenType:          0,
-	// 		Sender:             sender,
-	// 		Receiver:           sender,
-	// 		MessageHash:        "0x79df0b41ed1d6d0f2b2748da13849fad7d140e41e8b87434511286706ac64fb7",
-	// 		L1TxHash:           "",
-	// 		L2TxHash:           "0x95cf843c68af0db5ccfb19187a9c661b6bc46ee1b27c788fcf8922d962dbd2a3",
-	// 		L1BlockNumber:      0,
-	// 		L2BlockNumber:      44,
-	// 		L1TokenAddress:     "",
-	// 		L2TokenAddress:     "",
-	// 		TokenIDs:           "",
-	// 		TokenAmounts:       "50",
-	// 		BlockTimestamp:     0,
-	// 		MessagePayloadType: 0,
-	// 		MessagePayload:     "0000000000000000000000007888b7b844b4b16c03f8dacacef7dda0f51886450000000000000000000000007888b7b844b4b16c03f8dacacef7dda0f51886450000000000000000000000000000000000000000000000000000000000000032",
-	// 		MessageFrom:        sender,
-	// 		MessageTo:          sender,
-	// 		MessageValue:       "50",
-	// 		MessageNonce:       1733120884468899841,
-	// 		MultiSignProof:     "0x5d1376022cd357dc9c830ffcc944bf9b8458fc3d1acc119f77b0bdcea3c4a2e65f589282df235243aa492c070471f7b5c58ced8dd0d3e51819c2d6f216140f1801",
-	// 		CreatedAt:          time.Now().UTC(),
-	// 		UpdatedAt:          time.Now().UTC(),
-	// 	},
-	// 	{
-	// 		MessageType:        2,
-	// 		TxStatus:           0,
-	// 		TokenType:          0,
-	// 		Sender:             sender,
-	// 		Receiver:           sender,
-	// 		MessageHash:        "0xcf17b5dc50789e18aff92dad8ccb4279271b1c90ad277e8b0c5aa87aec1483c4",
-	// 		L1TxHash:           "",
-	// 		L2TxHash:           "0x63ca588b0d2d7965315d065323ca5640e55cedd21bebe9bb19507ef4e264eda2",
-	// 		L1BlockNumber:      0,
-	// 		L2BlockNumber:      90,
-	// 		L1TokenAddress:     "",
-	// 		L2TokenAddress:     "",
-	// 		TokenIDs:           "",
-	// 		TokenAmounts:       "50",
-	// 		BlockTimestamp:     0,
-	// 		MessagePayloadType: 0,
-	// 		MessagePayload:     "0000000000000000000000007888b7b844b4b16c03f8dacacef7dda0f51886450000000000000000000000007888b7b844b4b16c03f8dacacef7dda0f51886450000000000000000000000000000000000000000000000000000000000000032",
-	// 		MessageFrom:        sender,
-	// 		MessageTo:          sender,
-	// 		MessageValue:       "50",
-	// 		MessageNonce:       1733121029872386955,
-	// 		MultiSignProof:     "0x4ed471902c17c533f4a5dedb531bc4fb2a8b5e52c615fabca1916ebc2103476539a6f1eb86e00497c0666b0c5e6a4dccfd48c4825a3ca9d7d86a47011f677cc201",
-	// 		CreatedAt:          time.Now().UTC(),
-	// 		UpdatedAt:          time.Now().UTC(),
-	// 	},
-	// }
+	crossMessages := []*CrossMessage{
+		{
+			MessageType:        1,
+			TxStatus:           1,
+			TokenType:          1,
+			Sender:             "sender",
+			Receiver:           "receiver",
+			MessageHash:        "message_hash1",
+			L1TxHash:           "l1_tx_hash",
+			L2TxHash:           "l2_tx_hash",
+			L1BlockNumber:      100,
+			L2BlockNumber:      200,
+			L1TokenAddress:     "l1_token_address",
+			L2TokenAddress:     "l2_token_address",
+			TokenIDs:           "token_ids",
+			TokenAmounts:       "token_amounts",
+			BlockTimestamp:     1234567890,
+			MessagePayloadType: 1,
+			MessagePayload:     "payload",
+			MessageFrom:        "sender",
+			MessageTo:          "receiver",
+			MessageValue:       "message_value",
+			MessageNonce:       "1",
+			MultiSignProof:     "multiSign_proof",
+			CreatedAt:          time.Now().UTC(),
+			UpdatedAt:          time.Now().UTC(),
+		},
+		{
+			MessageType:        2,
+			TxStatus:           0,
+			TokenType:          0,
+			Sender:             sender,
+			Receiver:           sender,
+			MessageHash:        "0x79df0b41ed1d6d0f2b2748da13849fad7d140e41e8b87434511286706ac64fb7",
+			L1TxHash:           "",
+			L2TxHash:           "0x95cf843c68af0db5ccfb19187a9c661b6bc46ee1b27c788fcf8922d962dbd2a3",
+			L1BlockNumber:      0,
+			L2BlockNumber:      44,
+			L1TokenAddress:     "",
+			L2TokenAddress:     "",
+			TokenIDs:           "",
+			TokenAmounts:       "50",
+			BlockTimestamp:     0,
+			MessagePayloadType: 0,
+			MessagePayload:     "0000000000000000000000007888b7b844b4b16c03f8dacacef7dda0f51886450000000000000000000000007888b7b844b4b16c03f8dacacef7dda0f51886450000000000000000000000000000000000000000000000000000000000000032",
+			MessageFrom:        sender,
+			MessageTo:          sender,
+			MessageValue:       "50",
+			MessageNonce:       "1733120884468899841",
+			MultiSignProof:     "0x5d1376022cd357dc9c830ffcc944bf9b8458fc3d1acc119f77b0bdcea3c4a2e65f589282df235243aa492c070471f7b5c58ced8dd0d3e51819c2d6f216140f1801",
+			CreatedAt:          time.Now().UTC(),
+			UpdatedAt:          time.Now().UTC(),
+		},
+		{
+			MessageType:        2,
+			TxStatus:           0,
+			TokenType:          0,
+			Sender:             sender,
+			Receiver:           sender,
+			MessageHash:        "0xcf17b5dc50789e18aff92dad8ccb4279271b1c90ad277e8b0c5aa87aec1483c4",
+			L1TxHash:           "",
+			L2TxHash:           "0x63ca588b0d2d7965315d065323ca5640e55cedd21bebe9bb19507ef4e264eda2",
+			L1BlockNumber:      0,
+			L2BlockNumber:      90,
+			L1TokenAddress:     "",
+			L2TokenAddress:     "",
+			TokenIDs:           "",
+			TokenAmounts:       "50",
+			BlockTimestamp:     0,
+			MessagePayloadType: 0,
+			MessagePayload:     "0000000000000000000000007888b7b844b4b16c03f8dacacef7dda0f51886450000000000000000000000007888b7b844b4b16c03f8dacacef7dda0f51886450000000000000000000000000000000000000000000000000000000000000032",
+			MessageFrom:        sender,
+			MessageTo:          sender,
+			MessageValue:       "50",
+			MessageNonce:       "1733121029872386955",
+			MultiSignProof:     "0x4ed471902c17c533f4a5dedb531bc4fb2a8b5e52c615fabca1916ebc2103476539a6f1eb86e00497c0666b0c5e6a4dccfd48c4825a3ca9d7d86a47011f677cc201",
+			CreatedAt:          time.Now().UTC(),
+			UpdatedAt:          time.Now().UTC(),
+		},
+	}
 
-	// if err := db.Create(&crossMessages).Error; err != nil {
-	// 	t.Fatalf("Failed to create cross messages: %v", err)
-	// }
+	if err := db.Create(&crossMessages).Error; err != nil {
+		t.Fatalf("Failed to create cross messages: %v", err)
+	}
 
 	c := &CrossMessage{db: db}
 	messages, err := c.GetL2UnclaimedWithdrawalsByAddress(context.Background(), sender)

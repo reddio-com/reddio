@@ -7,7 +7,7 @@ eth_port = "9092"
 enable_bridge = false
 # note: need websocket rpc to listen to the L1 event
 ## use your own node address
-l1_client_address = "wss://sepolia.infura.io/ws/v3/80b72ad34e16495595abeb6ccc30255a"
+l1_client_address = ""
 l2_client_address = "http://localhost:9092"
 parentlayer_contract_address = "0x9F7e49fcAB7eD379451e8422D20908bF439011A5"
 childlayer_contract_address = "0xeC054c6ee2DbbeBC9EbCA50CdBF94A94B02B2E40"
@@ -16,7 +16,7 @@ l2_block_collection_depth = 5
 bridge_port = "8888"
 bridge_host = "0.0.0.0"
 [bridge_db_config]
-dsn = "user=testuser password=123456 dbname=testdb host=localhost port=5432 sslmode=disable"
-driver_name = "postgres"
+dsn = "testuser:123456@tcp(localhost:3306)/testdb?charset=utf8mb4&parseTime=True&loc=Local"
+driverName = "mysql"
 maxOpenNum = 10
 maxIdleNum = 5

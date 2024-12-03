@@ -62,15 +62,6 @@ type GethConfig struct {
 	BridgeDBConfig             *database.Config `toml:"bridge_db_config"`
 }
 
-type Config struct {
-	// data source name
-	DSN        string `toml:"dsn"`
-	DriverName string `toml:"driver_name"`
-
-	MaxOpenNum int `toml:"maxOpenNum"`
-	MaxIdleNum int `toml:"maxIdleNum"`
-}
-
 func (gc *GethConfig) Copy() *GethConfig {
 	return &GethConfig{
 		ChainConfig:  gc.ChainConfig,

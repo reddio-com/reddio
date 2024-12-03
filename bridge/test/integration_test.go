@@ -529,7 +529,7 @@ func TestDepositERC1155Batch(t *testing.T) {
 
 func TestWithdrawETH(t *testing.T) {
 	t.Run("WithdrawETH", func(t *testing.T) {
-		fmt.Println("WithdrawETH111")
+		fmt.Println("WithdrawETH1")
 
 		withdrawAmount := big.NewInt(50)
 

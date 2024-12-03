@@ -100,6 +100,7 @@ func StartupL1Watcher(chain *kernel.Kernel, cfg *evm.GethConfig) {
 		if err != nil {
 			logrus.Fatal("l1 client run failed: ", err)
 		}
+		//fmt.Println("CFG.BridgeDBConfig: ", cfg.BridgeDBConfig)
 		db, err := database.InitDB(cfg.BridgeDBConfig)
 		if err != nil {
 			log.Fatal("failed to init db", "err", err)

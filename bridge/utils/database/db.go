@@ -8,7 +8,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/log"
 	bridge_utils "github.com/reddio-com/reddio/bridge/utils"
-	"gorm.io/driver/postgres"
+	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 	"gorm.io/gorm/utils"
@@ -48,8 +48,14 @@ func InitDB(config *Config) (*gorm.DB, error) {
 	tmpGormLogger := gormLogger{
 		gethLogger: log.Root(),
 	}
-
-	db, err := gorm.Open(postgres.Open(config.DSN), &gorm.Config{
+	var dialector gorm.Dialector
+	switch config.DriverName {
+	case "mysql":
+		dialector = mysql.Open(config.DSN)
+	default:
+		return nil, fmt.Errorf("unsupported driver: %s", config.DriverName)
+	}
+	db, err := gorm.Open(dialector, &gorm.Config{
 		Logger: &tmpGormLogger,
 		NowFunc: func() time.Time {
 			return bridge_utils.NowUTC()

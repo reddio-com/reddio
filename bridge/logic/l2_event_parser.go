@@ -115,7 +115,7 @@ func (e *L2EventParser) ParseL2SingleCrossChainEventLogs(ctx context.Context, lo
 			switch utils.MessagePayloadType(event.PayloadType) {
 			case utils.ETH:
 				payloadHex := hex.EncodeToString(event.Payload)
-				fmt.Println("payloadHex: ", payloadHex)
+				//fmt.Println("payloadHex: ", payloadHex)
 				l2ETHBurntMsg, err := decodeL2ETHBurnt(payloadHex)
 				if err != nil {
 					log.Error("Failed to decode ETHLocked", "err", err)
