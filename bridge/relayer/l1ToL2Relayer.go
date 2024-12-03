@@ -17,6 +17,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/reddio-com/reddio/bridge/contract"
 	"github.com/reddio-com/reddio/bridge/logic"
+	"github.com/reddio-com/reddio/bridge/orm"
 	"github.com/reddio-com/reddio/bridge/utils"
 	"github.com/reddio-com/reddio/evm"
 	"github.com/reddio-com/reddio/metrics"
@@ -28,7 +29,6 @@ import (
 type L1ToL2Relayer struct {
 	ctx           context.Context
 	cfg           *evm.GethConfig
-	l1Client      *ethclient.Client
 	l2Client      *ethclient.Client
 	chain         *kernel.Kernel
 	l1EventParser *logic.L1EventParser
@@ -79,7 +79,6 @@ func NewL1ToL2Relayer(ctx context.Context, cfg *evm.GethConfig, l1Client *ethcli
 	return &L1ToL2Relayer{
 		ctx:           ctx,
 		cfg:           cfg,
-		l1Client:      l1Client,
 		l2Client:      l2Client,
 		chain:         chain,
 		l1EventParser: l1EventParser,
@@ -247,18 +246,17 @@ func (b *L1ToL2Relayer) systemCall(ctx context.Context, signedTx *types.Transact
 
 		OriginArgs: txArgByte,
 	}
-
-	// txNonce, err := b.l2Client.PendingNonceAt(context.Background(), txReq.Origin)
-	// if err != nil {
-	// 	log.Printf("Failed to get nonce: %v", err)
-	// }
-	// txReq.Nonce = txNonce
-	// jsonData, err := json.MarshalIndent(txReq, "", "    ")
+	txNonce, err := b.l2Client.PendingNonceAt(context.Background(), txReq.Origin)
+	if err != nil {
+		log.Printf("Failed to get nonce: %v", err)
+	}
+	txReq.Nonce = txNonce
+	//jsonData, err := json.MarshalIndent(txReq, "", "    ")
 	// if err != nil {
 	// 	log.Printf("Failed to marshal txReq to JSON: %v", err)
 	// }
 
-	// fmt.Println("systemCall jsonData:", string(jsonData))
+	//fmt.Println("systemCall jsonData:", string(jsonData))
 	byt, err := json.Marshal(txReq)
 	if err != nil {
 		log.Printf("json.Marshal(txReq) failed: %v", err)
@@ -297,7 +295,7 @@ func waitForConfirmation(client *ethclient.Client, txHash common.Hash) (bool, er
 	return false, fmt.Errorf("transaction was not confirmed after %d retries", maxRetries)
 }
 
-func (b *L1ToL2Relayer) refund(crossMessages []*logic.CrossMessage) error {
+func (b *L1ToL2Relayer) refund(crossMessages []*orm.CrossMessage) error {
 	fmt.Println("Start refund")
 
 	for _, msg := range crossMessages {
@@ -325,17 +323,17 @@ func (b *L1ToL2Relayer) refund(crossMessages []*logic.CrossMessage) error {
 	return nil
 }
 
-func (b *L1ToL2Relayer) refundETH(msg *logic.CrossMessage) error {
+func (b *L1ToL2Relayer) refundETH(msg *orm.CrossMessage) error {
 	// TODO: implement
 	return nil
 }
 
-func (b *L1ToL2Relayer) refundERC20(msg *logic.CrossMessage) error {
+func (b *L1ToL2Relayer) refundERC20(msg *orm.CrossMessage) error {
 	// TODO: implement
 	return nil
 }
 
-func (b *L1ToL2Relayer) refundRED(msg *logic.CrossMessage) error {
+func (b *L1ToL2Relayer) refundRED(msg *orm.CrossMessage) error {
 	// TODO: implement
 	return nil
 }

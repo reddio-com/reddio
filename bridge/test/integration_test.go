@@ -75,8 +75,8 @@ func SetupForkedChain() error {
 // 2. check the balance of testPublicKey2 in l2 is increased by depositAmount
 func TestDepositETH(t *testing.T) {
 	t.Run("DepositETH", func(t *testing.T) {
-		fmt.Println("DepositETH11")
-		depositAmount := big.NewInt(100)
+		fmt.Println("DepositETH111")
+		depositAmount := big.NewInt(10000)
 		//Arrange
 		l1Client, err := ethclient.Dial(sepoliaHelpConfig.L1ClientAddress)
 		if err != nil {
@@ -529,7 +529,7 @@ func TestDepositERC1155Batch(t *testing.T) {
 
 func TestWithdrawETH(t *testing.T) {
 	t.Run("WithdrawETH", func(t *testing.T) {
-		fmt.Println("WithdrawETH")
+		fmt.Println("WithdrawETH111")
 
 		withdrawAmount := big.NewInt(50)
 

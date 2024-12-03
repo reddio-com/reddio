@@ -11,7 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	backendabi "github.com/reddio-com/reddio/bridge/abi"
-	"github.com/reddio-com/reddio/bridge/contract"
+	"github.com/reddio-com/reddio/bridge/orm"
 	"github.com/reddio-com/reddio/evm"
 	yucommon "github.com/yu-org/yu/common"
 	yucontext "github.com/yu-org/yu/core/context"
@@ -41,8 +41,8 @@ func NewL2WatcherLogic(cfg *evm.GethConfig, solidity *evm.Solidity) (*L2WatcherL
 
 // L2FetcherUpwardMessageFromLogs collects upward messages from the logs of the current block
 // and the previous l2BlockCollectionDepth blocks.
-func (f *L2WatcherLogic) L2FetcherUpwardMessageFromLogs(ctx context.Context, block *yutypes.Block, l2BlockCollectionDepth *big.Int) ([]*contract.ChildBridgeCoreFacetUpwardMessage, error) {
-	var allUpwardMessages []*contract.ChildBridgeCoreFacetUpwardMessage
+func (f *L2WatcherLogic) L2FetcherUpwardMessageFromLogs(ctx context.Context, block *yutypes.Block, l2BlockCollectionDepth *big.Int) ([]*orm.CrossMessage, error) {
+	var allL2CrossMessages []*orm.CrossMessage
 
 	depth := int(l2BlockCollectionDepth.Int64())
 	blockHeight := block.Height
@@ -79,10 +79,10 @@ func (f *L2WatcherLogic) L2FetcherUpwardMessageFromLogs(ctx context.Context, blo
 			log.Error("Failed to parse L2 event logs 3", "err", err)
 			return nil, err
 		}
-		allUpwardMessages = append(allUpwardMessages, upwardMessages...)
+		allL2CrossMessages = append(allL2CrossMessages, upwardMessages...)
 		blockHeight--
 	}
-	return allUpwardMessages, nil
+	return allL2CrossMessages, nil
 }
 
 func (f *L2WatcherLogic) FilterLogs(ctx context.Context, block *yutypes.Block, criteria ethereum.FilterQuery) ([]types.Log, error) {

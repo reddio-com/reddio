@@ -74,6 +74,7 @@ func (w *L2EventsWatcher) InitChain(block *yutypes.Block) {
 		if err != nil {
 			log.Fatal("failed to connect to L1 geth", "endpoint", w.cfg.L1ClientAddress, "err", err)
 		}
+
 		l2toL1Relayer, err := relayer.NewL2ToL1Relayer(context.Background(), w.cfg, l1Client)
 		if err != nil {
 			logrus.Fatal("init bridge relayer failed: ", err)

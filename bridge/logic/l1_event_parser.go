@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/reddio-com/reddio/bridge/contract"
+	"github.com/reddio-com/reddio/bridge/orm"
 	"github.com/reddio-com/reddio/bridge/utils"
 	"github.com/reddio-com/reddio/evm"
 )
@@ -20,14 +21,14 @@ type L1EventParser struct {
 	client *ethclient.Client
 }
 
-type CrossMessage struct {
-	Sender         string
-	Receiver       string
-	TokenType      int
-	L1TokenAddress string
-	MessageValue   int
-	TokenAmounts   string
-}
+//	type CrossMessage struct {
+//		Sender         string
+//		Receiver       string
+//		TokenType      int
+//		L1TokenAddress string
+//		MessageValue   int
+//		TokenAmounts   string
+//	}
 type ETHLocked struct {
 	ParentSender   common.Address
 	ChildRecipient common.Address
@@ -77,7 +78,7 @@ func NewL1EventParser(cfg *evm.GethConfig, client *ethclient.Client) *L1EventPar
 }
 
 // ParseL1CrossChainEventLogs parse l1 cross chain event logs
-func (e *L1EventParser) ParseL1CrossChainPayload(ctx context.Context, msg *contract.ParentBridgeCoreFacetDownwardMessage) ([]*CrossMessage, error) {
+func (e *L1EventParser) ParseL1CrossChainPayload(ctx context.Context, msg *contract.ParentBridgeCoreFacetDownwardMessage) ([]*orm.CrossMessage, error) {
 	l1CrossChainDepositMessages, err := e.ParseL1SingleCrossChainPayload(ctx, msg)
 	if err != nil {
 		return nil, err
@@ -87,8 +88,8 @@ func (e *L1EventParser) ParseL1CrossChainPayload(ctx context.Context, msg *contr
 }
 
 // ParseL1SingleCrossChainEventLogs parses L1 watched single cross chain events.
-func (e *L1EventParser) ParseL1SingleCrossChainPayload(ctx context.Context, msg *contract.ParentBridgeCoreFacetDownwardMessage) ([]*CrossMessage, error) {
-	var l1DepositMessages []*CrossMessage
+func (e *L1EventParser) ParseL1SingleCrossChainPayload(ctx context.Context, msg *contract.ParentBridgeCoreFacetDownwardMessage) ([]*orm.CrossMessage, error) {
+	var l1DepositMessages []*orm.CrossMessage
 
 	switch utils.MessagePayloadType(msg.PayloadType) {
 	case utils.ETH:
@@ -99,7 +100,7 @@ func (e *L1EventParser) ParseL1SingleCrossChainPayload(ctx context.Context, msg 
 			log.Error("Failed to decode ETHLocked", "err", err)
 			return nil, err
 		}
-		l1DepositMessages = append(l1DepositMessages, &CrossMessage{
+		l1DepositMessages = append(l1DepositMessages, &orm.CrossMessage{
 			Sender:       ethLocked.ParentSender.String(),
 			Receiver:     ethLocked.ChildRecipient.String(),
 			TokenType:    int(msg.PayloadType),
@@ -113,7 +114,7 @@ func (e *L1EventParser) ParseL1SingleCrossChainPayload(ctx context.Context, msg 
 			log.Error("Failed to decode ParentERC20TokenLocked", "err", err)
 			return nil, err
 		}
-		l1DepositMessages = append(l1DepositMessages, &CrossMessage{
+		l1DepositMessages = append(l1DepositMessages, &orm.CrossMessage{
 			Sender:         erc20Locked.ParentSender.String(),
 			Receiver:       erc20Locked.ChildRecipient.String(),
 			TokenType:      int(msg.PayloadType),
@@ -129,7 +130,7 @@ func (e *L1EventParser) ParseL1SingleCrossChainPayload(ctx context.Context, msg 
 			log.Error("Failed to decode ParentREDTokenLocked", "err", err)
 			return nil, err
 		}
-		l1DepositMessages = append(l1DepositMessages, &CrossMessage{
+		l1DepositMessages = append(l1DepositMessages, &orm.CrossMessage{
 			Sender:         redLocked.ParentSender.String(),
 			Receiver:       redLocked.ChildRecipient.String(),
 			TokenType:      int(msg.PayloadType),
