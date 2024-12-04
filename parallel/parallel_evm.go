@@ -57,6 +57,9 @@ func (k *ParallelEVM) clearObjInc() {
 }
 
 func (k *ParallelEVM) updateTxnObjSub(txns []*txnCtx) {
+	if !config.GetGlobalConfig().AsyncCommit {
+		return
+	}
 	sub := func(key common2.Address) {
 		v, ok := k.objectInc[key]
 		if ok {
@@ -75,7 +78,11 @@ func (k *ParallelEVM) updateTxnObjSub(txns []*txnCtx) {
 		sub(txn.req.Origin)
 	}
 }
+
 func (k *ParallelEVM) updateTxnObjInc(txns []*txnCtx) {
+	if !config.GetGlobalConfig().AsyncCommit {
+		return
+	}
 	inc := func(key common2.Address) {
 		v, ok := k.objectInc[key]
 		if ok {
