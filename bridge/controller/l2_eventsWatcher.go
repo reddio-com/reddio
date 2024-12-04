@@ -38,7 +38,7 @@ func NewL2EventsWatcher(cfg *evm.GethConfig,
 
 func (w *L2EventsWatcher) WatchUpwardMessage(ctx context.Context, block *yutypes.Block, Solidity *evm.Solidity) error {
 
-	upwardMessage, err := w.l2WatcherLogic.L2FetcherUpwardMessageFromLogs(ctx, block, w.cfg.L2BlockCollectionDepth)
+	upwardMessage, blockTimestampsMap, err := w.l2WatcherLogic.L2FetcherUpwardMessageFromLogs(ctx, block, w.cfg.L2BlockCollectionDepth)
 	if err != nil {
 		//fmt.Println("Watcher L2FetcherUpwardMessageFromLogs error: ", err)
 		return fmt.Errorf("failed to fetch upward message from logs: %v", err)
@@ -55,7 +55,7 @@ func (w *L2EventsWatcher) WatchUpwardMessage(ctx context.Context, block *yutypes
 	// }
 
 	// fmt.Println("WatchUpwardMessage: ", string(jsonData))
-	err = w.l2toL1Relayer.HandleUpwardMessage(upwardMessage)
+	err = w.l2toL1Relayer.HandleUpwardMessage(upwardMessage, blockTimestampsMap)
 	if err != nil {
 		//fmt.Println("Watcher HandleUpwardMessage error: ", err)
 		return fmt.Errorf("failed to handle upward message: %v", err)

@@ -36,7 +36,7 @@ type CrossMessage struct {
 	MessageTo          string     `json:"message_to" gorm:"column:message_to"`
 	MessageValue       string     `json:"message_value" gorm:"column:message_value"`
 	MessageNonce       string     `json:"message_nonce" gorm:"column:message_nonce"`
-	MultiSignProof     string     `json:"multiSign_proof" gorm:"column:multiSign_proof"`
+	MultiSignProof     string     `json:"multisign_proof" gorm:"column:multisign_proof"`
 	CreatedAt          time.Time  `json:"created_at" gorm:"column:created_at"`
 	UpdatedAt          time.Time  `json:"updated_at" gorm:"column:updated_at"`
 	DeletedAt          *time.Time `json:"deleted_at" gorm:"column:deleted_at"`

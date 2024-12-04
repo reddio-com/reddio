@@ -68,7 +68,7 @@ func LoadPrivateKey(envFilePath string) (string, error) {
 }
 
 // handleL2UpwardMessage
-func (b *L2ToL1Relayer) HandleUpwardMessage(msgs []*orm.CrossMessage) error {
+func (b *L2ToL1Relayer) HandleUpwardMessage(msgs []*orm.CrossMessage, blockTimestampsMap map[uint64]uint64) error {
 	// 1. parse upward message
 	// 2. setup auth
 	// 3. send upward message to parent layer contract by calling upwardMessageDispatcher.ReceiveUpwardMessages
@@ -126,6 +126,7 @@ func (b *L2ToL1Relayer) HandleUpwardMessage(msgs []*orm.CrossMessage) error {
 		}
 
 		msg.MultiSignProof = strings.Join(multiSignProofs, ",")
+		msg.BlockTimestamp = blockTimestampsMap[msg.L2BlockNumber]
 		//fmt.Println("msg.MultiSignProof:", msg.MultiSignProof)
 	}
 

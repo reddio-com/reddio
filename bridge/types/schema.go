@@ -65,9 +65,9 @@ type Response struct {
 }
 
 type Message struct {
-	PayloadType uint32 // 0: ETH, 1: ERC20, 2: ERC721, 3: ERC1155, 4: RED
-	Payload     string
-	Nonce       string
+	PayloadType uint32 `json:"payload_type"` // 0: ETH, 1: ERC20, 2: ERC721, 3: ERC1155, 4: RED
+	Payload     string `json:"payload"`
+	Nonce       string `json:"nonce"`
 }
 
 type ClaimInfo struct {
@@ -80,7 +80,7 @@ type ClaimInfo struct {
 
 // L2MessageProof is the schema of L2 message proof
 type L2MessageProof struct {
-	MultiSignProof string `json:"multiSign_proof"`
+	MultiSignProof string `json:"multisign_proof"`
 }
 
 // TxHistoryInfo the schema of tx history infos

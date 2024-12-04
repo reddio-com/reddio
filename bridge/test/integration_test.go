@@ -24,8 +24,8 @@ var (
 	// Testnet
 	//use your own l1 and l2 endpoint
 	sepoliaHelpConfig = helpConfig{
-		testAdmin:       "",
-		L1ClientAddress: "",
+		testAdmin:       "32e3b56c9f2763d2332e6e4188e4755815ac96441e899de121969845e343c2ff",
+		L1ClientAddress: "wss://sepolia.infura.io/ws/v3/80b72ad34e16495595abeb6ccc30255a",
 		//L2ClientAddress: "https://reddio-evm-bridge.reddio.com/",
 		L2ClientAddress:            "http://localhost:9092",
 		ParentlayerContractAddress: "0x9F7e49fcAB7eD379451e8422D20908bF439011A5",

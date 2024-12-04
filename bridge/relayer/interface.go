@@ -6,7 +6,7 @@ import (
 )
 
 type L2ToL1RelayerInterface interface {
-	HandleUpwardMessage([]*orm.CrossMessage) error
+	HandleUpwardMessage([]*orm.CrossMessage, map[uint64]uint64) error
 }
 
 type L1ToL2RelayerInterface interface {

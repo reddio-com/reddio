@@ -65,7 +65,7 @@ func TestCreateAndGetCrossMessage(t *testing.T) {
 		MessageTo:          "message_to",
 		MessageValue:       "message_value",
 		MessageNonce:       "1",
-		MultiSignProof:     "multiSign_proof",
+		MultiSignProof:     "multisign_proof",
 		CreatedAt:          time.Now().UTC(),
 		UpdatedAt:          time.Now().UTC(),
 	}
@@ -128,14 +128,14 @@ func TestUpsertCrossMessage(t *testing.T) {
 		MessageTo:          "message_to",
 		MessageValue:       "message_value",
 		MessageNonce:       "1",
-		MultiSignProof:     "multiSign_proof",
+		MultiSignProof:     "multisign_proof",
 		CreatedAt:          time.Now().UTC(),
 		UpdatedAt:          time.Now().UTC(),
 	}
 
 	if err := db.Clauses(clause.OnConflict{
 		UpdateAll: true,
-		DoUpdates: clause.AssignmentColumns([]string{"sender", "receiver", "token_type", "l2_block_number", "l2_tx_hash", "l1_token_address", "l2_token_address", "token_ids", "token_amounts", "message_type", "block_timestamp", "message_payloadtype", "message_payload", "message_from", "message_to", "message_value", "message_data", "message_nonce", "multiSign_proof"}),
+		DoUpdates: clause.AssignmentColumns([]string{"sender", "receiver", "token_type", "l2_block_number", "l2_tx_hash", "l1_token_address", "l2_token_address", "token_ids", "token_amounts", "message_type", "block_timestamp", "message_payloadtype", "message_payload", "message_from", "message_to", "message_value", "message_data", "message_nonce", "multisign_proof"}),
 	}).Create(&crossMessage).Error; err != nil {
 		t.Fatalf("Failed to upsert cross message: %v", err)
 	}
@@ -192,7 +192,7 @@ func TestInsertOrUpdateL2Messages(t *testing.T) {
 		MessageTo:          "message_to",
 		MessageValue:       "message_value",
 		MessageNonce:       "1",
-		MultiSignProof:     "multiSign_proof",
+		MultiSignProof:     "multisign_proof",
 		CreatedAt:          time.Now().UTC(),
 		UpdatedAt:          time.Now().UTC(),
 	}
@@ -253,7 +253,7 @@ func TestGetL2UnclaimedWithdrawalsByAddress(t *testing.T) {
 			MessageTo:          "receiver",
 			MessageValue:       "message_value",
 			MessageNonce:       "1",
-			MultiSignProof:     "multiSign_proof",
+			MultiSignProof:     "multisign_proof",
 			CreatedAt:          time.Now().UTC(),
 			UpdatedAt:          time.Now().UTC(),
 		},

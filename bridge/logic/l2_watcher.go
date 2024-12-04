@@ -41,20 +41,22 @@ func NewL2WatcherLogic(cfg *evm.GethConfig, solidity *evm.Solidity) (*L2WatcherL
 
 // L2FetcherUpwardMessageFromLogs collects upward messages from the logs of the current block
 // and the previous l2BlockCollectionDepth blocks.
-func (f *L2WatcherLogic) L2FetcherUpwardMessageFromLogs(ctx context.Context, block *yutypes.Block, l2BlockCollectionDepth *big.Int) ([]*orm.CrossMessage, error) {
+func (f *L2WatcherLogic) L2FetcherUpwardMessageFromLogs(ctx context.Context, block *yutypes.Block, l2BlockCollectionDepth *big.Int) ([]*orm.CrossMessage, map[uint64]uint64, error) {
 	var allL2CrossMessages []*orm.CrossMessage
 
 	depth := int(l2BlockCollectionDepth.Int64())
 	blockHeight := block.Height
+	blockTimestampsMap := make(map[uint64]uint64)
 	var err error
 	for i := 0; i < depth; i++ {
 		if i > 0 {
 			block, err = f.solidity.Chain.GetBlockByHeight(blockHeight)
 			if err != nil {
 				//fmt.Println("Watcher GetCompactBlock error: ", err)
-				return nil, err
+				return nil, nil, err
 			}
 		}
+		blockTimestampsMap[uint64(blockHeight)] = block.Timestamp
 		query := ethereum.FilterQuery{
 			// FromBlock: new(big.Int).SetUint64(from), // inclusive
 			// ToBlock:   new(big.Int).SetUint64(to),   // inclusive
@@ -67,7 +69,7 @@ func (f *L2WatcherLogic) L2FetcherUpwardMessageFromLogs(ctx context.Context, blo
 		eventLogs, err := f.FilterLogs(ctx, block, query)
 		if err != nil {
 			//fmt.Println("Watcher GetCompactBlock error: ", err)
-			return nil, err
+			return nil, nil, err
 		}
 		if len(eventLogs) == 0 {
 			blockHeight--
@@ -77,12 +79,12 @@ func (f *L2WatcherLogic) L2FetcherUpwardMessageFromLogs(ctx context.Context, blo
 		upwardMessages, err := f.parser.ParseL2EventLogs(ctx, eventLogs)
 		if err != nil {
 			log.Error("Failed to parse L2 event logs 3", "err", err)
-			return nil, err
+			return nil, nil, err
 		}
 		allL2CrossMessages = append(allL2CrossMessages, upwardMessages...)
 		blockHeight--
 	}
-	return allL2CrossMessages, nil
+	return allL2CrossMessages, blockTimestampsMap, nil
 }
 
 func (f *L2WatcherLogic) FilterLogs(ctx context.Context, block *yutypes.Block, criteria ethereum.FilterQuery) ([]types.Log, error) {
