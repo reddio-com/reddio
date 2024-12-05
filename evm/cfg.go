@@ -82,7 +82,7 @@ func SetDefaultGethConfig() *GethConfig {
 		ChainConfig: params.AllEthashProtocolChanges,
 		Difficulty:  big.NewInt(1),
 		Origin:      common.HexToAddress("0x0"),
-		Coinbase:    common.HexToAddress("0x0"),
+		Coinbase:    common.HexToAddress("0x8c275240c489d177fc10b6d10ffc5a68ef71ee8b"),
 		BlockNumber: big.NewInt(0),
 		Time:        0,
 		GasLimit:    8000000,
