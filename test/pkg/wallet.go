@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	nodeURL           = "http://localhost:9092"
+	nodeURL           = "https://reddio-dev.reddio.com"
 	GenesisPrivateKey = "32e3b56c9f2763d2332e6e4188e4755815ac96441e899de121969845e343c2ff"
 )
 
@@ -115,22 +115,18 @@ func (m *WalletManager) TransferEth(from, to *EthWallet, amount, nonce uint64) e
 }
 
 func (m *WalletManager) QueryEth(wallet *EthWallet) (uint64, error) {
-	requestBody := fmt.Sprintf(
-		`	{
-		"jsonrpc": "2.0",
-		"id": 0,
-		"method": "eth_getBalance",
-		"params": ["%s","latest"] 
-	}`, wallet.Address)
-	d, err := sendRequest(m.hostAddress, requestBody)
+	client, err := ethclient.Dial(nodeURL)
 	if err != nil {
 		return 0, err
 	}
-	resp := &queryResponse{}
-	if err := json.Unmarshal(d, resp); err != nil {
-		return 0, nil
+	defer client.Close()
+
+	balance, err := client.BalanceAt(context.Background(), common.HexToAddress(wallet.Address), nil)
+	if err != nil {
+		return 0, err
 	}
-	return parse(resp.Result)
+
+	return balance.Uint64(), nil
 }
 
 func parse(v string) (uint64, error) {
@@ -211,30 +207,41 @@ type RawTxReq struct {
 }
 
 func (m *WalletManager) sendBatchRawTxs(rawTxs []*RawTxReq) error {
+	client, err := ethclient.Dial(nodeURL)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer client.Close()
+
 	batchTx := new(ethrpc.BatchTx)
-	nonceMap := make(map[string]uint64)
+
 	for _, rawTx := range rawTxs {
 		to := common.HexToAddress(rawTx.toAddress)
 		gasLimit := uint64(21000)
-		gasPrice := big.NewInt(0)
+		gasPrice, err := client.SuggestGasPrice(context.Background())
+		if err != nil {
+			log.Fatal(err)
+		}
 
-		if _, ok := nonceMap[rawTx.privateKeyHex]; ok {
-			nonceMap[rawTx.privateKeyHex]++
+		privateKey, err := crypto.HexToECDSA(rawTx.privateKeyHex)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		fromAddress := crypto.PubkeyToAddress(privateKey.PublicKey)
+		nonce, err := client.PendingNonceAt(context.Background(), fromAddress)
+		if err != nil {
+			log.Fatal(err)
 		}
 
 		tx := types.NewTx(&types.LegacyTx{
-			Nonce:    nonceMap[rawTx.privateKeyHex],
+			Nonce:    nonce,
 			GasPrice: gasPrice,
 			Gas:      gasLimit,
 			To:       &to,
 			Value:    big.NewInt(int64(rawTx.amount)),
 			Data:     rawTx.data,
 		})
-
-		privateKey, err := crypto.HexToECDSA(rawTx.privateKeyHex)
-		if err != nil {
-			log.Fatal(err)
-		}
 
 		chainID := m.cfg.ChainConfig.ChainID
 		signedTx, err := types.SignTx(tx, types.NewEIP155Signer(chainID), privateKey)
