@@ -2,10 +2,10 @@ package utils
 
 import (
 	"context"
-	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"math/big"
 	"os"
 	"strings"
@@ -116,26 +116,6 @@ func NowUTC() time.Time {
 	return time.Now().In(utc)
 }
 
-// ComputeMessageHash compute the message hash
-func ComputeMessageHash(
-	PayloadType uint32,
-	Payload []byte,
-	Nonce *big.Int,
-) common.Hash {
-
-	payloadTypeBytes := make([]byte, 4)
-	binary.BigEndian.PutUint32(payloadTypeBytes, PayloadType)
-
-	nonceBytes := Nonce.Bytes()
-
-	data := append(payloadTypeBytes, Payload...)
-	data = append(data, nonceBytes...)
-
-	hash := crypto.Keccak256Hash(data)
-
-	return hash
-}
-
 // ConvertStringToStringArray takes a string with values separated by commas and returns a slice of strings
 func ConvertStringToStringArray(s string) []string {
 	if s == "" {
@@ -146,4 +126,18 @@ func ConvertStringToStringArray(s string) []string {
 		stringParts[i] = strings.TrimSpace(part)
 	}
 	return stringParts
+}
+
+func ComputeMessageHash(payloadType uint32, payload []byte, nonce *big.Int) (common.Hash, error) {
+	packedData, err := abi.Arguments{
+		{Type: abi.Type{T: abi.UintTy, Size: 32}}, // Use UintTy with size 32 for uint32
+		{Type: abi.Type{T: abi.BytesTy}},
+		{Type: abi.Type{T: abi.UintTy, Size: 256}}, // Use UintTy with size 256 for *big.Int
+	}.Pack(payloadType, payload, nonce)
+	if err != nil {
+		log.Fatalf("Failed to pack data: %v", err)
+	}
+
+	dataHash := crypto.Keccak256Hash(packedData)
+	return dataHash, nil
 }

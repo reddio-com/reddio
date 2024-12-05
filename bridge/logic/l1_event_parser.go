@@ -11,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/reddio-com/reddio/bridge/contract"
 	"github.com/reddio-com/reddio/bridge/orm"
+	btypes "github.com/reddio-com/reddio/bridge/types"
 	"github.com/reddio-com/reddio/bridge/utils"
 	"github.com/reddio-com/reddio/evm"
 )
@@ -75,6 +76,19 @@ func NewL1EventParser(cfg *evm.GethConfig, client *ethclient.Client) *L1EventPar
 		cfg:    cfg,
 		client: client,
 	}
+} // ParseL1CrossChainEventLogs parse l1 cross chain event logs
+func (e *L1EventParser) ParseL1RelayMessagePayload(ctx context.Context, msg *contract.UpwardMessageDispatcherFacetRelayedMessage) ([]*orm.CrossMessage, error) {
+	var l1RelayedMessages []*orm.CrossMessage
+
+	l1RelayedMessages = append(l1RelayedMessages, &orm.CrossMessage{
+		MessageHash:   common.BytesToHash(msg.MessageHash[:]).String(),
+		L1BlockNumber: msg.Raw.BlockNumber,
+		L1TxHash:      msg.Raw.TxHash.String(),
+		TxStatus:      int(btypes.TxStatusTypeConsumed),
+		MessageType:   int(btypes.MessageTypeL2SentMessage),
+	})
+
+	return l1RelayedMessages, nil
 }
 
 // ParseL1CrossChainEventLogs parse l1 cross chain event logs
@@ -141,6 +155,7 @@ func (e *L1EventParser) ParseL1SingleCrossChainPayload(ctx context.Context, msg 
 	}
 	return l1DepositMessages, nil
 }
+
 func decodeETHLocked(payloadHex string) (*ETHLocked, error) {
 	payload, err := hex.DecodeString(payloadHex)
 	if err != nil {

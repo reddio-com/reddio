@@ -19,6 +19,7 @@ import (
 	"github.com/reddio-com/reddio/bridge/logic"
 	"github.com/reddio-com/reddio/bridge/orm"
 	"github.com/reddio-com/reddio/bridge/utils"
+	"github.com/reddio-com/reddio/bridge/utils/database"
 	"github.com/reddio-com/reddio/evm"
 	"github.com/reddio-com/reddio/metrics"
 	yucommon "github.com/yu-org/yu/common"
@@ -27,11 +28,12 @@ import (
 )
 
 type L1ToL2Relayer struct {
-	ctx           context.Context
-	cfg           *evm.GethConfig
-	l2Client      *ethclient.Client
-	chain         *kernel.Kernel
-	l1EventParser *logic.L1EventParser
+	ctx             context.Context
+	cfg             *evm.GethConfig
+	l2Client        *ethclient.Client
+	chain           *kernel.Kernel
+	l1EventParser   *logic.L1EventParser
+	crossMessageOrm *orm.CrossMessage
 }
 
 const (
@@ -75,14 +77,27 @@ type TransactionArgs struct {
 }
 
 func NewL1ToL2Relayer(ctx context.Context, cfg *evm.GethConfig, l1Client *ethclient.Client, l2Client *ethclient.Client, chain *kernel.Kernel) (*L1ToL2Relayer, error) {
+	db, err := database.InitDB(cfg.BridgeDBConfig)
+	if err != nil {
+		log.Fatal("failed to init db", "err", err)
+	}
 	l1EventParser := logic.NewL1EventParser(cfg, l2Client)
 	return &L1ToL2Relayer{
-		ctx:           ctx,
-		cfg:           cfg,
-		l2Client:      l2Client,
-		chain:         chain,
-		l1EventParser: l1EventParser,
+		ctx:             ctx,
+		cfg:             cfg,
+		l2Client:        l2Client,
+		chain:           chain,
+		l1EventParser:   l1EventParser,
+		crossMessageOrm: orm.NewCrossMessage(db),
 	}, nil
+}
+func (b *L1ToL2Relayer) HandleRelayerMessage(msg *contract.UpwardMessageDispatcherFacetRelayedMessage) error {
+	relayedMessages, err := b.l1EventParser.ParseL1RelayMessagePayload(b.ctx, msg)
+	if err != nil {
+		log.Printf("Failed to parse L1 cross chain payload: %v", err)
+	}
+	b.crossMessageOrm.InsertOrUpdateL1RelayedMessagesOfL2Withdrawals(b.ctx, relayedMessages)
+	return nil
 }
 
 // handleDownwardMessage

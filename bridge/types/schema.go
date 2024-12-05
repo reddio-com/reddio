@@ -32,6 +32,7 @@ type TxStatusType int
 // Constants for TxStatusType.
 const (
 	TxStatusTypeSent TxStatusType = iota
+	TxStatusTypeConsumed
 )
 
 // MessageType represents the type of message.

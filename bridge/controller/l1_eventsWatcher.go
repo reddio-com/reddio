@@ -39,33 +39,50 @@ func NewL1EventsWatcher(ctx context.Context, cfg *evm.GethConfig, ethClient *eth
 
 func (w *L1EventsWatcher) Run(ctx context.Context) error {
 	downwardMsgChan := make(chan *contract.ParentBridgeCoreFacetDownwardMessage)
+	relayerMsgChan := make(chan *contract.UpwardMessageDispatcherFacetRelayedMessage)
+
 	if w.l1Client.Client().SupportsSubscriptions() {
-		sub, err := w.watchDownwardMessage(ctx, downwardMsgChan)
+		downwardSub, err := w.watchDownwardMessage(ctx, downwardMsgChan)
 		if err != nil {
 			metrics.L1EventWatcherFailureCounter.Inc()
 			return err
 		}
+		relayerSub, err := w.watchRelayerMessage(ctx, relayerMsgChan)
+		if err != nil {
+			metrics.L1EventWatcherFailureCounter.Inc()
+			return err
+		}
+
 		go func() {
-			defer sub.Unsubscribe()
+			defer downwardSub.Unsubscribe()
+			defer relayerSub.Unsubscribe()
 			for {
 				select {
 				case msg := <-downwardMsgChan:
 					if msg == nil {
 						continue
 					}
-					// fmt.Println("Listen for msgChan", msg)
-					// jsonData, err := json.Marshal(msg)
-					// if err != nil {
-					// 	logrus.Errorf("Error converting downwardMsgChan txn to JSON: %v", err)
-					// 	continue
-					// }
-					// fmt.Println("msg as JSON:", string(jsonData))
 					w.handleDownwardMessage(msg)
-				case subErr := <-sub.Err():
-					logrus.Errorf("L1 subscription failed: %v, Resubscribing...", subErr)
+				case msg := <-relayerMsgChan:
+					if msg == nil {
+						continue
+					}
+					w.handleRelayerMessage(msg)
+				case subErr := <-downwardSub.Err():
+					logrus.Errorf("L1 downward subscription failed: %v, Resubscribing...", subErr)
 					metrics.L1EventWatcherFailureCounter.Inc()
 					metrics.L1EventWatcherRetryCounter.Inc()
-					sub, err = w.watchDownwardMessage(ctx, downwardMsgChan)
+					downwardSub, err = w.watchDownwardMessage(ctx, downwardMsgChan)
+					if err != nil {
+						logrus.Errorf("Resubscribe failed: %v", err)
+						metrics.L1EventWatcherFailureCounter.Inc()
+						return
+					}
+				case subErr := <-relayerSub.Err():
+					logrus.Errorf("L1 relayer subscription failed: %v, Resubscribing...", subErr)
+					metrics.L1EventWatcherFailureCounter.Inc()
+					metrics.L1EventWatcherRetryCounter.Inc()
+					relayerSub, err = w.watchRelayerMessage(ctx, relayerMsgChan)
 					if err != nil {
 						logrus.Errorf("Resubscribe failed: %v", err)
 						metrics.L1EventWatcherFailureCounter.Inc()
@@ -94,6 +111,20 @@ func (w *L1EventsWatcher) watchDownwardMessage(
 	return filterer.WatchDownwardMessage(&bind.WatchOpts{Context: ctx}, sink)
 }
 
+func (w *L1EventsWatcher) watchRelayerMessage(
+	ctx context.Context,
+	sink chan<- *contract.UpwardMessageDispatcherFacetRelayedMessage,
+) (event.Subscription, error) {
+	if !common.IsHexAddress(w.cfg.ParentLayerContractAddress) {
+		return nil, fmt.Errorf("invalid address: %s", w.cfg.ParentLayerContractAddress)
+	}
+	filterer, err := contract.NewUpwardMessageDispatcherFacetFilterer(common.HexToAddress(w.cfg.ParentLayerContractAddress), w.l1Client)
+	if err != nil {
+		return nil, err
+	}
+	return filterer.WatchRelayedMessage(&bind.WatchOpts{Context: ctx}, sink, nil)
+}
+
 /*****************************
  *    [Functions:Handler]    *
  *****************************/
@@ -104,6 +135,15 @@ func (w *L1EventsWatcher) handleDownwardMessage(
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+func (w *L1EventsWatcher) handleRelayerMessage(msg *contract.UpwardMessageDispatcherFacetRelayedMessage) error {
+	err := w.l1toL2Relayer.HandleRelayerMessage(msg)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Received RelayerMessage: %+v\n", msg)
 	return nil
 }
 

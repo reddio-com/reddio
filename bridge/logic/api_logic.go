@@ -52,15 +52,17 @@ func (h *HistoryLogic) GetL2UnclaimedWithdrawalsByAddress(ctx context.Context, a
 	cacheKey := fmt.Sprintf("unclaimed_withdrawals_%s_%d_%d", address, page, pageSize)
 	log.Info("cache miss", "cache key", cacheKey)
 	//fmt.Println("cache miss", "cache key", cacheKey)
+	var total uint64
 	result, err, _ := h.singleFlight.Do(cacheKey, func() (interface{}, error) {
 		var txHistoryInfos []*types.TxHistoryInfo
-		crossMessages, getErr := h.crossMessageOrm.GetL2UnclaimedWithdrawalsByAddress(ctx, address)
+		crossMessages, totalCount, getErr := h.crossMessageOrm.GetL2UnclaimedWithdrawalsByAddress(ctx, address, page, pageSize)
 		if getErr != nil {
 			return nil, getErr
 		}
 		for _, message := range crossMessages {
 			txHistoryInfos = append(txHistoryInfos, getTxHistoryInfoFromCrossMessage(message))
 		}
+		total = totalCount
 		return txHistoryInfos, nil
 	})
 	if err != nil {
@@ -74,7 +76,7 @@ func (h *HistoryLogic) GetL2UnclaimedWithdrawalsByAddress(ctx context.Context, a
 		return nil, 0, errors.New("unexpected error")
 	}
 
-	return txHistoryInfos, uint64(len(txHistoryInfos)), nil
+	return txHistoryInfos, uint64(total), nil
 }
 
 func getTxHistoryInfoFromCrossMessage(message *orm.CrossMessage) *types.TxHistoryInfo {

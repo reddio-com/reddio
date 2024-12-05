@@ -11,4 +11,5 @@ type L2ToL1RelayerInterface interface {
 
 type L1ToL2RelayerInterface interface {
 	HandleDownwardMessageWithSystemCall(msg *contract.ParentBridgeCoreFacetDownwardMessage) error
+	HandleRelayerMessage(msg *contract.UpwardMessageDispatcherFacetRelayedMessage) error
 }

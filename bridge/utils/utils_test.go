@@ -1,10 +1,13 @@
 package utils
 
 import (
+	"encoding/hex"
 	"fmt"
+	"math/big"
 	"os"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -43,4 +46,24 @@ func TestLoadPrivateKey(t *testing.T) {
 	})
 
 	// Test case: RELAYER_PRIVATE_KEY not set in .env file
+}
+func TestComputeMessageHash(t *testing.T) {
+	payloadType := uint32(4)
+	payloadHex := "000000000000000000000000b878927d79975bdb288ab53271f171534a49eb7d000000000000000000000000a90381616eebc94d89b11afde57b869705626968000000000000000000000000a90381616eebc94d89b11afde57b8697056269680000000000000000000000000000000000000000000000000de0b6b3a7640000"
+	payload, err := hex.DecodeString(payloadHex)
+	if err != nil {
+		t.Fatalf("Failed to decode hex string: %v", err)
+	}
+	nonce := big.NewInt(1733313681151894329)
+
+	expectedHash := common.HexToHash("0x4c49d7969ff27718263e07f4a9c89d82c65a667191c1c93a2b0785df4bf7172a")
+
+	hash, err := ComputeMessageHash(payloadType, payload, nonce)
+	if err != nil {
+		t.Fatalf("ComputeMessageHash failed: %v", err)
+	}
+	fmt.Println("hash:", hash)
+	if hash != expectedHash {
+		t.Errorf("Expected hash %s, got %s", expectedHash.Hex(), hash.Hex())
+	}
 }

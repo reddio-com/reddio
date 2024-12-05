@@ -71,18 +71,70 @@ func (c *CrossMessage) InsertOrUpdateL2Messages(ctx context.Context, messages []
 	return nil
 }
 
-// GetL2UnclaimedWithdrawalsByAddress retrieves all L2 unclaimed withdrawal messages for a given sender address.
-func (c *CrossMessage) GetL2UnclaimedWithdrawalsByAddress(ctx context.Context, sender string) ([]*CrossMessage, error) {
+// GetL2UnclaimedWithdrawalsByAddress retrieves all L2 unclaimed withdrawal messages for a given sender address with pagination.
+func (c *CrossMessage) GetL2UnclaimedWithdrawalsByAddress(ctx context.Context, sender string, page, pageSize uint64) ([]*CrossMessage, uint64, error) {
 	var messages []*CrossMessage
+	var total int64
+
 	db := c.db.WithContext(ctx)
 	db = db.Model(&CrossMessage{})
 	db = db.Where("message_type = ?", btypes.MessageTypeL2SentMessage)
 	db = db.Where("tx_status = ?", btypes.TxStatusTypeSent)
 	db = db.Where("message_from = ?", sender)
 	db = db.Order("block_timestamp desc")
-	db = db.Limit(500)
-	if err := db.Find(&messages).Error; err != nil {
-		return nil, fmt.Errorf("failed to get L2 claimable withdrawal messages by sender address, message_from: %v, error: %w", sender, err)
+
+	// Count total records
+	if err := db.Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to count L2 claimable withdrawal messages by sender address, message_from: %v, error: %w", sender, err)
 	}
-	return messages, nil
+
+	// Apply pagination
+	db = db.Offset(int((page - 1) * pageSize)).Limit(int(pageSize))
+
+	if err := db.Find(&messages).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to get L2 claimable withdrawal messages by sender address, message_from: %v, error: %w", sender, err)
+	}
+
+	return messages, uint64(total), nil
+}
+
+// InsertOrUpdateL1RelayedMessagesOfL2Withdrawals inserts or updates the database with a list of L1 relayed messages related to L2 withdrawals.
+func (c *CrossMessage) InsertOrUpdateL1RelayedMessagesOfL2Withdrawals(ctx context.Context, l1RelayedMessages []*CrossMessage) error {
+	if len(l1RelayedMessages) == 0 {
+		return nil
+	}
+	mergedL1RelayedMessages := make(map[string]*CrossMessage)
+	for _, message := range l1RelayedMessages {
+		if existing, found := mergedL1RelayedMessages[message.MessageHash]; found {
+			if btypes.TxStatusType(message.TxStatus) == btypes.TxStatusTypeConsumed || message.L1BlockNumber > existing.L1BlockNumber {
+				mergedL1RelayedMessages[message.MessageHash] = message
+			}
+		} else {
+			mergedL1RelayedMessages[message.MessageHash] = message
+		}
+	}
+	uniqueL1RelayedMessages := make([]*CrossMessage, 0, len(mergedL1RelayedMessages))
+	for _, msg := range mergedL1RelayedMessages {
+		uniqueL1RelayedMessages = append(uniqueL1RelayedMessages, msg)
+	}
+	db := c.db
+	db = db.WithContext(ctx)
+	db = db.Model(&CrossMessage{})
+	db = db.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "message_hash"}},
+		DoUpdates: clause.AssignmentColumns([]string{"message_type", "l1_block_number", "l1_tx_hash", "tx_status"}),
+		Where: clause.Where{
+			Exprs: []clause.Expression{
+				clause.And(
+					// do not over-write terminal statuses.
+					clause.Neq{Column: "cross_message_v2.tx_status", Value: btypes.TxStatusTypeConsumed},
+					//clause.Neq{Column: "cross_message_v2.tx_status", Value: btypes.TxStatusTypeDropped},
+				),
+			},
+		},
+	})
+	if err := db.Create(uniqueL1RelayedMessages).Error; err != nil {
+		return fmt.Errorf("failed to update L1 relayed message of L2 withdrawal, error: %w", err)
+	}
+	return nil
 }

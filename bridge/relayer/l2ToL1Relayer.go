@@ -117,7 +117,11 @@ func (b *L2ToL1Relayer) HandleUpwardMessage(msgs []*orm.CrossMessage, blockTimes
 			log.Fatalf("Failed to generate multi-signatures: %v", err)
 		}
 
-		msg.MessageHash = utils.ComputeMessageHash(upwardMessages[0].PayloadType, upwardMessages[0].Payload, upwardMessages[0].Nonce).Hex()
+		messageHash, err := utils.ComputeMessageHash(upwardMessages[0].PayloadType, upwardMessages[0].Payload, upwardMessages[0].Nonce)
+		if err != nil {
+			log.Fatalf("Failed to compute message hash: %v", err)
+		}
+		msg.MessageHash = messageHash.Hex()
 		//fmt.Println("msg.MessageHash:", msg.MessageHash)
 		msg.MessageNonce = upwardMessages[0].Nonce.String()
 		var multiSignProofs []string
