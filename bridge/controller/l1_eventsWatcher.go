@@ -143,7 +143,7 @@ func (w *L1EventsWatcher) handleRelayerMessage(msg *contract.UpwardMessageDispat
 	if err != nil {
 		return err
 	}
-	fmt.Printf("Received RelayerMessage: %+v\n", msg)
+	//fmt.Printf("Received RelayerMessage: %+v\n", msg)
 	return nil
 }
 
