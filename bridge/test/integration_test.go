@@ -38,11 +38,12 @@ var (
 		maxRetries:              300,
 		waitForConfirmationTime: 12 * time.Second,
 		L1ETHAddress:            "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
-		L1ERC20Address:          "0xF1E77FF9A4d4fc09CD955EfC44cB843617C73F23",
-		L1ERC721Address:         "0xA399AA7a6b2f4b36E36f2518FeE7C2AEC48dfD10",
-		L1ERC1155Address:        "0x3713cC896e86AA63Ec97088fB5894E3c985792e7",
-		L1REDAddress:            "0xB878927d79975BDb288ab53271f171534A49eb7D",
-		l2gaslimit:              *big.NewInt(0),
+		//L1ERC20Address:          "0xF1E77FF9A4d4fc09CD955EfC44cB843617C73F23",
+		L1ERC20Address:   "0x9627E313C18be25fC03100bbD3bf48743B4dee70",
+		L1ERC721Address:  "0xA399AA7a6b2f4b36E36f2518FeE7C2AEC48dfD10",
+		L1ERC1155Address: "0x3713cC896e86AA63Ec97088fB5894E3c985792e7",
+		L1REDAddress:     "0xB878927d79975BDb288ab53271f171534A49eb7D",
+		l2gaslimit:       *big.NewInt(0),
 	}
 )
 
@@ -188,8 +189,8 @@ func TestDepositETH(t *testing.T) {
 // 3. check the balance of testPublicKey2 in l2 is increased by depositAmount
 func TestDepositERC20(t *testing.T) {
 	t.Run("DepositERC20", func(t *testing.T) {
-		fmt.Println("DepositERC202")
-		depositAmount := big.NewInt(100)
+		fmt.Println("DepositERC202000")
+		depositAmount := big.NewInt(100000000000)
 		// Arrange
 		l1Client, err := ethclient.Dial(sepoliaHelpConfig.L1ClientAddress)
 		require.NoError(t, err)

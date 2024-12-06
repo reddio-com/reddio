@@ -204,9 +204,8 @@ func decodeERC20TokenLocked(payloadHex string) (*ParentERC20TokenLocked, error) 
 	// TokenAddress
 	tokenAddress := common.BytesToAddress(payload[firstElementOffset : firstElementOffset+32])
 
-	nameOffset := new(big.Int).SetBytes(payload[firstElementOffset+32 : firstElementOffset+64]).Int64()
-	symbolOffset := new(big.Int).SetBytes(payload[firstElementOffset+64 : firstElementOffset+96]).Int64()
-
+	nameOffset := firstElementOffset + new(big.Int).SetBytes(payload[firstElementOffset+32:firstElementOffset+64]).Int64()
+	symbolOffset := firstElementOffset + new(big.Int).SetBytes(payload[firstElementOffset+64:firstElementOffset+96]).Int64()
 	// Decimals
 	decimals := new(big.Int).SetBytes(payload[firstElementOffset+96 : firstElementOffset+128])
 
@@ -218,11 +217,9 @@ func decodeERC20TokenLocked(payloadHex string) (*ParentERC20TokenLocked, error) 
 
 	// Amount
 	amount := new(big.Int).SetBytes(payload[firstElementOffset+192 : firstElementOffset+224])
-
 	// TokenName
 	nameLength := new(big.Int).SetBytes(payload[nameOffset : nameOffset+32]).Int64()
 	tokenName := string(payload[nameOffset+32 : nameOffset+32+nameLength])
-
 	// TokenSymbol
 	symbolLength := new(big.Int).SetBytes(payload[symbolOffset : symbolOffset+32]).Int64()
 	tokenSymbol := string(payload[symbolOffset+32 : symbolOffset+32+symbolLength])
