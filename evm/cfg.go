@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/reddio-com/reddio/bridge/utils/database"
 	yuConfig "github.com/reddio-com/reddio/evm/config"
 	"github.com/sirupsen/logrus"
 )
@@ -48,6 +49,17 @@ type GethConfig struct {
 	EnableEthRPC bool   `toml:"enable_eth_rpc"`
 	EthHost      string `toml:"eth_host"`
 	EthPort      string `toml:"eth_port"`
+
+	// EventsWatcher configs
+	EnableBridge               bool             `toml:"enable_bridge"`
+	L1ClientAddress            string           `toml:"l1_client_address"`
+	L2ClientAddress            string           `toml:"l2_client_address"`
+	ParentLayerContractAddress string           `toml:"parentlayer_contract_address"`
+	ChildLayerContractAddress  string           `toml:"childlayer_contract_address"`
+	L2BlockCollectionDepth     *big.Int         `toml:"l2_block_collection_depth"`
+	BridgeHost                 string           `toml:"bridge_host"`
+	BridgePort                 string           `toml:"bridge_port"`
+	BridgeDBConfig             *database.Config `toml:"bridge_db_config"`
 }
 
 func (gc *GethConfig) Copy() *GethConfig {
