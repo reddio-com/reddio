@@ -18,6 +18,7 @@ type CrossMessage struct {
 	MessageType        int        `json:"message_type" gorm:"column:message_type"`       //0:MessageTypeUnknown, 1: MessageTypeL1SentMessage, 2: MessageTypeL2SentMessage
 	TxStatus           int        `json:"tx_status" gorm:"column:tx_status"`
 	TokenType          int        `json:"token_type" gorm:"column:token_type"` // 0: ETH, 1: ERC20, 2: ERC721, 3: ERC1155, 4: RED
+	TxType             int        `json:"tx_type" gorm:"column:tx_type"`       // 0: Unknown, 1: Deposit, 2: Withdraw, 3: Refund
 	Sender             string     `json:"sender" gorm:"column:sender"`         // sender address
 	Receiver           string     `json:"receiver" gorm:"column:receiver"`
 	L1TxHash           string     `json:"l1_tx_hash" gorm:"column:l1_tx_hash"` // initial tx hash, if MessageType is MessageTypeL1SentMessage.
@@ -82,6 +83,7 @@ func (c *CrossMessage) GetL2UnclaimedWithdrawalsByAddress(ctx context.Context, s
 	db = db.Where("tx_status = ?", btypes.TxStatusTypeSent)
 	db = db.Where("message_from = ?", sender)
 	db = db.Order("block_timestamp desc")
+	db = db.Limit(500)
 
 	// Count total records
 	if err := db.Count(&total).Error; err != nil {

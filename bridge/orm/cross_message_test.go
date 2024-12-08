@@ -49,6 +49,7 @@ func TestCreateAndGetCrossMessage(t *testing.T) {
 		TokenType:          1,
 		Sender:             "sender",
 		Receiver:           "receiver",
+		TxType:             1,
 		MessageHash:        "message_hash",
 		L1TxHash:           "l1_tx_hash",
 		L2TxHash:           "l2_tx_hash",

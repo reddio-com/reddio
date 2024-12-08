@@ -89,6 +89,7 @@ func getTxHistoryInfoFromCrossMessage(message *orm.CrossMessage) *types.TxHistor
 		L2TokenAddress: message.L2TokenAddress,
 		MessageType:    types.MessageType(message.MessageType),
 		TxStatus:       types.TxStatusType(message.TxStatus),
+		TxType:         types.TxType(message.TxType),
 		BlockTimestamp: message.BlockTimestamp,
 	}
 

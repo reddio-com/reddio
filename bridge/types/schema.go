@@ -27,6 +27,15 @@ const (
 	RED
 )
 
+type TxType int
+
+const (
+	TxTypeUnknown TxType = iota
+	TxTypeDeposit
+	TxTypeWithdraw
+	TxTypeRefund
+)
+
 type TxStatusType int
 
 // Constants for TxStatusType.
@@ -97,6 +106,7 @@ type TxHistoryInfo struct {
 	L2TokenAddress string       `json:"l2_token_address"`
 	BlockNumber    uint64       `json:"block_number"`
 	ClaimInfo      *ClaimInfo   `json:"claim_info"`
+	TxType         TxType       `json:"tx_type"` // 0: unknown, 1: deposit, 2: withdraw, 3: refund
 	BlockTimestamp uint64       `json:"block_timestamp"`
 }
 

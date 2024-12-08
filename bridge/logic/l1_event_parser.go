@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -99,6 +100,91 @@ func (e *L1EventParser) ParseL1CrossChainPayload(ctx context.Context, msg *contr
 	}
 
 	return l1CrossChainDepositMessages, nil
+}
+
+func (e *L1EventParser) ParseL1CrossChainPayloadToRefundMsg(ctx context.Context, msg *contract.ParentBridgeCoreFacetDownwardMessage) ([]*orm.CrossMessage, error) {
+	var refundMessages []*orm.CrossMessage
+
+	switch utils.MessagePayloadType(msg.PayloadType) {
+	case utils.ETH:
+		payloadHex := hex.EncodeToString(msg.Payload)
+
+		ethLocked, err := decodeETHLocked(payloadHex)
+		if err != nil {
+			log.Error("Failed to decode ETHLocked", "err", err)
+			return nil, err
+		}
+		refundMessages = append(refundMessages, &orm.CrossMessage{
+			MessageType:        int(btypes.MessageTypeL2SentMessage),
+			TxStatus:           int(btypes.TxStatusTypeSent),
+			TokenType:          int(btypes.ETH),
+			TxType:             int(btypes.TxTypeRefund),
+			Sender:             ethLocked.ChildRecipient.String(),
+			Receiver:           ethLocked.ParentSender.String(),
+			MessagePayloadType: int(btypes.ETH),
+			MessagePayload:     payloadHex,
+			MessageFrom:        ethLocked.ChildRecipient.String(),
+			MessageTo:          ethLocked.ParentSender.String(),
+			MessageValue:       ethLocked.Amount.String(),
+			TokenAmounts:       ethLocked.Amount.String(),
+			CreatedAt:          time.Now().UTC(),
+			UpdatedAt:          time.Now().UTC(),
+		})
+	case utils.ERC20:
+		payloadHex := hex.EncodeToString(msg.Payload)
+
+		erc20Locked, err := decodeERC20TokenLocked(payloadHex)
+		if err != nil {
+			log.Error("Failed to decode ParentERC20TokenLocked", "err", err)
+			return nil, err
+		}
+		refundMessages = append(refundMessages, &orm.CrossMessage{
+			MessageType:        int(btypes.MessageTypeL2SentMessage),
+			TxStatus:           int(btypes.TxStatusTypeSent),
+			TokenType:          int(btypes.ERC20),
+			TxType:             int(btypes.TxTypeRefund),
+			L1TokenAddress:     erc20Locked.TokenAddress.String(),
+			Sender:             erc20Locked.ChildRecipient.String(),
+			Receiver:           erc20Locked.ParentSender.String(),
+			MessagePayloadType: int(btypes.ERC20),
+			MessagePayload:     payloadHex,
+			MessageFrom:        erc20Locked.ChildRecipient.String(),
+			MessageTo:          erc20Locked.ParentSender.String(),
+			MessageValue:       erc20Locked.Amount.String(),
+			TokenAmounts:       erc20Locked.Amount.String(),
+			CreatedAt:          time.Now().UTC(),
+			UpdatedAt:          time.Now().UTC(),
+		})
+
+	case utils.RED:
+		payloadHex := hex.EncodeToString(msg.Payload)
+
+		redLocked, err := decodeREDTokenLocked(payloadHex)
+		if err != nil {
+			log.Error("Failed to decode ParentREDTokenLocked", "err", err)
+			return nil, err
+		}
+		refundMessages = append(refundMessages, &orm.CrossMessage{
+			MessageType:        int(btypes.MessageTypeL2SentMessage),
+			TxStatus:           int(btypes.TxStatusTypeSent),
+			TokenType:          int(btypes.RED),
+			TxType:             int(btypes.TxTypeRefund),
+			L1TokenAddress:     redLocked.TokenAddress.String(),
+			Sender:             redLocked.ChildRecipient.String(),
+			Receiver:           redLocked.ParentSender.String(),
+			MessagePayloadType: int(btypes.RED),
+			MessagePayload:     payloadHex,
+			MessageFrom:        redLocked.ChildRecipient.String(),
+			MessageTo:          redLocked.ParentSender.String(),
+			MessageValue:       redLocked.Amount.String(),
+			TokenAmounts:       redLocked.Amount.String(),
+			CreatedAt:          time.Now().UTC(),
+			UpdatedAt:          time.Now().UTC(),
+		})
+
+	}
+	return refundMessages, nil
+
 }
 
 // ParseL1SingleCrossChainEventLogs parses L1 watched single cross chain events.

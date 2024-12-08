@@ -2,6 +2,7 @@ package relayer
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -142,11 +143,6 @@ func (b *L1ToL2Relayer) HandleDownwardMessageWithSystemCall(msg *contract.Parent
 
 	tx := types.NewTransaction(txNonce, common.HexToAddress(b.cfg.ChildLayerContractAddress), value, gasLimit, gasPrice, data)
 
-	crossMessages, err := b.l1EventParser.ParseL1CrossChainPayload(b.ctx, msg)
-	if err != nil {
-		log.Printf("Failed to parse L1 cross chain payload: %v", err)
-	}
-
 	err = b.systemCall(context.Background(), tx)
 	if err != nil {
 		log.Printf("Failed to send transaction: %v", err)
@@ -157,10 +153,18 @@ func (b *L1ToL2Relayer) HandleDownwardMessageWithSystemCall(msg *contract.Parent
 	success, err := waitForConfirmation(b.l2Client, tx.Hash())
 	if err != nil {
 		log.Printf("Failed to wait for confirmation: %v", err)
+		crossMessages, err := b.l1EventParser.ParseL1CrossChainPayloadToRefundMsg(b.ctx, msg)
+		if err != nil {
+			log.Printf("Failed to parse L1 cross chain payload: %v", err)
+		}
 		b.refund(crossMessages)
 		metrics.DownwardMessageFailureCounter.WithLabelValues(fmt.Sprintf("%d", msg.PayloadType)).Inc()
 	} else if !success {
 		log.Printf("Transaction failed: %s", tx.Hash().Hex())
+		crossMessages, err := b.l1EventParser.ParseL1CrossChainPayloadToRefundMsg(b.ctx, msg)
+		if err != nil {
+			log.Printf("Failed to parse L1 cross chain payload: %v", err)
+		}
 		b.refund(crossMessages)
 		metrics.DownwardMessageFailureCounter.WithLabelValues(fmt.Sprintf("%d", msg.PayloadType)).Inc()
 	} else if success {
@@ -310,31 +314,58 @@ func waitForConfirmation(client *ethclient.Client, txHash common.Hash) (bool, er
 	return false, fmt.Errorf("transaction was not confirmed after %d retries", maxRetries)
 }
 
-func (b *L1ToL2Relayer) refund(crossMessages []*orm.CrossMessage) error {
+func (b *L1ToL2Relayer) refund(msgs []*orm.CrossMessage) error {
 	fmt.Println("Start refund")
 
-	for _, msg := range crossMessages {
-		switch utils.MessagePayloadType(msg.TokenType) {
-		case utils.ETH:
-			err := b.refundETH(msg)
-			if err != nil {
-				return fmt.Errorf("failed to refund ETH: %v", err)
-			}
-		case utils.ERC20:
-			err := b.refundERC20(msg)
-			if err != nil {
-				return fmt.Errorf("failed to refund ERC20: %v", err)
-			}
-		case utils.RED:
-			err := b.refundRED(msg)
-			if err != nil {
-				return fmt.Errorf("failed to refund RED: %v", err)
-			}
-		default:
-			return fmt.Errorf("unsupported token type: %d", msg.TokenType)
-		}
+	privateKey, err := LoadPrivateKey("bridge/relayer/.sepolia.env")
+	if err != nil {
+		log.Fatalf("Error loading private key: %v", err)
 	}
 
+	privateKeys := []string{
+		privateKey,
+	}
+	for _, msg := range msgs {
+		var upwardMessages []contract.UpwardMessage
+		payloadBytes, err := hex.DecodeString(msg.MessagePayload)
+		if err != nil {
+			//fmt.Println("Failed to decode hex string:", err)
+			return err
+		}
+		upwardMessages = append(upwardMessages, contract.UpwardMessage{
+			PayloadType: uint32(msg.MessagePayloadType),
+			Payload:     payloadBytes,
+			Nonce:       utils.GenerateNonce(),
+		})
+		signaturesArray, err := generateUpwardMessageMultiSignatures(upwardMessages, privateKeys)
+		if err != nil {
+			log.Fatalf("Failed to generate multi-signatures: %v", err)
+		}
+
+		messageHash, err := utils.ComputeMessageHash(upwardMessages[0].PayloadType, upwardMessages[0].Payload, upwardMessages[0].Nonce)
+		if err != nil {
+			log.Fatalf("Failed to compute message hash: %v", err)
+		}
+		msg.MessageHash = messageHash.Hex()
+		//fmt.Println("msg.MessageHash:", msg.MessageHash)
+		msg.MessageNonce = upwardMessages[0].Nonce.String()
+		var multiSignProofs []string
+		for _, sig := range signaturesArray {
+			multiSignProofs = append(multiSignProofs, "0x"+hex.EncodeToString(sig))
+		}
+
+		msg.MultiSignProof = strings.Join(multiSignProofs, ",")
+		//msg.BlockTimestamp = blockTimestampsMap[msg.L2BlockNumber]
+		//fmt.Println("msg.MultiSignProof:", msg.MultiSignProof)
+	}
+
+	if msgs != nil {
+		//fmt.Println("msgs:", msgs)
+		err = b.crossMessageOrm.InsertOrUpdateL2Messages(context.Background(), msgs)
+		if err != nil {
+			fmt.Println("Failed to insert or update L2 messages:", err)
+		}
+	}
 	return nil
 }
 
