@@ -1,3 +1,4 @@
 isParallel=true
+enableAsyncCommit=true
 maxConcurrency=4
 isBenchmarkMode=false

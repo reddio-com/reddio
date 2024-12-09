@@ -572,8 +572,8 @@ github.com/quic-go/webtransport-go v0.8.0 h1:HxSrwun11U+LlmwpgM1kEqIqH90IT4N8auv
 github.com/quic-go/webtransport-go v0.8.0/go.mod h1:N99tjprW432Ut5ONql/aUhSLT0YVSlwHohQsuac9WaM=
 github.com/raulk/go-watchdog v1.3.0 h1:oUmdlHxdkXRJlwfG0O9omj8ukerm8MEQavSiDTEtBsk=
 github.com/raulk/go-watchdog v1.3.0/go.mod h1:fIvOnLbF0b0ZwkB9YU4mOW9Did//4vPZtDqv66NfsMU=
-github.com/reddio-com/go-ethereum v1.10.19-0.20241115063209-aa95824ff37d h1:6bmDOkHZ8yFeRQuvw0GIvZyKqaxJEwYcjwXfVYq2yi8=
-github.com/reddio-com/go-ethereum v1.10.19-0.20241115063209-aa95824ff37d/go.mod h1:gtzNRbF+9ClaVGWVQ+zdOkSrPonjxR1Rz3DCAA7a2gQ=
+github.com/reddio-com/go-ethereum v1.10.19-0.20241203030429-cc7ffb6f4ed2 h1:A2CHOvAzYxdE7Jw1sqJJVqe13H4RIJV9gp5bHHpNsMc=
+github.com/reddio-com/go-ethereum v1.10.19-0.20241203030429-cc7ffb6f4ed2/go.mod h1:gtzNRbF+9ClaVGWVQ+zdOkSrPonjxR1Rz3DCAA7a2gQ=
 github.com/rivo/uniseg v0.2.0/go.mod h1:J6wj4VEh+S6ZtnVlnTBMWIodfgj8LQOQFoIToxlJtxc=
 github.com/rivo/uniseg v0.4.2 h1:YwD0ulJSJytLpiaWua0sBDusfsCZohxjxzVTYjwxfV8=
 github.com/rivo/uniseg v0.4.2/go.mod h1:FN3SvrM+Zdj16jyLfmOkMNblXMcoc8DfTHruCPUcx88=

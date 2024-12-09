@@ -11,10 +11,12 @@ type Config struct {
 	IsParallel      bool `yaml:"isParallel"`
 	MaxConcurrency  int  `yaml:"maxConcurrency"`
 	IsBenchmarkMode bool `yaml:"isBenchmarkMode"`
+	AsyncCommit     bool `yaml:"asyncCommit"`
 }
 
 func defaultConfig() *Config {
 	return &Config{
+		AsyncCommit:    true,
 		IsParallel:     true,
 		MaxConcurrency: runtime.NumCPU(),
 	}

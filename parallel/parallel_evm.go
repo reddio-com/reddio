@@ -46,8 +46,10 @@ func NewParallelEVM() *ParallelEVM {
 }
 
 func (k *ParallelEVM) prepareExecute() {
-	k.Solidity.StateDB().ClearPendingCommitMark()
-	k.clearObjInc()
+	if config.GetGlobalConfig().AsyncCommit {
+		k.Solidity.StateDB().ClearPendingCommitMark()
+		k.clearObjInc()
+	}
 }
 
 func (k *ParallelEVM) clearObjInc() {
@@ -55,6 +57,9 @@ func (k *ParallelEVM) clearObjInc() {
 }
 
 func (k *ParallelEVM) updateTxnObjSub(txns []*txnCtx) {
+	if !config.GetGlobalConfig().AsyncCommit {
+		return
+	}
 	sub := func(key common2.Address) {
 		v, ok := k.objectInc[key]
 		if ok {
@@ -73,7 +78,11 @@ func (k *ParallelEVM) updateTxnObjSub(txns []*txnCtx) {
 		sub(txn.req.Origin)
 	}
 }
+
 func (k *ParallelEVM) updateTxnObjInc(txns []*txnCtx) {
+	if !config.GetGlobalConfig().AsyncCommit {
+		return
+	}
 	inc := func(key common2.Address) {
 		v, ok := k.objectInc[key]
 		if ok {
@@ -227,8 +236,10 @@ func (k *ParallelEVM) executeTxnCtxList(list []*txnCtx) []*txnCtx {
 		return k.executeTxnCtxListInConcurrency(k.Solidity.StateDB(), list)
 	}
 	defer func() {
-		k.updateTxnObjSub(list)
-		k.Solidity.StateDB().PendingCommit(true, k.objectInc)
+		if config.GetGlobalConfig().AsyncCommit {
+			k.updateTxnObjSub(list)
+			k.Solidity.StateDB().PendingCommit(true, k.objectInc)
+		}
 	}()
 	return k.executeTxnCtxListInOrder(k.Solidity.StateDB(), list, false)
 }
