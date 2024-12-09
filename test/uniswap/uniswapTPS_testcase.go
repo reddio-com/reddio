@@ -245,6 +245,7 @@ func (cd *UniswapV2TPSStatisticsTestCase) executeTest(nodeUrl string, chainID in
 		log.Printf("Failed to perform swap steps: %v", err)
 		return err
 	}
+
 	return nil
 }
 

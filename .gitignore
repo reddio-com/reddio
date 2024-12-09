@@ -1,6 +1,8 @@
 .idea
 **/**/yu
 **/**/reddio_db
+**/**/evm_bridge_db
+.vscode
 
 /test/tmp/
 data
@@ -10,3 +12,5 @@ benchmark_test
 uniswap_test
 uniswap_benchmark_test
 eth_benchmark_data.json
+**/.env
+**/.sepolia.env
