@@ -240,7 +240,7 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 	// s.Lock()
 	_ = ctx.BindJson(txReq)
 
-	pd := pending_state.NewPendingState(txReq.Origin, ctx.ExtraInterface.(*state.StateDB))
+	pd := ctx.ExtraInterface.(*pending_state.PendingStateWrapper)
 
 	cfg := s.cfg
 	vmenv := copyEvmFromRequest(cfg, txReq)
@@ -433,7 +433,7 @@ func (s *Solidity) preCheck(req *TxRequest, stateDB vm.StateDB) error {
 	return s.buyGas(stateDB, req)
 }
 
-func (s *Solidity) executeContractCreation(ctx *context.WriteContext, txReq *TxRequest, stateDB *pending_state.PendingState, origin, coinBase common.Address, vmenv *vm.EVM, sender vm.AccountRef, rules params.Rules) (uint64, error) {
+func (s *Solidity) executeContractCreation(ctx *context.WriteContext, txReq *TxRequest, stateDB *pending_state.PendingStateWrapper, origin, coinBase common.Address, vmenv *vm.EVM, sender vm.AccountRef, rules params.Rules) (uint64, error) {
 	stateDB.Prepare(rules, origin, coinBase, nil, vm.ActivePrecompiles(rules), nil)
 
 	code, address, leftOverGas, err := vmenv.Create(sender, txReq.Input, txReq.GasLimit, uint256.MustFromBig(txReq.Value))
@@ -448,7 +448,7 @@ func (s *Solidity) executeContractCreation(ctx *context.WriteContext, txReq *TxR
 	return txReq.GasLimit - leftOverGas, emitReceipt(ctx, vmenv, txReq, code, address, leftOverGas, err)
 }
 
-func (s *Solidity) executeContractCall(ctx *context.WriteContext, txReq *TxRequest, ethState *pending_state.PendingState, origin, coinBase common.Address, vmenv *vm.EVM, sender vm.AccountRef, rules params.Rules) (uint64, error) {
+func (s *Solidity) executeContractCall(ctx *context.WriteContext, txReq *TxRequest, ethState *pending_state.PendingStateWrapper, origin, coinBase common.Address, vmenv *vm.EVM, sender vm.AccountRef, rules params.Rules) (uint64, error) {
 	ethState.Prepare(rules, origin, coinBase, txReq.Address, vm.ActivePrecompiles(rules), nil)
 	ethState.SetNonce(txReq.Origin, ethState.GetNonce(txReq.Origin)+1)
 
@@ -476,7 +476,7 @@ func makeEvmReceipt(ctx *context.WriteContext, vmEvm *vm.EVM, code []byte, signe
 	_ = json.Unmarshal(txReq.OriginArgs, txArgs)
 	originTx := txArgs.ToTransaction(txReq.V, txReq.R, txReq.S)
 
-	stateDb := vmEvm.StateDB.(*pending_state.PendingState).GetStateDB()
+	stateDb := vmEvm.StateDB.(*pending_state.PendingStateWrapper).GetStateDB()
 	usedGas := originTx.Gas() - leftOverGas
 
 	blockNumber := big.NewInt(int64(block.Height))

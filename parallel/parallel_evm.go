@@ -251,7 +251,7 @@ func (k *ParallelEVM) executeTxnCtxListInOrder(originStateDB *state.StateDB, lis
 			list[index] = tctx
 			continue
 		}
-		tctx.ctx.ExtraInterface = currStateDb
+		tctx.ctx.ExtraInterface = pending_state.NewPendingStateWrapper(pending_state.NewPendingState(currStateDb), 0)
 		err := tctx.writing(tctx.ctx)
 		if err != nil {
 			tctx.err = err
@@ -259,7 +259,7 @@ func (k *ParallelEVM) executeTxnCtxListInOrder(originStateDB *state.StateDB, lis
 		} else {
 			tctx.receipt = k.handleTxnEvent(tctx.ctx, tctx.ctx.Block, tctx.txn, isRedo)
 		}
-		tctx.ps = tctx.ctx.ExtraInterface.(*pending_state.PendingState)
+		tctx.ps = tctx.ctx.ExtraInterface.(*pending_state.PendingStateWrapper)
 		currStateDb = tctx.ps.GetStateDB()
 		list[index] = tctx
 	}
@@ -279,7 +279,7 @@ func (k *ParallelEVM) executeTxnCtxListInConcurrency(originStateDB *state.StateD
 	wg := sync.WaitGroup{}
 	for i, c := range list {
 		wg.Add(1)
-		go func(index int, tctx *txnCtx, cpDb *state.StateDB) {
+		go func(index int, tctx *txnCtx, cpDb *pending_state.PendingStateWrapper) {
 			defer func() {
 				wg.Done()
 			}()
@@ -291,7 +291,7 @@ func (k *ParallelEVM) executeTxnCtxListInConcurrency(originStateDB *state.StateD
 			} else {
 				tctx.receipt = k.handleTxnEvent(tctx.ctx, tctx.ctx.Block, tctx.txn, false)
 			}
-			tctx.ps = tctx.ctx.ExtraInterface.(*pending_state.PendingState)
+			tctx.ps = tctx.ctx.ExtraInterface.(*pending_state.PendingStateWrapper)
 
 			list[index] = tctx
 		}(i, c, copiedStateDBList[i])
@@ -316,7 +316,7 @@ func (k *ParallelEVM) executeTxnCtxListInConcurrency(originStateDB *state.StateD
 	return list
 }
 
-func (k *ParallelEVM) gcCopiedStateDB(copiedStateDBList []*state.StateDB, list []*txnCtx) {
+func (k *ParallelEVM) gcCopiedStateDB(copiedStateDBList []*pending_state.PendingStateWrapper, list []*txnCtx) {
 	copiedStateDBList = nil
 	for _, ctx := range list {
 		ctx.ctx.ExtraInterface = nil
@@ -327,13 +327,13 @@ func (k *ParallelEVM) gcCopiedStateDB(copiedStateDBList []*state.StateDB, list [
 func (k *ParallelEVM) mergeStateDB(originStateDB *state.StateDB, list []*txnCtx) {
 	k.Solidity.Lock()
 	for _, tctx := range list {
-		tctx.ps.MergeInto(originStateDB)
+		tctx.ps.MergeInto(originStateDB, tctx.req.Origin)
 	}
 	k.Solidity.Unlock()
 }
 
-func (k *ParallelEVM) CopyStateDb(originStateDB *state.StateDB, list []*txnCtx) []*state.StateDB {
-	copiedStateDBList := make([]*state.StateDB, 0)
+func (k *ParallelEVM) CopyStateDb(originStateDB *state.StateDB, list []*txnCtx) []*pending_state.PendingStateWrapper {
+	copiedStateDBList := make([]*pending_state.PendingStateWrapper, 0)
 	k.Solidity.Lock()
 	start := time.Now()
 	defer func() {
@@ -346,7 +346,7 @@ func (k *ParallelEVM) CopyStateDb(originStateDB *state.StateDB, list []*txnCtx) 
 			needCopy[*list[i].req.Address] = struct{}{}
 		}
 		needCopy[list[i].req.Origin] = struct{}{}
-		copiedStateDBList = append(copiedStateDBList, originStateDB.SimpleCopy(needCopy))
+		copiedStateDBList = append(copiedStateDBList, pending_state.NewPendingStateWrapper(pending_state.NewPendingState(originStateDB.SimpleCopy(needCopy)), int64(i)))
 	}
 	return copiedStateDBList
 }
@@ -357,7 +357,7 @@ type txnCtx struct {
 	writing dev.Writing
 	req     *evm.TxRequest
 	err     error
-	ps      *pending_state.PendingState
+	ps      *pending_state.PendingStateWrapper
 	receipt *types.Receipt
 }
 
