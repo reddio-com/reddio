@@ -101,7 +101,7 @@ func (psw *PendingStateWrapper) SetState(address common.Address, hash common.Has
 }
 
 func (psw *PendingStateWrapper) GetStorageRoot(addr common.Address) common.Hash {
-	return psw.GetStorageRoot(addr)
+	return psw.PS.GetStorageRoot(addr)
 }
 
 func (psw *PendingStateWrapper) GetTransientState(addr common.Address, key common.Hash) common.Hash {
