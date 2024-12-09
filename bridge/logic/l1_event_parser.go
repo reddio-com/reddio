@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/reddio-com/reddio/bridge/contract"
@@ -102,7 +103,7 @@ func (e *L1EventParser) ParseL1CrossChainPayload(ctx context.Context, msg *contr
 	return l1CrossChainDepositMessages, nil
 }
 
-func (e *L1EventParser) ParseL1CrossChainPayloadToRefundMsg(ctx context.Context, msg *contract.ParentBridgeCoreFacetDownwardMessage) ([]*orm.CrossMessage, error) {
+func (e *L1EventParser) ParseL1CrossChainPayloadToRefundMsg(ctx context.Context, msg *contract.ParentBridgeCoreFacetDownwardMessage, tx *types.Transaction, receipt *types.Receipt) ([]*orm.CrossMessage, error) {
 	var refundMessages []*orm.CrossMessage
 
 	switch utils.MessagePayloadType(msg.PayloadType) {
@@ -129,6 +130,9 @@ func (e *L1EventParser) ParseL1CrossChainPayloadToRefundMsg(ctx context.Context,
 			TokenAmounts:       ethLocked.Amount.String(),
 			CreatedAt:          time.Now().UTC(),
 			UpdatedAt:          time.Now().UTC(),
+			BlockTimestamp:     uint64(tx.Time().Unix()),
+			L2TxHash:           receipt.TxHash.String(),
+			L2BlockNumber:      receipt.BlockNumber.Uint64(),
 		})
 	case utils.ERC20:
 		payloadHex := hex.EncodeToString(msg.Payload)
@@ -154,6 +158,9 @@ func (e *L1EventParser) ParseL1CrossChainPayloadToRefundMsg(ctx context.Context,
 			TokenAmounts:       erc20Locked.Amount.String(),
 			CreatedAt:          time.Now().UTC(),
 			UpdatedAt:          time.Now().UTC(),
+			BlockTimestamp:     uint64(tx.Time().Unix()),
+			L2TxHash:           receipt.TxHash.String(),
+			L2BlockNumber:      receipt.BlockNumber.Uint64(),
 		})
 
 	case utils.RED:
@@ -180,6 +187,9 @@ func (e *L1EventParser) ParseL1CrossChainPayloadToRefundMsg(ctx context.Context,
 			TokenAmounts:       redLocked.Amount.String(),
 			CreatedAt:          time.Now().UTC(),
 			UpdatedAt:          time.Now().UTC(),
+			BlockTimestamp:     uint64(tx.Time().Unix()),
+			L2TxHash:           receipt.TxHash.String(),
+			L2BlockNumber:      receipt.BlockNumber.Uint64(),
 		})
 
 	}

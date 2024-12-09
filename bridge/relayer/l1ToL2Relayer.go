@@ -142,7 +142,6 @@ func (b *L1ToL2Relayer) HandleDownwardMessageWithSystemCall(msg *contract.Parent
 	// fmt.Printf("Packed data: %s\n", hex.EncodeToString(data))
 
 	tx := types.NewTransaction(txNonce, common.HexToAddress(b.cfg.ChildLayerContractAddress), value, gasLimit, gasPrice, data)
-
 	err = b.systemCall(context.Background(), tx)
 	if err != nil {
 		log.Printf("Failed to send transaction: %v", err)
@@ -150,22 +149,26 @@ func (b *L1ToL2Relayer) HandleDownwardMessageWithSystemCall(msg *contract.Parent
 		return err
 	}
 	log.Printf("Transaction sent: %s", tx.Hash().Hex())
-	success, err := waitForConfirmation(b.l2Client, tx.Hash())
+	success, receipt, err := waitForConfirmation(b.l2Client, tx.Hash())
 	if err != nil {
 		log.Printf("Failed to wait for confirmation: %v", err)
-		crossMessages, err := b.l1EventParser.ParseL1CrossChainPayloadToRefundMsg(b.ctx, msg)
-		if err != nil {
-			log.Printf("Failed to parse L1 cross chain payload: %v", err)
+		if receipt != nil {
+			crossMessages, err := b.l1EventParser.ParseL1CrossChainPayloadToRefundMsg(b.ctx, msg, tx, receipt)
+			if err != nil {
+				log.Printf("Failed to parse L1 cross chain payload: %v", err)
+			}
+			b.refund(crossMessages)
 		}
-		b.refund(crossMessages)
 		metrics.DownwardMessageFailureCounter.WithLabelValues(fmt.Sprintf("%d", msg.PayloadType)).Inc()
 	} else if !success {
 		log.Printf("Transaction failed: %s", tx.Hash().Hex())
-		crossMessages, err := b.l1EventParser.ParseL1CrossChainPayloadToRefundMsg(b.ctx, msg)
-		if err != nil {
-			log.Printf("Failed to parse L1 cross chain payload: %v", err)
+		if receipt != nil {
+			crossMessages, err := b.l1EventParser.ParseL1CrossChainPayloadToRefundMsg(b.ctx, msg, tx, receipt)
+			if err != nil {
+				log.Printf("Failed to parse L1 cross chain payload: %v", err)
+			}
+			b.refund(crossMessages)
 		}
-		b.refund(crossMessages)
 		metrics.DownwardMessageFailureCounter.WithLabelValues(fmt.Sprintf("%d", msg.PayloadType)).Inc()
 	} else if success {
 		metrics.DownwardMessageSuccessCounter.WithLabelValues(fmt.Sprintf("%d", msg.PayloadType)).Inc()
@@ -300,18 +303,18 @@ func (b *L1ToL2Relayer) systemCall(ctx context.Context, signedTx *types.Transact
 
 }
 
-func waitForConfirmation(client *ethclient.Client, txHash common.Hash) (bool, error) {
+func waitForConfirmation(client *ethclient.Client, txHash common.Hash) (bool, *types.Receipt, error) {
 	for i := 0; i < maxRetries; i++ {
 		receipt, err := client.TransactionReceipt(context.Background(), txHash)
 		if err == nil {
 			if receipt.Status == types.ReceiptStatusSuccessful {
-				return true, nil
+				return true, nil, nil
 			}
-			return false, fmt.Errorf("transaction failed with status: %v", receipt.Status)
+			return false, receipt, fmt.Errorf("transaction failed with status: %v", receipt.Status)
 		}
 		time.Sleep(waitForConfirmationTime)
 	}
-	return false, fmt.Errorf("transaction was not confirmed after %d retries", maxRetries)
+	return false, nil, fmt.Errorf("transaction was not confirmed after %d retries", maxRetries)
 }
 
 func (b *L1ToL2Relayer) refund(msgs []*orm.CrossMessage) error {
@@ -366,20 +369,5 @@ func (b *L1ToL2Relayer) refund(msgs []*orm.CrossMessage) error {
 			fmt.Println("Failed to insert or update L2 messages:", err)
 		}
 	}
-	return nil
-}
-
-func (b *L1ToL2Relayer) refundETH(msg *orm.CrossMessage) error {
-	// TODO: implement
-	return nil
-}
-
-func (b *L1ToL2Relayer) refundERC20(msg *orm.CrossMessage) error {
-	// TODO: implement
-	return nil
-}
-
-func (b *L1ToL2Relayer) refundRED(msg *orm.CrossMessage) error {
-	// TODO: implement
 	return nil
 }
