@@ -167,17 +167,12 @@ func (m *WalletManager) sendRawTx(privateKeyHex string, toAddress string, amount
 	fromAddress := crypto.PubkeyToAddress(privateKey.PublicKey)
 	nonce, err := client.PendingNonceAt(context.Background(), fromAddress)
 	if err != nil {
-		log.Fatal(err)
-	}
-
-	gasPrice, err := client.SuggestGasPrice(context.Background())
-	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	tx := types.NewTx(&types.LegacyTx{
 		Nonce:    nonce,
-		GasPrice: gasPrice,
+		GasPrice: big.NewInt(int64(0)),
 		Gas:      gasLimit,
 		To:       &to,
 		Value:    big.NewInt(int64(amount)),
@@ -191,9 +186,6 @@ func (m *WalletManager) sendRawTx(privateKeyHex string, toAddress string, amount
 	}
 
 	err = client.SendTransaction(context.Background(), signedTx)
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	return err
 }
@@ -218,10 +210,6 @@ func (m *WalletManager) sendBatchRawTxs(rawTxs []*RawTxReq) error {
 	for _, rawTx := range rawTxs {
 		to := common.HexToAddress(rawTx.toAddress)
 		gasLimit := uint64(21000)
-		gasPrice, err := client.SuggestGasPrice(context.Background())
-		if err != nil {
-			log.Fatal(err)
-		}
 
 		privateKey, err := crypto.HexToECDSA(rawTx.privateKeyHex)
 		if err != nil {
@@ -236,7 +224,7 @@ func (m *WalletManager) sendBatchRawTxs(rawTxs []*RawTxReq) error {
 
 		tx := types.NewTx(&types.LegacyTx{
 			Nonce:    nonce,
-			GasPrice: gasPrice,
+			GasPrice: big.NewInt(int64(0)),
 			Gas:      gasLimit,
 			To:       &to,
 			Value:    big.NewInt(int64(rawTx.amount)),
