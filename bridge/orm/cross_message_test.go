@@ -3,7 +3,6 @@ package orm
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"testing"
 	"time"
 
@@ -321,7 +320,7 @@ func TestGetL2UnclaimedWithdrawalsByAddress(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to get L2 unclaimed withdrawal messages: %v", err)
 	}
-	fmt.Println("total", total)
+	t.Log("total", total)
 	if len(messages) != 2 {
 		t.Errorf("Expected 2 messages, got %d", len(messages))
 	}
@@ -338,6 +337,5 @@ func TestGetL2UnclaimedWithdrawalsByAddress(t *testing.T) {
 		}
 	}
 	t.Log(messages)
-	fmt.Println(messages)
 	//t.Error("messages：", messages[0].L2TxHash)
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/yu-org/yu/core/tripod"
 	yutypes "github.com/yu-org/yu/core/types"
+	"gorm.io/gorm"
 )
 
 type L2EventsWatcher struct {
@@ -23,15 +24,17 @@ type L2EventsWatcher struct {
 	l2toL1Relayer  relayer.L2ToL1RelayerInterface
 	*tripod.Tripod
 	solidity *evm.Solidity `tripod:"solidity"`
+	db       *gorm.DB
 }
 
-func NewL2EventsWatcher(cfg *evm.GethConfig,
+func NewL2EventsWatcher(cfg *evm.GethConfig, db *gorm.DB,
 ) *L2EventsWatcher {
 	tri := tripod.NewTripod()
 	c := &L2EventsWatcher{
 		//ctx:            ctx,
 		cfg:    cfg,
 		Tripod: tri,
+		db:     db,
 	}
 	return c
 }
@@ -75,7 +78,7 @@ func (w *L2EventsWatcher) InitChain(block *yutypes.Block) {
 			log.Fatal("failed to connect to L1 geth", "endpoint", w.cfg.L1ClientAddress, "err", err)
 		}
 
-		l2toL1Relayer, err := relayer.NewL2ToL1Relayer(context.Background(), w.cfg, l1Client)
+		l2toL1Relayer, err := relayer.NewL2ToL1Relayer(context.Background(), w.cfg, l1Client, w.db)
 		if err != nil {
 			logrus.Fatal("init bridge relayer failed: ", err)
 		}

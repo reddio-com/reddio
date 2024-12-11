@@ -20,12 +20,12 @@ import (
 	"github.com/reddio-com/reddio/bridge/logic"
 	"github.com/reddio-com/reddio/bridge/orm"
 	"github.com/reddio-com/reddio/bridge/utils"
-	"github.com/reddio-com/reddio/bridge/utils/database"
 	"github.com/reddio-com/reddio/evm"
 	"github.com/reddio-com/reddio/metrics"
 	yucommon "github.com/yu-org/yu/common"
 	"github.com/yu-org/yu/core/kernel"
 	"github.com/yu-org/yu/core/protocol"
+	"gorm.io/gorm"
 )
 
 type L1ToL2Relayer struct {
@@ -77,11 +77,7 @@ type TransactionArgs struct {
 	blobSidecarAllowed bool
 }
 
-func NewL1ToL2Relayer(ctx context.Context, cfg *evm.GethConfig, l1Client *ethclient.Client, l2Client *ethclient.Client, chain *kernel.Kernel) (*L1ToL2Relayer, error) {
-	db, err := database.InitDB(cfg.BridgeDBConfig)
-	if err != nil {
-		log.Fatal("failed to init db", "err", err)
-	}
+func NewL1ToL2Relayer(ctx context.Context, cfg *evm.GethConfig, l1Client *ethclient.Client, l2Client *ethclient.Client, chain *kernel.Kernel, db *gorm.DB) (*L1ToL2Relayer, error) {
 	l1EventParser := logic.NewL1EventParser(cfg, l2Client)
 	return &L1ToL2Relayer{
 		ctx:             ctx,
@@ -144,14 +140,11 @@ func (b *L1ToL2Relayer) HandleDownwardMessageWithSystemCall(msg *contract.Parent
 	tx := types.NewTransaction(txNonce, common.HexToAddress(b.cfg.ChildLayerContractAddress), value, gasLimit, gasPrice, data)
 	err = b.systemCall(context.Background(), tx)
 	if err != nil {
-		log.Printf("Failed to send transaction: %v", err)
 		metrics.DownwardMessageFailureCounter.WithLabelValues(fmt.Sprintf("%d", msg.PayloadType)).Inc()
 		return err
 	}
-	log.Printf("Transaction sent: %s", tx.Hash().Hex())
 	success, receipt, err := waitForConfirmation(b.l2Client, tx.Hash())
 	if err != nil {
-		log.Printf("Failed to wait for confirmation: %v", err)
 		if receipt != nil {
 			crossMessages, err := b.l1EventParser.ParseL1CrossChainPayloadToRefundMsg(b.ctx, msg, tx, receipt)
 			if err != nil {
@@ -161,7 +154,6 @@ func (b *L1ToL2Relayer) HandleDownwardMessageWithSystemCall(msg *contract.Parent
 		}
 		metrics.DownwardMessageFailureCounter.WithLabelValues(fmt.Sprintf("%d", msg.PayloadType)).Inc()
 	} else if !success {
-		log.Printf("Transaction failed: %s", tx.Hash().Hex())
 		if receipt != nil {
 			crossMessages, err := b.l1EventParser.ParseL1CrossChainPayloadToRefundMsg(b.ctx, msg, tx, receipt)
 			if err != nil {
@@ -318,8 +310,6 @@ func waitForConfirmation(client *ethclient.Client, txHash common.Hash) (bool, *t
 }
 
 func (b *L1ToL2Relayer) refund(msgs []*orm.CrossMessage) error {
-	fmt.Println("Start refund")
-
 	privateKey, err := LoadPrivateKey("bridge/relayer/.sepolia.env")
 	if err != nil {
 		log.Fatalf("Error loading private key: %v", err)

@@ -17,7 +17,6 @@ import (
 	"github.com/reddio-com/reddio/bridge/contract"
 	"github.com/reddio-com/reddio/bridge/orm"
 	"github.com/reddio-com/reddio/bridge/utils"
-	"github.com/reddio-com/reddio/bridge/utils/database"
 	"github.com/reddio-com/reddio/evm"
 	"github.com/reddio-com/reddio/metrics"
 	"gorm.io/gorm"
@@ -28,28 +27,15 @@ type L2ToL1Relayer struct {
 	cfg             *evm.GethConfig
 	l1Client        *ethclient.Client
 	Solidity        *evm.Solidity `tripod:"solidity"`
-	db              *gorm.DB
 	crossMessageOrm *orm.CrossMessage
 }
 
-func NewL2ToL1Relayer(ctx context.Context, cfg *evm.GethConfig, l1Client *ethclient.Client) (*L2ToL1Relayer, error) {
-	//fmt.Println("cfg.BridgeDBConfig: ", cfg.BridgeDBConfig)
-	db, err := database.InitDB(cfg.BridgeDBConfig)
-	if err != nil {
-		log.Fatal("failed to init db", "err", err)
-	}
-	//fmt.Println("db init success")
-	// defer func() {
-	// 	fmt.Println("defer close db")
-	// 	if deferErr := database.CloseDB(db); deferErr != nil {
-	// 		log.Fatal("failed to close db", "err", err)
-	// 	}
-	// }()
+func NewL2ToL1Relayer(ctx context.Context, cfg *evm.GethConfig, l1Client *ethclient.Client, db *gorm.DB) (*L2ToL1Relayer, error) {
+
 	return &L2ToL1Relayer{
 		ctx:             ctx,
 		cfg:             cfg,
 		l1Client:        l1Client,
-		db:              db,
 		crossMessageOrm: orm.NewCrossMessage(db),
 	}, nil
 }

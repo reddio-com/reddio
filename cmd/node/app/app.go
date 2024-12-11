@@ -5,6 +5,10 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"sync"
+	"syscall"
 
 	"github.com/common-nighthawk/go-figure"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -15,6 +19,7 @@ import (
 	yuConfig "github.com/yu-org/yu/config"
 	"github.com/yu-org/yu/core/kernel"
 	"github.com/yu-org/yu/core/startup"
+	"gorm.io/gorm"
 
 	watcher "github.com/reddio-com/reddio/bridge/controller"
 	"github.com/reddio-com/reddio/bridge/controller/api"
@@ -42,21 +47,40 @@ func Start(evmPath, yuPath, poaPath, configPath string) {
 
 func StartUpChain(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm.GethConfig) {
 	figure.NewColorFigure("Reddio", "big", "green", false).Print()
+	db, err := database.InitDB(evmCfg.BridgeDBConfig)
+	if err != nil {
+		log.Fatal("failed to init db", "err", err)
+	}
 
-	chain := InitReddio(yuCfg, poaCfg, evmCfg)
+	chain := InitReddio(yuCfg, poaCfg, evmCfg, db)
 
 	ethrpc.StartupEthRPC(chain, evmCfg)
 
-	StartupL1Watcher(chain, evmCfg)
+	StartupL1Watcher(chain, evmCfg, db)
 
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+	var wg sync.WaitGroup
+
+	go func() {
+		<-sigCh
+		if err := database.CloseDB(db); err != nil {
+			log.Fatal("Failed to close database:", err)
+		}
+		wg.Wait()
+		os.Exit(0)
+	}()
 	chain.Startup()
+
+	wg.Wait()
+
 }
 
-func InitReddio(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm.GethConfig) *kernel.Kernel {
+func InitReddio(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm.GethConfig, db *gorm.DB) *kernel.Kernel {
 	poaTri := poa.NewPoa(poaCfg)
 	solidityTri := evm.NewSolidity(evmCfg)
 	parallelTri := parallel.NewParallelEVM()
-	watcherTri := watcher.NewL2EventsWatcher(evmCfg)
+	watcherTri := watcher.NewL2EventsWatcher(evmCfg, db)
 
 	chain := startup.InitDefaultKernel(yuCfg).WithTripods(poaTri, solidityTri, parallelTri, watcherTri)
 	// chain.WithExecuteFn(chain.OrderedExecute)
@@ -70,7 +94,7 @@ func startPromServer() {
 	http.ListenAndServe(":8080", nil)
 }
 
-func StartupL1Watcher(chain *kernel.Kernel, cfg *evm.GethConfig) {
+func StartupL1Watcher(chain *kernel.Kernel, cfg *evm.GethConfig, db *gorm.DB) {
 	ctx := context.Background()
 	if !cfg.EnableBridge {
 		logrus.Info("no client enabled, stop init watcher")
@@ -86,44 +110,30 @@ func StartupL1Watcher(chain *kernel.Kernel, cfg *evm.GethConfig) {
 	if err != nil {
 		log.Fatal("failed to connect to L2 geth", "endpoint", cfg.L2ClientAddress, "err", err)
 	}
-	l1ToL2Relayer, err := relayer.NewL1ToL2Relayer(ctx, cfg, l1Client, l2Client, chain)
+	l1ToL2Relayer, err := relayer.NewL1ToL2Relayer(ctx, cfg, l1Client, l2Client, chain, db)
 	if err != nil {
 		logrus.Fatal("init bridge relayer failed: ", err)
 	}
 
-	if cfg.EnableBridge {
-		l1Watcher, err := watcher.NewL1EventsWatcher(ctx, cfg, l1Client, l1ToL2Relayer)
-		if err != nil {
-			logrus.Fatal("init L1 client failed: ", err)
-		}
-		err = l1Watcher.Run(ctx)
-		if err != nil {
-			logrus.Fatal("l1 client run failed: ", err)
-		}
-		//fmt.Println("CFG.BridgeDBConfig: ", cfg.BridgeDBConfig)
-		db, err := database.InitDB(cfg.BridgeDBConfig)
-		if err != nil {
-			log.Fatal("failed to init db", "err", err)
-		}
-
-		// defer func() {
-		// 	fmt.Println("closing rpc db")
-		// 	if deferErr := database.CloseDB(db); deferErr != nil {
-		// 		log.Fatal("failed to close db", "err", err)
-		// 	}
-		// }()
-		api.InitController(db)
-
-		router := gin.Default()
-		route.Route(router)
-
-		go func() {
-			port := cfg.BridgePort
-			log.Println("Starting Bridge API server on", port)
-			if runServerErr := router.Run(fmt.Sprintf(":%s", port)); runServerErr != nil {
-				log.Fatal("run http server failure", "error", runServerErr)
-			}
-		}()
+	l1Watcher, err := watcher.NewL1EventsWatcher(ctx, cfg, l1Client, l1ToL2Relayer)
+	if err != nil {
+		logrus.Fatal("init L1 client failed: ", err)
 	}
+	err = l1Watcher.Run(ctx)
+	if err != nil {
+		logrus.Fatal("l1 client run failed: ", err)
+	}
+
+	api.InitController(db)
+
+	router := gin.Default()
+	route.Route(router)
+
+	go func() {
+		port := cfg.BridgePort
+		if runServerErr := router.Run(fmt.Sprintf(":%s", port)); runServerErr != nil {
+			log.Fatal("run http server failure", "error", runServerErr)
+		}
+	}()
 
 }
