@@ -47,11 +47,14 @@ func Start(evmPath, yuPath, poaPath, configPath string) {
 
 func StartUpChain(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm.GethConfig) {
 	figure.NewColorFigure("Reddio", "big", "green", false).Print()
-	db, err := database.InitDB(evmCfg.BridgeDBConfig)
-	if err != nil {
-		log.Fatal("failed to init db", "err", err)
+	var db *gorm.DB
+	var err error
+	if evmCfg.EnableBridge {
+		db, err = database.InitDB(evmCfg.BridgeDBConfig)
+		if err != nil {
+			log.Fatal("failed to init db", "err", err)
+		}
 	}
-
 	chain := InitReddio(yuCfg, poaCfg, evmCfg, db)
 
 	ethrpc.StartupEthRPC(chain, evmCfg)
@@ -64,8 +67,10 @@ func StartUpChain(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm
 
 	go func() {
 		<-sigCh
-		if err := database.CloseDB(db); err != nil {
-			log.Fatal("Failed to close database:", err)
+		if evmCfg.EnableBridge {
+			if err := database.CloseDB(db); err != nil {
+				log.Fatal("Failed to close database:", err)
+			}
 		}
 		wg.Wait()
 		os.Exit(0)
