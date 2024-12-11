@@ -195,6 +195,7 @@ func (k *ParallelEVM) splitTxnCtxList(list []*txnCtx) [][]*txnCtx {
 	if len(curList) > 0 {
 		got = append(got, curList)
 	}
+	k.statManager.TxnBatchCount = len(got)
 	return got
 }
 
@@ -301,11 +302,13 @@ func (k *ParallelEVM) executeTxnCtxListInConcurrency(originStateDB *state.StateD
 	for _, tctx := range list {
 		if curtCtx.IsConflict(tctx.ps.GetCtx()) {
 			conflict = true
+			k.statManager.ConflictCount++
 			break
 		}
 	}
 
-	if conflict {
+	if conflict && !config.GetGlobalConfig().IgnoreConflict {
+		k.statManager.TxnBatchRedoCount++
 		metrics.BatchTxnCounter.WithLabelValues(batchTxnLabelRedo).Inc()
 		return k.executeTxnCtxListInOrder(originStateDB, list, true)
 	}
@@ -376,6 +379,9 @@ func (k *ParallelEVM) handleTxnEvent(ctx *context.WriteContext, block *types.Blo
 
 type BlockTxnStatManager struct {
 	TxnCount           int
+	TxnBatchCount      int
+	TxnBatchRedoCount  int
+	ConflictCount      int
 	ExecuteDuration    time.Duration
 	ExecuteTxnDuration time.Duration
 	PrepareDuration    time.Duration
@@ -390,8 +396,8 @@ func (stat *BlockTxnStatManager) UpdateMetrics() {
 	metrics.BlockTxnPrepareDurationGauge.WithLabelValues().Set(float64(stat.PrepareDuration.Seconds()))
 	metrics.BlockTxnCommitDurationGauge.WithLabelValues().Set(float64(stat.CommitDuration.Seconds()))
 	if config.GlobalConfig.IsBenchmarkMode {
-		log.Printf("execute %v txn, total:%v, execute cost:%v, prepare:%v, copy:%v, commit:%v",
+		log.Printf("execute %v txn, total:%v, execute cost:%v, prepare:%v, copy:%v, commit:%v, txnBatch:%v, conflict:%v, redoBatch:%v",
 			stat.TxnCount, stat.ExecuteDuration.String(), stat.ExecuteTxnDuration.String(),
-			stat.PrepareDuration.String(), stat.CopyDuration.String(), stat.CommitDuration.String())
+			stat.PrepareDuration.String(), stat.CopyDuration.String(), stat.CommitDuration.String(), stat.TxnBatchCount, stat.ConflictCount, stat.TxnBatchRedoCount)
 	}
 }
