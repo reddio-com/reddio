@@ -24,6 +24,7 @@ var (
 	deployUsers   int
 	testUsers     int
 	nonConflict   bool
+	maxUsers      int
 )
 
 func init() {
@@ -36,6 +37,7 @@ func init() {
 	flag.IntVar(&deployUsers, "deployUsers", 10, "")
 	flag.IntVar(&testUsers, "testUsers", 100, "")
 	flag.BoolVar(&nonConflict, "nonConflict", false, "")
+	flag.IntVar(&maxUsers, "maxUsers", 0, "")
 }
 
 func main() {
@@ -52,7 +54,7 @@ func main() {
 	limiter := rate.NewLimiter(rate.Limit(qps), qps)
 	ethManager.Configure(cfg, evmConfig)
 	ethManager.AddTestCase(
-		uniswap.NewUniswapV2TPSStatisticsTestCase("UniswapV2 TPS StatisticsTestCase", deployUsers, testUsers, limiter, action == "run", nonConflict))
+		uniswap.NewUniswapV2TPSStatisticsTestCase("UniswapV2 TPS StatisticsTestCase", deployUsers, testUsers, maxUsers, limiter, action == "run", nonConflict))
 	switch action {
 	case "prepare":
 		prepareBenchmark(context.Background(), ethManager)

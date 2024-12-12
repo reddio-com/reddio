@@ -34,6 +34,7 @@ const (
 )
 
 type UniswapV2TPSStatisticsTestCase struct {
+	MaxUsers      int
 	NonConflict   bool
 	TestUsers     int
 	DeployedUsers int
@@ -54,8 +55,9 @@ func (cd *UniswapV2TPSStatisticsTestCase) Name() string {
 	return cd.CaseName
 }
 
-func NewUniswapV2TPSStatisticsTestCase(name string, t, d int, rm *rate.Limiter, needLoad, nonConflict bool) *UniswapV2TPSStatisticsTestCase {
+func NewUniswapV2TPSStatisticsTestCase(name string, t, d, maxUser int, rm *rate.Limiter, needLoad, nonConflict bool) *UniswapV2TPSStatisticsTestCase {
 	tc := &UniswapV2TPSStatisticsTestCase{
+		MaxUsers:      maxUser,
 		NonConflict:   nonConflict,
 		DeployedUsers: t,
 		TestUsers:     d,
@@ -237,7 +239,7 @@ func (cd *UniswapV2TPSStatisticsTestCase) Prepare(ctx context.Context, m *pkg.Wa
 func (cd *UniswapV2TPSStatisticsTestCase) executeTest(nodeUrl string, chainID int64, gasLimit uint64, stepCount int) error {
 	var steps []SwapStep
 	if cd.NonConflict {
-		steps = generateNoConflictSwapSteps(cd.loadTestData)
+		steps = cd.generateNoConflictSwapSteps(cd.loadTestData)
 	} else {
 		steps = generateRandomSwapSteps(cd.loadTestData, stepCount)
 	}
@@ -275,10 +277,14 @@ type SwapStep struct {
 	Router   common.Address
 }
 
-func generateNoConflictSwapSteps(testData TestData) []SwapStep {
+func (cd *UniswapV2TPSStatisticsTestCase) generateNoConflictSwapSteps(testData TestData) []SwapStep {
 	var steps []SwapStep
+	maxUsers := len(testData.TestUsers)
+	if cd.MaxUsers < maxUsers && cd.MaxUsers > 0 {
+		maxUsers = cd.MaxUsers
+	}
 	testUsers := testData.TestUsers
-	for i := 0; i < len(testData.TestUsers); i++ {
+	for i := 0; i < maxUsers; i++ {
 		user := testUsers[i]
 		contract := testData.TestContracts[i]
 		pair := contract.TokenPairs[0]
