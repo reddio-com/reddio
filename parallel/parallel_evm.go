@@ -349,7 +349,11 @@ func (k *ParallelEVM) CopyStateDb(originStateDB *state.StateDB, list []*txnCtx) 
 			needCopy[*list[i].req.Address] = struct{}{}
 		}
 		needCopy[list[i].req.Origin] = struct{}{}
-		copiedStateDBList = append(copiedStateDBList, pending_state.NewPendingStateWrapper(pending_state.NewPendingState(originStateDB.SimpleCopy(needCopy)), int64(i)))
+		if config.GetGlobalConfig().EnableSingleStateDb {
+			copiedStateDBList = append(copiedStateDBList, pending_state.NewPendingStateWrapper(pending_state.NewPendingState(originStateDB), int64(i)))
+		} else {
+			copiedStateDBList = append(copiedStateDBList, pending_state.NewPendingStateWrapper(pending_state.NewPendingState(originStateDB.SimpleCopy(needCopy)), int64(i)))
+		}
 	}
 	return copiedStateDBList
 }

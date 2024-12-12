@@ -3,3 +3,4 @@ enableAsyncCommit=false
 maxConcurrency=4
 isBenchmarkMode=false
 ignoreConflict=false
+enableSingleStateDb=false

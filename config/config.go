@@ -8,11 +8,12 @@ import (
 )
 
 type Config struct {
-	IsParallel      bool `yaml:"isParallel"`
-	MaxConcurrency  int  `yaml:"maxConcurrency"`
-	IsBenchmarkMode bool `yaml:"isBenchmarkMode"`
-	AsyncCommit     bool `yaml:"asyncCommit"`
-	IgnoreConflict  bool `yaml:"ignoreConflict"`
+	IsParallel          bool `yaml:"isParallel"`
+	MaxConcurrency      int  `yaml:"maxConcurrency"`
+	IsBenchmarkMode     bool `yaml:"isBenchmarkMode"`
+	AsyncCommit         bool `yaml:"asyncCommit"`
+	IgnoreConflict      bool `yaml:"ignoreConflict"`
+	EnableSingleStateDb bool `yaml:"enableSingleStateDb"`
 }
 
 func defaultConfig() *Config {
