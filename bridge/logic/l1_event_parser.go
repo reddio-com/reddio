@@ -94,8 +94,8 @@ func (e *L1EventParser) ParseL1RelayMessagePayload(ctx context.Context, msg *con
 }
 
 // ParseL1CrossChainEventLogs parse l1 cross chain event logs
-func (e *L1EventParser) ParseL1CrossChainPayload(ctx context.Context, msg *contract.ParentBridgeCoreFacetDownwardMessage) ([]*orm.CrossMessage, error) {
-	l1CrossChainDepositMessages, err := e.ParseL1SingleCrossChainPayload(ctx, msg)
+func (e *L1EventParser) ParseL1CrossChainPayload(ctx context.Context, msg *contract.ParentBridgeCoreFacetDownwardMessage, tx *types.Transaction, receipt *types.Receipt) ([]*orm.CrossMessage, error) {
+	l1CrossChainDepositMessages, err := e.ParseL1SingleCrossChainPayload(ctx, msg, tx, receipt)
 	if err != nil {
 		return nil, err
 	}
@@ -131,6 +131,8 @@ func (e *L1EventParser) ParseL1CrossChainPayloadToRefundMsg(ctx context.Context,
 			CreatedAt:          time.Now().UTC(),
 			UpdatedAt:          time.Now().UTC(),
 			BlockTimestamp:     uint64(tx.Time().Unix()),
+			L1BlockNumber:      msg.Raw.BlockNumber,
+			L1TxHash:           msg.Raw.TxHash.String(),
 			L2TxHash:           receipt.TxHash.String(),
 			L2BlockNumber:      receipt.BlockNumber.Uint64(),
 		})
@@ -160,6 +162,8 @@ func (e *L1EventParser) ParseL1CrossChainPayloadToRefundMsg(ctx context.Context,
 			UpdatedAt:          time.Now().UTC(),
 			BlockTimestamp:     uint64(tx.Time().Unix()),
 			L2TxHash:           receipt.TxHash.String(),
+			L1BlockNumber:      msg.Raw.BlockNumber,
+			L1TxHash:           msg.Raw.TxHash.String(),
 			L2BlockNumber:      receipt.BlockNumber.Uint64(),
 		})
 
@@ -189,6 +193,8 @@ func (e *L1EventParser) ParseL1CrossChainPayloadToRefundMsg(ctx context.Context,
 			UpdatedAt:          time.Now().UTC(),
 			BlockTimestamp:     uint64(tx.Time().Unix()),
 			L2TxHash:           receipt.TxHash.String(),
+			L1BlockNumber:      msg.Raw.BlockNumber,
+			L1TxHash:           msg.Raw.TxHash.String(),
 			L2BlockNumber:      receipt.BlockNumber.Uint64(),
 		})
 
@@ -198,7 +204,7 @@ func (e *L1EventParser) ParseL1CrossChainPayloadToRefundMsg(ctx context.Context,
 }
 
 // ParseL1SingleCrossChainEventLogs parses L1 watched single cross chain events.
-func (e *L1EventParser) ParseL1SingleCrossChainPayload(ctx context.Context, msg *contract.ParentBridgeCoreFacetDownwardMessage) ([]*orm.CrossMessage, error) {
+func (e *L1EventParser) ParseL1SingleCrossChainPayload(ctx context.Context, msg *contract.ParentBridgeCoreFacetDownwardMessage, tx *types.Transaction, receipt *types.Receipt) ([]*orm.CrossMessage, error) {
 	var l1DepositMessages []*orm.CrossMessage
 
 	switch utils.MessagePayloadType(msg.PayloadType) {
@@ -211,10 +217,26 @@ func (e *L1EventParser) ParseL1SingleCrossChainPayload(ctx context.Context, msg 
 			return nil, err
 		}
 		l1DepositMessages = append(l1DepositMessages, &orm.CrossMessage{
-			Sender:       ethLocked.ParentSender.String(),
-			Receiver:     ethLocked.ChildRecipient.String(),
-			TokenType:    int(msg.PayloadType),
-			TokenAmounts: ethLocked.Amount.String(),
+
+			MessageType:        int(btypes.MessageTypeL2SentMessage),
+			TxStatus:           int(btypes.TxStatusTypeSent),
+			TokenType:          int(btypes.ETH),
+			TxType:             int(btypes.TxTypeDeposit),
+			Sender:             ethLocked.ParentSender.String(),
+			Receiver:           ethLocked.ChildRecipient.String(),
+			MessagePayloadType: int(btypes.ETH),
+			MessagePayload:     payloadHex,
+			MessageFrom:        ethLocked.ParentSender.String(),
+			MessageTo:          ethLocked.ChildRecipient.String(),
+			MessageValue:       ethLocked.Amount.String(),
+			TokenAmounts:       ethLocked.Amount.String(),
+			L1TxHash:           msg.Raw.TxHash.String(),
+			L1BlockNumber:      msg.Raw.BlockNumber,
+			CreatedAt:          time.Now().UTC(),
+			UpdatedAt:          time.Now().UTC(),
+			BlockTimestamp:     uint64(tx.Time().Unix()),
+			L2TxHash:           receipt.TxHash.String(),
+			L2BlockNumber:      receipt.BlockNumber.Uint64(),
 		})
 	case utils.ERC20:
 		payloadHex := hex.EncodeToString(msg.Payload)
@@ -225,13 +247,26 @@ func (e *L1EventParser) ParseL1SingleCrossChainPayload(ctx context.Context, msg 
 			return nil, err
 		}
 		l1DepositMessages = append(l1DepositMessages, &orm.CrossMessage{
-			Sender:         erc20Locked.ParentSender.String(),
-			Receiver:       erc20Locked.ChildRecipient.String(),
-			TokenType:      int(msg.PayloadType),
-			TokenAmounts:   erc20Locked.Amount.String(),
-			L1TokenAddress: erc20Locked.TokenAddress.String(),
+			MessageType:        int(btypes.MessageTypeL2SentMessage),
+			TxStatus:           int(btypes.TxStatusTypeSent),
+			TokenType:          int(btypes.ERC20),
+			TxType:             int(btypes.TxTypeDeposit),
+			Sender:             erc20Locked.ParentSender.String(),
+			Receiver:           erc20Locked.ChildRecipient.String(),
+			MessagePayloadType: int(btypes.ERC20),
+			MessagePayload:     payloadHex,
+			MessageFrom:        erc20Locked.ParentSender.String(),
+			MessageTo:          erc20Locked.ChildRecipient.String(),
+			MessageValue:       erc20Locked.Amount.String(),
+			TokenAmounts:       erc20Locked.Amount.String(),
+			L1BlockNumber:      msg.Raw.BlockNumber,
+			L1TxHash:           msg.Raw.TxHash.String(),
+			CreatedAt:          time.Now().UTC(),
+			UpdatedAt:          time.Now().UTC(),
+			BlockTimestamp:     uint64(tx.Time().Unix()),
+			L2TxHash:           receipt.TxHash.String(),
+			L2BlockNumber:      receipt.BlockNumber.Uint64(),
 		})
-
 	case utils.RED:
 		payloadHex := hex.EncodeToString(msg.Payload)
 
@@ -241,11 +276,25 @@ func (e *L1EventParser) ParseL1SingleCrossChainPayload(ctx context.Context, msg 
 			return nil, err
 		}
 		l1DepositMessages = append(l1DepositMessages, &orm.CrossMessage{
-			Sender:         redLocked.ParentSender.String(),
-			Receiver:       redLocked.ChildRecipient.String(),
-			TokenType:      int(msg.PayloadType),
-			TokenAmounts:   redLocked.Amount.String(),
-			L1TokenAddress: redLocked.TokenAddress.String(),
+			MessageType:        int(btypes.MessageTypeL2SentMessage),
+			TxStatus:           int(btypes.TxStatusTypeSent),
+			TokenType:          int(btypes.RED),
+			TxType:             int(btypes.TxTypeDeposit),
+			Sender:             redLocked.ParentSender.String(),
+			Receiver:           redLocked.ChildRecipient.String(),
+			MessagePayloadType: int(btypes.RED),
+			MessagePayload:     payloadHex,
+			MessageFrom:        redLocked.ParentSender.String(),
+			MessageTo:          redLocked.ChildRecipient.String(),
+			MessageValue:       redLocked.Amount.String(),
+			TokenAmounts:       redLocked.Amount.String(),
+			CreatedAt:          time.Now().UTC(),
+			UpdatedAt:          time.Now().UTC(),
+			BlockTimestamp:     uint64(tx.Time().Unix()),
+			L2TxHash:           receipt.TxHash.String(),
+			L2BlockNumber:      receipt.BlockNumber.Uint64(),
+			L1BlockNumber:      msg.Raw.BlockNumber,
+			L1TxHash:           msg.Raw.TxHash.String(),
 		})
 
 	}

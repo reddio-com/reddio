@@ -15,6 +15,8 @@ const (
 	ErrParameterInvalidNo = 40001
 	// ErrGetL2ClaimableWithdrawalsError represents an error when trying to get L2 claimable withdrawal transactions.
 	ErrGetL2ClaimableWithdrawalsError = 40002
+	// ErrGetTxsError represents an error when trying to get transactions by address.
+	ErrGetTxsError = 40003
 )
 
 type TokenType int

@@ -79,6 +79,38 @@ func (h *HistoryLogic) GetL2UnclaimedWithdrawalsByAddress(ctx context.Context, a
 	return txHistoryInfos, uint64(total), nil
 }
 
+// GetL2UnclaimedWithdrawalsByAddress gets all unclaimed withdrawal txs under given address.
+func (h *HistoryLogic) GetTxsByAddress(ctx context.Context, address string, page, pageSize uint64) ([]*types.TxHistoryInfo, uint64, error) {
+	cacheKey := fmt.Sprintf("txs_by_address_%s_%d_%d", address, page, pageSize)
+	log.Info("cache miss", "cache key", cacheKey)
+	//fmt.Println("cache miss", "cache key", cacheKey)
+	var total uint64
+	result, err, _ := h.singleFlight.Do(cacheKey, func() (interface{}, error) {
+		var txHistoryInfos []*types.TxHistoryInfo
+		crossMessages, totalCount, getErr := h.crossMessageOrm.GetTxsByAddress(ctx, address, page, pageSize)
+		if getErr != nil {
+			return nil, getErr
+		}
+		for _, message := range crossMessages {
+			txHistoryInfos = append(txHistoryInfos, getTxHistoryInfoFromCrossMessage(message))
+		}
+		total = totalCount
+		return txHistoryInfos, nil
+	})
+	if err != nil {
+		log.Error("failed to get L2 claimable withdrawals by address", "address", address, "error", err)
+		return nil, 0, err
+	}
+
+	txHistoryInfos, ok := result.([]*types.TxHistoryInfo)
+	if !ok {
+		log.Error("unexpected type", "expected", "[]*types.TxHistoryInfo", "got", reflect.TypeOf(result), "address", address)
+		return nil, 0, errors.New("unexpected error")
+	}
+
+	return txHistoryInfos, uint64(total), nil
+}
+
 func getTxHistoryInfoFromCrossMessage(message *orm.CrossMessage) *types.TxHistoryInfo {
 	txHistory := &types.TxHistoryInfo{
 		MessageHash:    message.MessageHash,

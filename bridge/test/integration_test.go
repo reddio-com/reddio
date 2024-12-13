@@ -26,13 +26,14 @@ var (
 	sepoliaHelpConfig = helpConfig{
 		testAdmin:       "",
 		L1ClientAddress: "",
+		//L2ClientAddress: "https://reddio-dev.reddio.com/",
 		//L2ClientAddress: "https://reddio-evm-bridge.reddio.com/",
 		L2ClientAddress:            "http://localhost:9092",
 		ParentlayerContractAddress: "0x9F7e49fcAB7eD379451e8422D20908bF439011A5",
 		//ChildlayerContractAddress:  "0xe54eBA8bC87E43dF13109b4b2Fbcc111CAd6b4B4",
 		ChildlayerContractAddress: "0xeC054c6ee2DbbeBC9EbCA50CdBF94A94B02B2E40",
-		//testPublicKey1:             "0x0CC0cD4A9024A2d15BbEdd348Fbf7Cd69B5489bA",
-		testPublicKey1:          "0x7888b7B844B4B16c03F8daCACef7dDa0F5188645",
+		testPublicKey1:            "0x0CC0cD4A9024A2d15BbEdd348Fbf7Cd69B5489bA",
+		//testPublicKey1:          "0x7888b7B844B4B16c03F8daCACef7dDa0F5188645",
 		testPublicKey2:          "0x66eb032B3a74d85C8b6965a4df788f3C31678b1a",
 		adminPublicKey:          "0x7Bd36074b61Cfe75a53e1B9DF7678C96E6463b02",
 		maxRetries:              300,
@@ -181,6 +182,63 @@ func TestDepositETH(t *testing.T) {
 		assert.Equal(t, expectedBalance, balance)
 	})
 }
+func TestTransferETHToZeroAddress(t *testing.T) {
+	// Arrange
+	l2Client, err := ethclient.Dial(sepoliaHelpConfig.L2ClientAddress)
+	require.NoError(t, err)
+	defer l2Client.Close()
+	startBalance, err := l2Client.BalanceAt(context.Background(), common.HexToAddress("0x0000000000000000000000000000000000000000"), nil)
+	if err != nil {
+		log.Fatalf("Failed to get balance: %v", err)
+	}
+	fmt.Println("Start Balance: ", startBalance)
+	assert.Equal(t, 1, 2)
+
+	gasPrice, err := l2Client.SuggestGasPrice(context.Background())
+	require.NoError(t, err)
+	chainID, err := l2Client.ChainID(context.Background())
+	require.NoError(t, err)
+
+	privateKeyStr, err := utils.LoadPrivateKey("../test/.sepolia.env")
+	require.NoError(t, err)
+	privateKey, err := crypto.HexToECDSA(privateKeyStr)
+	require.NoError(t, err)
+
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+	require.NoError(t, err)
+	auth.GasPrice = gasPrice
+
+	// 获取当前账户的nonce
+	nonce, err := l2Client.PendingNonceAt(context.Background(), auth.From)
+	require.NoError(t, err)
+
+	// 设置auth的nonce
+	auth.Nonce = big.NewInt(int64(nonce))
+
+	transferAmount := big.NewInt(1e18) // 1 ETH
+
+	tx := types.NewTransaction(
+		nonce,
+		common.HexToAddress("0x0000000000000000000000000000000000000000"),
+		transferAmount,
+		auth.GasLimit,
+		auth.GasPrice,
+		nil,
+	)
+
+	signedTx, err := auth.Signer(auth.From, tx)
+	require.NoError(t, err)
+
+	err = l2Client.SendTransaction(context.Background(), signedTx)
+
+	require.NoError(t, err)
+	fmt.Println("Transaction sent: ", signedTx.Hash().Hex())
+
+	success, err := waitForConfirmation(l2Client, signedTx.Hash())
+	require.NoError(t, err)
+	assert.True(t, success)
+	fmt.Println("Transaction confirmed: ", signedTx.Hash().Hex())
+}
 
 // testCaseinfo:
 // 1. approve ERC20 token
@@ -188,8 +246,8 @@ func TestDepositETH(t *testing.T) {
 // 3. check the balance of testPublicKey2 in l2 is increased by depositAmount
 func TestDepositERC20(t *testing.T) {
 	t.Run("DepositERC20", func(t *testing.T) {
-		fmt.Println("DepositERC202000")
-		depositAmount := big.NewInt(100000000000)
+		fmt.Println("DepositERC2020")
+		depositAmount := big.NewInt(100)
 		// Arrange
 		l1Client, err := ethclient.Dial(sepoliaHelpConfig.L1ClientAddress)
 		require.NoError(t, err)
@@ -599,7 +657,7 @@ func TestWithdrawETH(t *testing.T) {
 func TestWithdrawRED(t *testing.T) {
 	t.Run("WithdrawRED", func(t *testing.T) {
 		fmt.Println("WithdrawRED")
-		withdrawAmount := big.NewInt(100)
+		withdrawAmount := big.NewInt(2000)
 
 		// Arrange
 		l1Client, err := ethclient.Dial(sepoliaHelpConfig.L1ClientAddress)

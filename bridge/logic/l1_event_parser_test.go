@@ -5,8 +5,11 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"math/big"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/reddio-com/reddio/bridge/contract"
 	"github.com/reddio-com/reddio/bridge/utils"
 	"github.com/stretchr/testify/assert"
@@ -25,11 +28,32 @@ func TestETHParseL1SingleCrossChainEventLogs(t *testing.T) {
 	payloadHex := fmt.Sprintf("0x%s", hex.EncodeToString(payload))
 	t.Log("Payload Hex:", payloadHex)
 
+	tx := types.NewTransaction(
+		1,                          // nonce
+		common.HexToAddress("0x0"), // to address
+		big.NewInt(0),              // value
+		21000,                      // gas limit
+		big.NewInt(1),              // gas price
+		nil,                        // data
+	)
 	msg := &contract.ParentBridgeCoreFacetDownwardMessage{
 		PayloadType: uint32(utils.ETH),
 		Payload:     payload,
+		Raw: types.Log{
+			TxHash:      tx.Hash(),
+			BlockNumber: 1,
+		},
 	}
-	l1DepositMessages, err := parser.ParseL1SingleCrossChainPayload(context.Background(), msg)
+	receipt := &types.Receipt{
+		Status:            types.ReceiptStatusSuccessful,
+		CumulativeGasUsed: 21000,
+		Logs:              []*types.Log{},
+		TxHash:            tx.Hash(),
+		ContractAddress:   common.HexToAddress("0x0"),
+		GasUsed:           21000,
+		BlockNumber:       big.NewInt(1),
+	}
+	l1DepositMessages, err := parser.ParseL1SingleCrossChainPayload(context.Background(), msg, tx, receipt)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, l1DepositMessages)
@@ -50,11 +74,32 @@ func TestREDParseL1SingleCrossChainEventLogs(t *testing.T) {
 		t.Fatalf("Failed to decode payload: %v", err)
 	}
 
+	tx := types.NewTransaction(
+		1,                          // nonce
+		common.HexToAddress("0x0"), // to address
+		big.NewInt(0),              // value
+		21000,                      // gas limit
+		big.NewInt(1),              // gas price
+		nil,                        // data
+	)
 	msg := &contract.ParentBridgeCoreFacetDownwardMessage{
 		PayloadType: uint32(utils.RED),
 		Payload:     payload,
+		Raw: types.Log{
+			TxHash:      tx.Hash(),
+			BlockNumber: 1,
+		},
 	}
-	l1DepositMessages, err := parser.ParseL1SingleCrossChainPayload(context.Background(), msg)
+	receipt := &types.Receipt{
+		Status:            types.ReceiptStatusSuccessful,
+		CumulativeGasUsed: 21000,
+		Logs:              []*types.Log{},
+		TxHash:            tx.Hash(),
+		ContractAddress:   common.HexToAddress("0x0"),
+		GasUsed:           21000,
+		BlockNumber:       big.NewInt(1),
+	}
+	l1DepositMessages, err := parser.ParseL1SingleCrossChainPayload(context.Background(), msg, tx, receipt)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, l1DepositMessages)
@@ -76,12 +121,33 @@ func TestERC20ParseL1SingleCrossChainEventLogs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to decode payload: %v", err)
 	}
-
+	tx := types.NewTransaction(
+		1,                          // nonce
+		common.HexToAddress("0x0"), // to address
+		big.NewInt(0),              // value
+		21000,                      // gas limit
+		big.NewInt(1),              // gas price
+		nil,                        // data
+	)
 	msg := &contract.ParentBridgeCoreFacetDownwardMessage{
 		PayloadType: uint32(utils.ERC20),
 		Payload:     payload,
+		Raw: types.Log{
+			TxHash:      tx.Hash(),
+			BlockNumber: 1,
+		},
 	}
-	l1DepositMessages, err := parser.ParseL1SingleCrossChainPayload(context.Background(), msg)
+	receipt := &types.Receipt{
+		Status:            types.ReceiptStatusSuccessful,
+		CumulativeGasUsed: 21000,
+		Logs:              []*types.Log{},
+		TxHash:            tx.Hash(),
+		ContractAddress:   common.HexToAddress("0x0"),
+		GasUsed:           21000,
+		BlockNumber:       big.NewInt(1),
+	}
+
+	l1DepositMessages, err := parser.ParseL1SingleCrossChainPayload(context.Background(), msg, tx, receipt)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, l1DepositMessages)
@@ -104,11 +170,32 @@ func TestERC20ParseL1SingleCrossChainEventLogs2(t *testing.T) {
 		t.Fatalf("Failed to decode payload: %v", err)
 	}
 
+	tx := types.NewTransaction(
+		1,                          // nonce
+		common.HexToAddress("0x0"), // to address
+		big.NewInt(0),              // value
+		21000,                      // gas limit
+		big.NewInt(1),              // gas price
+		nil,                        // data
+	)
 	msg := &contract.ParentBridgeCoreFacetDownwardMessage{
 		PayloadType: uint32(utils.ERC20),
 		Payload:     payload,
+		Raw: types.Log{
+			TxHash:      tx.Hash(),
+			BlockNumber: 1,
+		},
 	}
-	l1DepositMessages, err := parser.ParseL1SingleCrossChainPayload(context.Background(), msg)
+	receipt := &types.Receipt{
+		Status:            types.ReceiptStatusSuccessful,
+		CumulativeGasUsed: 21000,
+		Logs:              []*types.Log{},
+		TxHash:            tx.Hash(),
+		ContractAddress:   common.HexToAddress("0x0"),
+		GasUsed:           21000,
+		BlockNumber:       big.NewInt(1),
+	}
+	l1DepositMessages, err := parser.ParseL1SingleCrossChainPayload(context.Background(), msg, tx, receipt)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, l1DepositMessages)
@@ -131,11 +218,32 @@ func TestERC20ParseL1SingleCrossChainEventLogs3(t *testing.T) {
 		t.Fatalf("Failed to decode payload: %v", err)
 	}
 
+	tx := types.NewTransaction(
+		1,                          // nonce
+		common.HexToAddress("0x0"), // to address
+		big.NewInt(0),              // value
+		21000,                      // gas limit
+		big.NewInt(1),              // gas price
+		nil,                        // data
+	)
 	msg := &contract.ParentBridgeCoreFacetDownwardMessage{
 		PayloadType: uint32(utils.ERC20),
 		Payload:     payload,
+		Raw: types.Log{
+			TxHash:      tx.Hash(),
+			BlockNumber: 1,
+		},
 	}
-	l1DepositMessages, err := parser.ParseL1SingleCrossChainPayload(context.Background(), msg)
+	receipt := &types.Receipt{
+		Status:            types.ReceiptStatusSuccessful,
+		CumulativeGasUsed: 21000,
+		Logs:              []*types.Log{},
+		TxHash:            tx.Hash(),
+		ContractAddress:   common.HexToAddress("0x0"),
+		GasUsed:           21000,
+		BlockNumber:       big.NewInt(1),
+	}
+	l1DepositMessages, err := parser.ParseL1SingleCrossChainPayload(context.Background(), msg, tx, receipt)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, l1DepositMessages)
