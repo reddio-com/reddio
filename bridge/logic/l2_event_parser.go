@@ -200,6 +200,58 @@ func (e *L2EventParser) ParseL2SingleCrossChainEventLogs(ctx context.Context, lo
 					CreatedAt:    time.Now().UTC(),
 					UpdatedAt:    time.Now().UTC(),
 				})
+				// case utils.ERC721:
+				// 	payloadHex := hex.EncodeToString(event.Payload)
+				// 	l2ERC721BurntMsg, err := decodeERC721TokenBurnt(payloadHex)
+				// 	if err != nil {
+				// 		log.Error("Failed to decode ERC721TokenBurnt", "err", err)
+				// 		return nil, err
+				// 	}
+				// 	l2WithdrawMessages = append(l2WithdrawMessages, &orm.CrossMessage{
+				// 		MessageType:        int(btypes.MessageTypeL2SentMessage),
+				// 		TxStatus:           int(btypes.TxStatusTypeSent),
+				// 		TokenType:          int(btypes.ERC721),
+				// 		TxType:             int(btypes.TxTypeWithdraw),
+				// 		L1TokenAddress:     l2ERC721BurntMsg.TokenAddress.String(),
+				// 		Sender:             l2ERC721BurntMsg.ChildSender.String(),
+				// 		Receiver:           l2ERC721BurntMsg.ParentRecipient.String(),
+				// 		L2TxHash:           vlog.TxHash.String(),
+				// 		L2BlockNumber:      vlog.BlockNumber,
+				// 		MessagePayloadType: int(btypes.ERC721),
+				// 		MessagePayload:     payloadHex,
+				// 		MessageFrom:        l2ERC721BurntMsg.ChildSender.String(),
+				// 		MessageTo:          l2ERC721BurntMsg.ParentRecipient.String(),
+				// 		MessageValue:       l2ERC721BurntMsg.TokenID.String(),
+				// 		TokenAmounts:       l2ERC721BurntMsg.TokenID.String(),
+				// 		CreatedAt:          time.Now().UTC(),
+				// 		UpdatedAt:          time.Now().UTC(),
+				// 	})
+				// case utils.ERC1155:
+				// 	payloadHex := hex.EncodeToString(event.Payload)
+				// 	l2ERC1155BurntMsg, err := decodeERC1155BatchTokenBurnt(payloadHex)
+				// 	if err != nil {
+				// 		log.Error("Failed to decode ERC1155BatchTokenBurnt", "err", err)
+				// 		return nil, err
+				// 	}
+				// 	l2WithdrawMessages = append(l2WithdrawMessages, &orm.CrossMessage{
+				// 		MessageType:        int(btypes.MessageTypeL2SentMessage),
+				// 		TxStatus:           int(btypes.TxStatusTypeSent),
+				// 		TokenType:          int(btypes.ERC1155),
+				// 		TxType:             int(btypes.TxTypeWithdraw),
+				// 		L1TokenAddress:     l2ERC1155BurntMsg.TokenAddress.String(),
+				// 		Sender:             l2ERC1155BurntMsg.ChildSender.String(),
+				// 		Receiver:           l2ERC1155BurntMsg.ParentRecipient.String(),
+				// 		L2TxHash:           vlog.TxHash.String(),
+				// 		L2BlockNumber:      vlog.BlockNumber,
+				// 		MessagePayloadType: int(btypes.ERC1155),
+				// 		MessagePayload:     payloadHex,
+				// 		MessageFrom:        l2ERC1155BurntMsg.ChildSender.String(),
+				// 		MessageTo:          l2ERC1155BurntMsg.ParentRecipient.String(),
+				// 		MessageValue:       "",
+				// 		TokenAmounts:       "",
+				// 		CreatedAt:          time.Now().UTC(),
+				// 		UpdatedAt:          time.Now().UTC(),
+				// 	})
 			}
 		}
 	}
@@ -262,4 +314,61 @@ func decodeERC20TokenBurnt(payloadHex string) (*L2ERC20TokenBurnt, error) {
 
 	return erc20Burnt, nil
 
+}
+
+func decodeERC721TokenBurnt(payloadHex string) (*L2Erc721TokenBurnt, error) {
+	payload, err := hex.DecodeString(payloadHex)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode payload: %v", err)
+	}
+
+	if len(payload) != 32+32+32+32 {
+		return nil, fmt.Errorf("invalid payload length: %d", len(payload))
+	}
+
+	erc721Burnt := &L2Erc721TokenBurnt{
+		TokenAddress:    common.BytesToAddress(payload[0:32]),
+		ChildSender:     common.BytesToAddress(payload[32:64]),
+		ParentRecipient: common.BytesToAddress(payload[64:96]),
+		TokenID:         new(big.Int).SetBytes(payload[96:128]),
+	}
+
+	return erc721Burnt, nil
+}
+func decodeERC1155BatchTokenBurnt(payloadHex string) (*L2Erc1155BatchTokenBurnt, error) {
+	payload, err := hex.DecodeString(payloadHex)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode payload: %v", err)
+	}
+
+	if len(payload) < 96 {
+		return nil, fmt.Errorf("invalid payload length: %d", len(payload))
+	}
+
+	erc1155Burnt := &L2Erc1155BatchTokenBurnt{
+		TokenAddress:    common.BytesToAddress(payload[0:32]),
+		ChildSender:     common.BytesToAddress(payload[32:64]),
+		ParentRecipient: common.BytesToAddress(payload[64:96]),
+	}
+
+	offset := 96
+	for offset < len(payload) {
+		if offset+32 > len(payload) {
+			return nil, fmt.Errorf("invalid payload length for TokenIDs: %d", len(payload))
+		}
+		tokenID := new(big.Int).SetBytes(payload[offset : offset+32])
+		erc1155Burnt.TokenIDs = append(erc1155Burnt.TokenIDs, tokenID)
+		offset += 32
+	}
+
+	for offset < len(payload) {
+		if offset+32 > len(payload) {
+			return nil, fmt.Errorf("invalid payload length for Amounts: %d", len(payload))
+		}
+		amount := new(big.Int).SetBytes(payload[offset : offset+32])
+		erc1155Burnt.Amounts = append(erc1155Burnt.Amounts, amount)
+		offset += 32
+	}
+
+	return erc1155Burnt, nil
 }

@@ -23,5 +23,6 @@ func Route(router *gin.Engine) {
 	// bridgeApi := api.NewBridgeAPI(db)
 	// r.GET("/test", bridgeApi.GetStatus)
 	r.POST("/withdrawals", api.L2UnclaimedWithdrawalsByAddressCtl.GetL2UnclaimedWithdrawalsByAddress)
+	r.POST("/txsbyaddress", api.TxsByAddressCtl.GetTxsByAddress)
 
 }

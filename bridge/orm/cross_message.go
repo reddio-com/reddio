@@ -81,7 +81,7 @@ func (c *CrossMessage) GetL2UnclaimedWithdrawalsByAddress(ctx context.Context, s
 	db = db.Model(&CrossMessage{})
 	db = db.Where("message_type = ?", btypes.MessageTypeL2SentMessage)
 	db = db.Where("tx_status = ?", btypes.TxStatusTypeSent)
-	db = db.Where("message_from = ?", sender)
+	db = db.Where("sender = ?", sender)
 	db = db.Order("block_timestamp desc")
 	db = db.Limit(500)
 
@@ -97,6 +97,30 @@ func (c *CrossMessage) GetL2UnclaimedWithdrawalsByAddress(ctx context.Context, s
 		return nil, 0, fmt.Errorf("failed to get L2 claimable withdrawal messages by sender address, message_from: %v, error: %w", sender, err)
 	}
 
+	return messages, uint64(total), nil
+}
+
+// GetTxsByAddress retrieves all txs for a given sender address.
+func (c *CrossMessage) GetTxsByAddress(ctx context.Context, sender string, page, pageSize uint64) ([]*CrossMessage, uint64, error) {
+	var messages []*CrossMessage
+	var total int64
+	db := c.db.WithContext(ctx)
+	db = db.Model(&CrossMessage{})
+	db = db.Where("sender = ?", sender)
+	db = db.Order("block_timestamp desc")
+	db = db.Limit(500)
+
+	// Count total records
+	if err := db.Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to count all txs by sender address, sender: %v, error: %w", sender, err)
+	}
+
+	// Apply pagination
+	db = db.Offset(int((page - 1) * pageSize)).Limit(int(pageSize))
+
+	if err := db.Find(&messages).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to get all txs by sender address, sender: %v, error: %w", sender, err)
+	}
 	return messages, uint64(total), nil
 }
 

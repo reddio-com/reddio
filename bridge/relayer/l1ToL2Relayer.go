@@ -163,8 +163,19 @@ func (b *L1ToL2Relayer) HandleDownwardMessageWithSystemCall(msg *contract.Parent
 		}
 		metrics.DownwardMessageFailureCounter.WithLabelValues(fmt.Sprintf("%d", msg.PayloadType)).Inc()
 	} else if success {
-		metrics.DownwardMessageSuccessCounter.WithLabelValues(fmt.Sprintf("%d", msg.PayloadType)).Inc()
-
+		if receipt != nil {
+			crossMessages, err := b.l1EventParser.ParseL1CrossChainPayload(b.ctx, msg, tx, receipt)
+			if err != nil {
+				log.Printf("Failed to parse L1 cross chain payload: %v", err)
+			}
+			metrics.DownwardMessageSuccessCounter.WithLabelValues(fmt.Sprintf("%d", msg.PayloadType)).Inc()
+			if crossMessages != nil {
+				err = b.crossMessageOrm.InsertOrUpdateL2Messages(context.Background(), crossMessages)
+				if err != nil {
+					fmt.Println("Failed to insert or update L2 messages:", err)
+				}
+			}
+		}
 	}
 
 	return nil
@@ -300,7 +311,7 @@ func waitForConfirmation(client *ethclient.Client, txHash common.Hash) (bool, *t
 		receipt, err := client.TransactionReceipt(context.Background(), txHash)
 		if err == nil {
 			if receipt.Status == types.ReceiptStatusSuccessful {
-				return true, nil, nil
+				return true, receipt, nil
 			}
 			return false, receipt, fmt.Errorf("transaction failed with status: %v", receipt.Status)
 		}
