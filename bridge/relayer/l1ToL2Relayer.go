@@ -169,12 +169,7 @@ func (b *L1ToL2Relayer) HandleDownwardMessageWithSystemCall(msg *contract.Parent
 				log.Printf("Failed to parse L1 cross chain payload: %v", err)
 			}
 			metrics.DownwardMessageSuccessCounter.WithLabelValues(fmt.Sprintf("%d", msg.PayloadType)).Inc()
-			if crossMessages != nil {
-				err = b.crossMessageOrm.InsertOrUpdateL2Messages(context.Background(), crossMessages)
-				if err != nil {
-					fmt.Println("Failed to insert or update L2 messages:", err)
-				}
-			}
+			b.insertDeposit(crossMessages, downwardMessages[0].Nonce)
 		}
 	}
 
@@ -366,6 +361,42 @@ func (b *L1ToL2Relayer) refund(msgs []*orm.CrossMessage) error {
 	if msgs != nil {
 		//fmt.Println("msgs:", msgs)
 		err = b.crossMessageOrm.InsertOrUpdateL2Messages(context.Background(), msgs)
+		if err != nil {
+			fmt.Println("Failed to insert or update L2 messages:", err)
+		}
+	}
+	return nil
+}
+
+func (b *L1ToL2Relayer) insertDeposit(msgs []*orm.CrossMessage, messageNonce *big.Int) error {
+
+	for _, msg := range msgs {
+		var downwardMessages []contract.UpwardMessage
+		payloadBytes, err := hex.DecodeString(msg.MessagePayload)
+		if err != nil {
+			//fmt.Println("Failed to decode hex string:", err)
+			return err
+		}
+		downwardMessages = append(downwardMessages, contract.UpwardMessage{
+			PayloadType: uint32(msg.MessagePayloadType),
+			Payload:     payloadBytes,
+		})
+
+		messageHash, err := utils.ComputeMessageHash(downwardMessages[0].PayloadType, downwardMessages[0].Payload, messageNonce)
+		if err != nil {
+			log.Fatalf("Failed to compute message hash: %v", err)
+		}
+		msg.MessageHash = messageHash.Hex()
+		//fmt.Println("msg.MessageHash:", msg.MessageHash)
+		msg.MessageNonce = messageNonce.String()
+
+		//msg.BlockTimestamp = blockTimestampsMap[msg.L2BlockNumber]
+		//fmt.Println("msg.MultiSignProof:", msg.MultiSignProof)
+	}
+
+	if msgs != nil {
+		//fmt.Println("msgs:", msgs)
+		err := b.crossMessageOrm.InsertOrUpdateL2Messages(context.Background(), msgs)
 		if err != nil {
 			fmt.Println("Failed to insert or update L2 messages:", err)
 		}

@@ -115,6 +115,7 @@ func (e *L1EventParser) ParseL1CrossChainPayloadToRefundMsg(ctx context.Context,
 			log.Error("Failed to decode ETHLocked", "err", err)
 			return nil, err
 		}
+
 		refundMessages = append(refundMessages, &orm.CrossMessage{
 			MessageType:        int(btypes.MessageTypeL2SentMessage),
 			TxStatus:           int(btypes.TxStatusTypeSent),
@@ -255,6 +256,7 @@ func (e *L1EventParser) ParseL1SingleCrossChainPayload(ctx context.Context, msg 
 			Receiver:           erc20Locked.ChildRecipient.String(),
 			MessagePayloadType: int(btypes.ERC20),
 			MessagePayload:     payloadHex,
+			L1TokenAddress:     erc20Locked.TokenAddress.String(),
 			MessageFrom:        erc20Locked.ParentSender.String(),
 			MessageTo:          erc20Locked.ChildRecipient.String(),
 			MessageValue:       erc20Locked.Amount.String(),
@@ -284,6 +286,7 @@ func (e *L1EventParser) ParseL1SingleCrossChainPayload(ctx context.Context, msg 
 			Receiver:           redLocked.ChildRecipient.String(),
 			MessagePayloadType: int(btypes.RED),
 			MessagePayload:     payloadHex,
+			L1TokenAddress:     redLocked.TokenAddress.String(),
 			MessageFrom:        redLocked.ParentSender.String(),
 			MessageTo:          redLocked.ChildRecipient.String(),
 			MessageValue:       redLocked.Amount.String(),
