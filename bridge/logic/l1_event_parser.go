@@ -218,8 +218,8 @@ func (e *L1EventParser) ParseL1SingleCrossChainPayload(ctx context.Context, msg 
 		}
 		l1DepositMessages = append(l1DepositMessages, &orm.CrossMessage{
 
-			MessageType:        int(btypes.MessageTypeL2SentMessage),
-			TxStatus:           int(btypes.TxStatusTypeSent),
+			MessageType:        int(btypes.MessageTypeL1SentMessage),
+			TxStatus:           int(btypes.TxStatusTypeConsumed),
 			TokenType:          int(btypes.ETH),
 			TxType:             int(btypes.TxTypeDeposit),
 			Sender:             ethLocked.ParentSender.String(),
@@ -247,8 +247,8 @@ func (e *L1EventParser) ParseL1SingleCrossChainPayload(ctx context.Context, msg 
 			return nil, err
 		}
 		l1DepositMessages = append(l1DepositMessages, &orm.CrossMessage{
-			MessageType:        int(btypes.MessageTypeL2SentMessage),
-			TxStatus:           int(btypes.TxStatusTypeSent),
+			MessageType:        int(btypes.MessageTypeL1SentMessage),
+			TxStatus:           int(btypes.TxStatusTypeConsumed),
 			TokenType:          int(btypes.ERC20),
 			TxType:             int(btypes.TxTypeDeposit),
 			Sender:             erc20Locked.ParentSender.String(),
@@ -276,8 +276,8 @@ func (e *L1EventParser) ParseL1SingleCrossChainPayload(ctx context.Context, msg 
 			return nil, err
 		}
 		l1DepositMessages = append(l1DepositMessages, &orm.CrossMessage{
-			MessageType:        int(btypes.MessageTypeL2SentMessage),
-			TxStatus:           int(btypes.TxStatusTypeSent),
+			MessageType:        int(btypes.MessageTypeL1SentMessage),
+			TxStatus:           int(btypes.TxStatusTypeConsumed),
 			TokenType:          int(btypes.RED),
 			TxType:             int(btypes.TxTypeDeposit),
 			Sender:             redLocked.ParentSender.String(),
