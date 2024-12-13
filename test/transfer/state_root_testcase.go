@@ -99,7 +99,7 @@ func (s *StateRootAssertTestCase) Run(ctx context.Context, m *pkg.WalletManager)
 		return err
 	}
 	if result.StateRoot != stateRoot {
-		return fmt.Errorf("expected stateRoot %v, got %v", stateRoot, result.StateRoot)
+		return fmt.Errorf("expected stateRoot %s, got %s", stateRoot.String(), result.StateRoot.String())
 	}
 	return nil
 }
