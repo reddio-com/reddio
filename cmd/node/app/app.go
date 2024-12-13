@@ -47,6 +47,7 @@ func Start(evmPath, yuPath, poaPath, configPath string) {
 
 func StartUpChain(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm.GethConfig) {
 	figure.NewColorFigure("Reddio", "big", "green", false).Print()
+	fmt.Println("--- Start the Reddio Chain ---")
 	var db *gorm.DB
 	var err error
 	if evmCfg.EnableBridge {
