@@ -377,6 +377,9 @@ func (s *Solidity) Commit(block *yu_types.Block) {
 }
 
 func (s *Solidity) buyGas(state vm.StateDB, req *TxRequest) error {
+	if req.IsInternalCall {
+		return nil
+	}
 	gasFee := new(big.Int).Mul(req.GasPrice, new(big.Int).SetUint64(req.GasLimit))
 	gasFeeU256, _ := uint256.FromBig(gasFee)
 	if state.GetBalance(req.Origin).Cmp(gasFeeU256) < 0 {
@@ -388,15 +391,18 @@ func (s *Solidity) buyGas(state vm.StateDB, req *TxRequest) error {
 	return nil
 }
 
-func (s *Solidity) refundGas(state vm.StateDB, tx *TxRequest, gasUsed uint64, refundQuotient uint64) {
+func (s *Solidity) refundGas(state vm.StateDB, req *TxRequest, gasUsed uint64, refundQuotient uint64) {
+	if req.IsInternalCall {
+		return
+	}
 	refund := gasUsed / refundQuotient
 	if refund > state.GetRefund() {
 		refund = state.GetRefund()
 	}
-	remainGas := tx.GasLimit - gasUsed + refund
-	refundFee := new(big.Int).Mul(tx.GasPrice, new(big.Int).SetUint64(remainGas))
+	remainGas := req.GasLimit - gasUsed + refund
+	refundFee := new(big.Int).Mul(req.GasPrice, new(big.Int).SetUint64(remainGas))
 	refundFeeU256, _ := uint256.FromBig(refundFee)
-	state.AddBalance(tx.Origin, refundFeeU256, tracing.BalanceIncreaseGasReturn)
+	state.AddBalance(req.Origin, refundFeeU256, tracing.BalanceIncreaseGasReturn)
 	// s.gasPool.AddGas(remainGas)
 }
 
