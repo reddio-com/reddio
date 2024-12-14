@@ -57,6 +57,9 @@ func (k *ParallelEVM) clearObjInc() {
 }
 
 func (k *ParallelEVM) updateTxnObjSub(txns []*txnCtx) {
+	if !config.GetGlobalConfig().AsyncCommit {
+		return
+	}
 	sub := func(key common2.Address) {
 		v, ok := k.objectInc[key]
 		if ok {
@@ -75,7 +78,11 @@ func (k *ParallelEVM) updateTxnObjSub(txns []*txnCtx) {
 		sub(txn.req.Origin)
 	}
 }
+
 func (k *ParallelEVM) updateTxnObjInc(txns []*txnCtx) {
+	if !config.GetGlobalConfig().AsyncCommit {
+		return
+	}
 	inc := func(key common2.Address) {
 		v, ok := k.objectInc[key]
 		if ok {
@@ -188,6 +195,7 @@ func (k *ParallelEVM) splitTxnCtxList(list []*txnCtx) [][]*txnCtx {
 	if len(curList) > 0 {
 		got = append(got, curList)
 	}
+	k.statManager.TxnBatchCount = len(got)
 	return got
 }
 
@@ -221,6 +229,12 @@ func checkAddressConflict(curTxn *txnCtx, curList []*txnCtx) bool {
 }
 
 func (k *ParallelEVM) executeTxnCtxList(list []*txnCtx) []*txnCtx {
+	defer func() {
+		if config.GetGlobalConfig().AsyncCommit {
+			k.updateTxnObjSub(list)
+			k.Solidity.StateDB().PendingCommit(true, k.objectInc)
+		}
+	}()
 	if config.GetGlobalConfig().IsParallel {
 		defer func() {
 			k.Solidity.FinaliseStateDB(true)
@@ -228,12 +242,6 @@ func (k *ParallelEVM) executeTxnCtxList(list []*txnCtx) []*txnCtx {
 		metrics.BatchTxnSplitCounter.WithLabelValues(strconv.FormatInt(int64(len(list)), 10)).Inc()
 		return k.executeTxnCtxListInConcurrency(k.Solidity.StateDB(), list)
 	}
-	defer func() {
-		if config.GetGlobalConfig().AsyncCommit {
-			k.updateTxnObjSub(list)
-			k.Solidity.StateDB().PendingCommit(true, k.objectInc)
-		}
-	}()
 	return k.executeTxnCtxListInOrder(k.Solidity.StateDB(), list, false)
 }
 
@@ -244,7 +252,7 @@ func (k *ParallelEVM) executeTxnCtxListInOrder(originStateDB *state.StateDB, lis
 			list[index] = tctx
 			continue
 		}
-		tctx.ctx.ExtraInterface = currStateDb
+		tctx.ctx.ExtraInterface = pending_state.NewPendingStateWrapper(pending_state.NewPendingState(currStateDb), 0)
 		err := tctx.writing(tctx.ctx)
 		if err != nil {
 			tctx.err = err
@@ -252,7 +260,7 @@ func (k *ParallelEVM) executeTxnCtxListInOrder(originStateDB *state.StateDB, lis
 		} else {
 			tctx.receipt = k.handleTxnEvent(tctx.ctx, tctx.ctx.Block, tctx.txn, isRedo)
 		}
-		tctx.ps = tctx.ctx.ExtraInterface.(*pending_state.PendingState)
+		tctx.ps = tctx.ctx.ExtraInterface.(*pending_state.PendingStateWrapper)
 		currStateDb = tctx.ps.GetStateDB()
 		list[index] = tctx
 	}
@@ -272,7 +280,7 @@ func (k *ParallelEVM) executeTxnCtxListInConcurrency(originStateDB *state.StateD
 	wg := sync.WaitGroup{}
 	for i, c := range list {
 		wg.Add(1)
-		go func(index int, tctx *txnCtx, cpDb *state.StateDB) {
+		go func(index int, tctx *txnCtx, cpDb *pending_state.PendingStateWrapper) {
 			defer func() {
 				wg.Done()
 			}()
@@ -284,7 +292,7 @@ func (k *ParallelEVM) executeTxnCtxListInConcurrency(originStateDB *state.StateD
 			} else {
 				tctx.receipt = k.handleTxnEvent(tctx.ctx, tctx.ctx.Block, tctx.txn, false)
 			}
-			tctx.ps = tctx.ctx.ExtraInterface.(*pending_state.PendingState)
+			tctx.ps = tctx.ctx.ExtraInterface.(*pending_state.PendingStateWrapper)
 
 			list[index] = tctx
 		}(i, c, copiedStateDBList[i])
@@ -294,11 +302,13 @@ func (k *ParallelEVM) executeTxnCtxListInConcurrency(originStateDB *state.StateD
 	for _, tctx := range list {
 		if curtCtx.IsConflict(tctx.ps.GetCtx()) {
 			conflict = true
+			k.statManager.ConflictCount++
 			break
 		}
 	}
 
-	if conflict {
+	if conflict && !config.GetGlobalConfig().IgnoreConflict {
+		k.statManager.TxnBatchRedoCount++
 		metrics.BatchTxnCounter.WithLabelValues(batchTxnLabelRedo).Inc()
 		return k.executeTxnCtxListInOrder(originStateDB, list, true)
 	}
@@ -309,7 +319,7 @@ func (k *ParallelEVM) executeTxnCtxListInConcurrency(originStateDB *state.StateD
 	return list
 }
 
-func (k *ParallelEVM) gcCopiedStateDB(copiedStateDBList []*state.StateDB, list []*txnCtx) {
+func (k *ParallelEVM) gcCopiedStateDB(copiedStateDBList []*pending_state.PendingStateWrapper, list []*txnCtx) {
 	copiedStateDBList = nil
 	for _, ctx := range list {
 		ctx.ctx.ExtraInterface = nil
@@ -320,13 +330,13 @@ func (k *ParallelEVM) gcCopiedStateDB(copiedStateDBList []*state.StateDB, list [
 func (k *ParallelEVM) mergeStateDB(originStateDB *state.StateDB, list []*txnCtx) {
 	k.Solidity.Lock()
 	for _, tctx := range list {
-		tctx.ps.MergeInto(originStateDB)
+		tctx.ps.MergeInto(originStateDB, tctx.req.Origin)
 	}
 	k.Solidity.Unlock()
 }
 
-func (k *ParallelEVM) CopyStateDb(originStateDB *state.StateDB, list []*txnCtx) []*state.StateDB {
-	copiedStateDBList := make([]*state.StateDB, 0)
+func (k *ParallelEVM) CopyStateDb(originStateDB *state.StateDB, list []*txnCtx) []*pending_state.PendingStateWrapper {
+	copiedStateDBList := make([]*pending_state.PendingStateWrapper, 0)
 	k.Solidity.Lock()
 	start := time.Now()
 	defer func() {
@@ -339,7 +349,7 @@ func (k *ParallelEVM) CopyStateDb(originStateDB *state.StateDB, list []*txnCtx) 
 			needCopy[*list[i].req.Address] = struct{}{}
 		}
 		needCopy[list[i].req.Origin] = struct{}{}
-		copiedStateDBList = append(copiedStateDBList, originStateDB.SimpleCopy(needCopy))
+		copiedStateDBList = append(copiedStateDBList, pending_state.NewPendingStateWrapper(pending_state.NewPendingState(originStateDB.SimpleCopy(needCopy)), int64(i)))
 	}
 	return copiedStateDBList
 }
@@ -350,7 +360,7 @@ type txnCtx struct {
 	writing dev.Writing
 	req     *evm.TxRequest
 	err     error
-	ps      *pending_state.PendingState
+	ps      *pending_state.PendingStateWrapper
 	receipt *types.Receipt
 }
 
@@ -369,6 +379,9 @@ func (k *ParallelEVM) handleTxnEvent(ctx *context.WriteContext, block *types.Blo
 
 type BlockTxnStatManager struct {
 	TxnCount           int
+	TxnBatchCount      int
+	TxnBatchRedoCount  int
+	ConflictCount      int
 	ExecuteDuration    time.Duration
 	ExecuteTxnDuration time.Duration
 	PrepareDuration    time.Duration
@@ -383,8 +396,8 @@ func (stat *BlockTxnStatManager) UpdateMetrics() {
 	metrics.BlockTxnPrepareDurationGauge.WithLabelValues().Set(float64(stat.PrepareDuration.Seconds()))
 	metrics.BlockTxnCommitDurationGauge.WithLabelValues().Set(float64(stat.CommitDuration.Seconds()))
 	if config.GlobalConfig.IsBenchmarkMode {
-		log.Printf("execute %v txn, total:%v, execute cost:%v, prepare:%v, copy:%v, commit:%v",
+		log.Printf("execute %v txn, total:%v, execute cost:%v, prepare:%v, copy:%v, commit:%v, txnBatch:%v, conflict:%v, redoBatch:%v",
 			stat.TxnCount, stat.ExecuteDuration.String(), stat.ExecuteTxnDuration.String(),
-			stat.PrepareDuration.String(), stat.CopyDuration.String(), stat.CommitDuration.String())
+			stat.PrepareDuration.String(), stat.CopyDuration.String(), stat.CommitDuration.String(), stat.TxnBatchCount, stat.ConflictCount, stat.TxnBatchRedoCount)
 	}
 }

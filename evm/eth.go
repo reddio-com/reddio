@@ -244,7 +244,7 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 	// s.Lock()
 	_ = ctx.BindJson(txReq)
 
-	pd := pending_state.NewPendingState(txReq.Origin, ctx.ExtraInterface.(*state.StateDB))
+	pd := ctx.ExtraInterface.(*pending_state.PendingStateWrapper)
 
 	cfg := s.cfg
 	vmenv := copyEvmFromRequest(cfg, txReq)
@@ -381,6 +381,9 @@ func (s *Solidity) Commit(block *yu_types.Block) {
 }
 
 func (s *Solidity) buyGas(state vm.StateDB, req *TxRequest) error {
+	if req.IsInternalCall {
+		return nil
+	}
 	gasFee := new(big.Int).Mul(req.GasPrice, new(big.Int).SetUint64(req.GasLimit))
 	gasFeeU256, _ := uint256.FromBig(gasFee)
 	if state.GetBalance(req.Origin).Cmp(gasFeeU256) < 0 {
@@ -392,15 +395,18 @@ func (s *Solidity) buyGas(state vm.StateDB, req *TxRequest) error {
 	return nil
 }
 
-func (s *Solidity) refundGas(state vm.StateDB, tx *TxRequest, gasUsed uint64, refundQuotient uint64) {
+func (s *Solidity) refundGas(state vm.StateDB, req *TxRequest, gasUsed uint64, refundQuotient uint64) {
+	if req.IsInternalCall {
+		return
+	}
 	refund := gasUsed / refundQuotient
 	if refund > state.GetRefund() {
 		refund = state.GetRefund()
 	}
-	remainGas := tx.GasLimit - gasUsed + refund
-	refundFee := new(big.Int).Mul(tx.GasPrice, new(big.Int).SetUint64(remainGas))
+	remainGas := req.GasLimit - gasUsed + refund
+	refundFee := new(big.Int).Mul(req.GasPrice, new(big.Int).SetUint64(remainGas))
 	refundFeeU256, _ := uint256.FromBig(refundFee)
-	state.AddBalance(tx.Origin, refundFeeU256, tracing.BalanceIncreaseGasReturn)
+	state.AddBalance(req.Origin, refundFeeU256, tracing.BalanceIncreaseGasReturn)
 	// s.gasPool.AddGas(remainGas)
 }
 
@@ -437,7 +443,7 @@ func (s *Solidity) preCheck(req *TxRequest, stateDB vm.StateDB) error {
 	return s.buyGas(stateDB, req)
 }
 
-func (s *Solidity) executeContractCreation(ctx *context.WriteContext, txReq *TxRequest, stateDB *pending_state.PendingState, origin, coinBase common.Address, vmenv *vm.EVM, sender vm.AccountRef, rules params.Rules) (uint64, error) {
+func (s *Solidity) executeContractCreation(ctx *context.WriteContext, txReq *TxRequest, stateDB *pending_state.PendingStateWrapper, origin, coinBase common.Address, vmenv *vm.EVM, sender vm.AccountRef, rules params.Rules) (uint64, error) {
 	stateDB.Prepare(rules, origin, coinBase, nil, vm.ActivePrecompiles(rules), nil)
 
 	code, address, leftOverGas, err := vmenv.Create(sender, txReq.Input, txReq.GasLimit, uint256.MustFromBig(txReq.Value))
@@ -452,7 +458,7 @@ func (s *Solidity) executeContractCreation(ctx *context.WriteContext, txReq *TxR
 	return txReq.GasLimit - leftOverGas, emitReceipt(ctx, vmenv, txReq, code, address, leftOverGas, err)
 }
 
-func (s *Solidity) executeContractCall(ctx *context.WriteContext, txReq *TxRequest, ethState *pending_state.PendingState, origin, coinBase common.Address, vmenv *vm.EVM, sender vm.AccountRef, rules params.Rules) (uint64, error) {
+func (s *Solidity) executeContractCall(ctx *context.WriteContext, txReq *TxRequest, ethState *pending_state.PendingStateWrapper, origin, coinBase common.Address, vmenv *vm.EVM, sender vm.AccountRef, rules params.Rules) (uint64, error) {
 	ethState.Prepare(rules, origin, coinBase, txReq.Address, vm.ActivePrecompiles(rules), nil)
 	ethState.SetNonce(txReq.Origin, ethState.GetNonce(txReq.Origin)+1)
 
@@ -480,7 +486,7 @@ func makeEvmReceipt(ctx *context.WriteContext, vmEvm *vm.EVM, code []byte, signe
 	_ = json.Unmarshal(txReq.OriginArgs, txArgs)
 	originTx := txArgs.ToTransaction(txReq.V, txReq.R, txReq.S)
 
-	stateDb := vmEvm.StateDB.(*pending_state.PendingState).GetStateDB()
+	stateDb := vmEvm.StateDB.(*pending_state.PendingStateWrapper).GetStateDB()
 	usedGas := originTx.Gas() - leftOverGas
 
 	blockNumber := big.NewInt(int64(block.Height))
