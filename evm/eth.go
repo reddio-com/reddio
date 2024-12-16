@@ -3,6 +3,7 @@ package evm
 import (
 	// "github.com/yu-org/yu/common/yerror"
 
+	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -613,7 +614,7 @@ func (s *Solidity) getReceipt(hash common.Hash) (*types.Receipt, error) {
 	if yuReceipt.Extra == nil {
 		return receipt, nil
 	}
-	err = json.Unmarshal(yuReceipt.Extra, receipt)
+	err = json.NewDecoder(bytes.NewBuffer(yuReceipt.Extra)).Decode(receipt)
 	if err != nil {
 		logrus.Errorf("json.Unmarshal yuReceipt.Extra(%s) failed: %v", yuHash.String(), err)
 	}
@@ -646,12 +647,13 @@ func (s *Solidity) GetReceipts(ctx *context.ReadContext) {
 
 func emitReceipt(ctx *context.WriteContext, vmEmv *vm.EVM, txReq *TxRequest, code []byte, contractAddr common.Address, leftOverGas uint64, err error) error {
 	evmReceipt := makeEvmReceipt(ctx, vmEmv, code, ctx.Txn, ctx.Block, contractAddr, leftOverGas, err)
-	receiptByt, err := json.Marshal(evmReceipt)
-	if err != nil {
-		logrus.Errorf("Receipt marshal err: %v. Tx: %s", err, txReq.Hash.String())
-		return err
+	var buf bytes.Buffer
+	encodeErr := json.NewEncoder(&buf).Encode(evmReceipt)
+	if encodeErr != nil {
+		logrus.Errorf("Receipt marshal err: %v. Tx: %s", encodeErr, txReq.Hash.String())
+		return encodeErr
 	}
-	ctx.EmitExtra(receiptByt)
+	ctx.EmitExtra(buf.Bytes())
 	return nil
 }
 
