@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"math/big"
 	"slices"
 
@@ -229,7 +230,7 @@ func (f *LogFilter) Logs(ctx context.Context) ([]*types.Log, error) {
 		for ; f.begin <= f.end; f.begin++ {
 			_, yuHeader, err := f.b.HeaderByNumber(ctx, rpc.BlockNumber(f.begin))
 			if err != nil {
-				// logrus.Errorf("[GetLog] Failed to getHeaderByNumber %v, error: %s", f.begin, err)
+				logrus.Errorf("[GetLog] Failed to getHeaderByNumber %v, error: %s", f.begin, err)
 				return nil, err
 			}
 			logs, err := f.FilterLogs(ctx, yuHeader)
