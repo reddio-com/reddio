@@ -13,7 +13,6 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/sirupsen/logrus"
 	yutypes "github.com/yu-org/yu/core/types"
 )
 
@@ -230,7 +229,7 @@ func (f *LogFilter) Logs(ctx context.Context) ([]*types.Log, error) {
 		for ; f.begin <= f.end; f.begin++ {
 			_, yuHeader, err := f.b.HeaderByNumber(ctx, rpc.BlockNumber(f.begin))
 			if err != nil {
-				logrus.Errorf("[GetLog] Failed to getHeaderByNumber %v, error: %s", f.begin, err)
+				// logrus.Errorf("[GetLog] Failed to getHeaderByNumber %v, error: %s", f.begin, err)
 				return nil, err
 			}
 			logs, err := f.FilterLogs(ctx, yuHeader)

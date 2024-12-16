@@ -93,7 +93,7 @@ func (e *EthAPIBackend) HeaderByNumber(ctx context.Context, number rpc.BlockNumb
 	case rpc.LatestBlockNumber, rpc.FinalizedBlockNumber, rpc.SafeBlockNumber:
 		yuBlock, err = e.chain.Chain.LastFinalizedCompact()
 	default:
-		yuBlock, err = e.chain.Chain.GetCompactBlockByHeight(yucommon.BlockNum(number))
+		yuBlock, err = e.chain.Chain.GetFinalizedCompactBlockByHeight(yucommon.BlockNum(number))
 	}
 
 	if yuBlock == nil {
