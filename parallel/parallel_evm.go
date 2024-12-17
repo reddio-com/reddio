@@ -56,7 +56,7 @@ func (k *ParallelEVM) executeAllTxn(got [][]*txnCtx) [][]*txnCtx {
 		k.statManager.ExecuteTxnDuration = time.Since(start)
 	}()
 	for index, subList := range got {
-		k.executeTxnCtxList(subList)
+		k.executeTxnCtxListInParallel(subList)
 		got[index] = subList
 	}
 	return got
@@ -121,21 +121,16 @@ func (k *ParallelEVM) splitTxnCtxList(list []*txnCtx) [][]*txnCtx {
 	return got
 }
 
-func (k *ParallelEVM) executeTxnCtxList(list []*txnCtx) []*txnCtx {
+func (k *ParallelEVM) executeTxnCtxListInParallel(list []*txnCtx) []*txnCtx {
 	defer func() {
+		k.Solidity.FinaliseStateDB(true)
 		if config.GetGlobalConfig().AsyncCommit {
 			k.updateTxnObjSub(list)
 			k.Solidity.StateDB().PendingCommit(true, k.objectInc)
 		}
 	}()
-	if config.GetGlobalConfig().IsParallel {
-		defer func() {
-			k.Solidity.FinaliseStateDB(true)
-		}()
-		metrics.BatchTxnSplitCounter.WithLabelValues(strconv.FormatInt(int64(len(list)), 10)).Inc()
-		return k.executeTxnCtxListInConcurrency(k.Solidity.StateDB(), list)
-	}
-	return k.executeTxnCtxListInOrder(k.Solidity.StateDB(), list, false)
+	metrics.BatchTxnSplitCounter.WithLabelValues(strconv.FormatInt(int64(len(list)), 10)).Inc()
+	return k.executeTxnCtxListInConcurrency(k.Solidity.StateDB(), list)
 }
 
 func (k *ParallelEVM) executeTxnCtxListInConcurrency(originStateDB *state.StateDB, list []*txnCtx) []*txnCtx {
@@ -185,29 +180,5 @@ func (k *ParallelEVM) executeTxnCtxListInConcurrency(originStateDB *state.StateD
 	k.mergeStateDB(originStateDB, list)
 	k.Solidity.SetStateDB(originStateDB)
 	k.gcCopiedStateDB(copiedStateDBList, list)
-	return list
-}
-
-func (k *ParallelEVM) executeTxnCtxListInOrder(originStateDB *state.StateDB, list []*txnCtx, isRedo bool) []*txnCtx {
-	currStateDb := originStateDB
-	for index, tctx := range list {
-		if tctx.err != nil {
-			list[index] = tctx
-			continue
-		}
-		tctx.ctx.ExtraInterface = pending_state.NewPendingStateWrapper(pending_state.NewPendingState(currStateDb), 0)
-		err := tctx.writing(tctx.ctx)
-		if err != nil {
-			tctx.err = err
-			tctx.receipt = k.handleTxnError(err, tctx.ctx, tctx.ctx.Block, tctx.txn)
-		} else {
-			tctx.receipt = k.handleTxnEvent(tctx.ctx, tctx.ctx.Block, tctx.txn, isRedo)
-		}
-		tctx.ps = tctx.ctx.ExtraInterface.(*pending_state.PendingStateWrapper)
-		currStateDb = tctx.ps.GetStateDB()
-		list[index] = tctx
-	}
-	k.Solidity.SetStateDB(currStateDb)
-	k.gcCopiedStateDB(nil, list)
 	return list
 }
