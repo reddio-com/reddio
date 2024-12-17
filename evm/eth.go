@@ -434,7 +434,7 @@ func (s *Solidity) preCheck(req *TxRequest, stateDB vm.StateDB) error {
 
 	// fmt.Printf("address %s, tx.nonce: %d, state.nonce: %d \n", req.Origin.Hex(), req.Nonce, stNonce)
 	if req.Nonce < stNonce {
-		return fmt.Errorf("%w: address %v, tx: %d state: %d", core.ErrNonceTooLow,
+		return fmt.Errorf("%w: txHash: %s address %v, tx: %d state: %d", core.ErrNonceTooLow, req.Hash.String(),
 			req.Origin.Hex(), req.Nonce, stNonce)
 	}
 	return s.buyGas(stateDB, req)
