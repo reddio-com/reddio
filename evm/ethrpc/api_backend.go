@@ -388,7 +388,7 @@ func (e *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction)
 }
 
 func YuTxn2EthTxn(yuSignedTxn *yutypes.SignedTxn) (*types.Transaction, error) {
-	// Un-serialize wrCall.params to retrive datas:
+	// Un-serialize wrCall.params to retrieve data:
 	wrCallParams := yuSignedTxn.Raw.WrCall.Params
 	txReq := &evm.TxRequest{}
 	err := json.Unmarshal([]byte(wrCallParams), txReq)

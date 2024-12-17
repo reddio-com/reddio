@@ -41,12 +41,16 @@ func (st *StateRootTestCase) Run(ctx context.Context, m *pkg.WalletManager) erro
 		StateRoot:    hash,
 	}
 	content, _ := json.Marshal(result)
-	os.Remove("stateRootTestResult.json")
+	if err = os.Remove("stateRootTestResult.json"); err != nil {
+		return err
+	}
 	file, err := os.Create(resultJson)
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() {
+		_ = file.Close()
+	}()
 	_, err = file.Write(content)
 	if err != nil {
 		return err

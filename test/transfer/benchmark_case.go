@@ -2,6 +2,7 @@ package transfer
 
 import (
 	"context"
+	"github.com/sirupsen/logrus"
 	"time"
 
 	"golang.org/x/time/rate"
@@ -37,7 +38,9 @@ func (tc *RandomBenchmarkTest) Run(ctx context.Context, m *pkg.WalletManager) er
 		if err := tc.rm.Wait(ctx); err != nil {
 			return err
 		}
-		m.TransferEth(step.From, step.To, step.Count, uint64(i)+uint64(time.Now().UnixNano()))
+		if err := m.TransferEth(step.From, step.To, step.Count, uint64(i)+uint64(time.Now().UnixNano())); err != nil {
+			logrus.Error("Failed to transfer step: from:%v, to:%v", step.From, step.To)
+		}
 	}
 	return nil
 }
