@@ -3,7 +3,6 @@ package transfer
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"time"
 
@@ -47,7 +46,7 @@ func (tc *RandomTransferTestCase) Run(ctx context.Context, m *pkg.WalletManager)
 	if err != nil {
 		return err
 	}
-	log.Println(fmt.Sprintf("%s create wallets finish", tc.CaseName))
+	log.Printf("%s create wallets finish", tc.CaseName)
 	tc.wallets = pkg.GenerateCaseWallets(tc.initialCount, wallets)
 	tc.transCase = tc.tm.GenerateRandomTransferSteps(tc.steps, tc.wallets)
 	return runAndAssert(tc.transCase, m, wallets)
@@ -100,13 +99,13 @@ func assert(transferCase *pkg.TransferCase, walletsManager *pkg.WalletManager, w
 
 func printChange(got, expect map[string]*pkg.CaseEthWallet, transferCase *pkg.TransferCase) {
 	for _, step := range transferCase.Steps {
-		log.Println(fmt.Sprintf("%v transfer %v eth to %v", step.From.Address, step.Count, step.To.Address))
+		log.Printf("%v transfer %v eth to %v", step.From.Address, step.Count, step.To.Address)
 	}
 	for k, v := range got {
 		ev, ok := expect[k]
 		if ok {
 			if v.EthCount != ev.EthCount {
-				log.Println(fmt.Sprintf("%v got:%v expect:%v", k, v.EthCount, ev.EthCount))
+				log.Printf("%v got:%v expect:%v", k, v.EthCount, ev.EthCount)
 			}
 		}
 	}

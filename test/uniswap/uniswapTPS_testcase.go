@@ -9,12 +9,11 @@ import (
 	"math/rand"
 	"time"
 
-	"golang.org/x/time/rate"
-
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"golang.org/x/time/rate"
 
 	"github.com/reddio-com/reddio/test/contracts"
 	"github.com/reddio-com/reddio/test/pkg"
@@ -224,13 +223,13 @@ func (cd *UniswapV2TPSStatisticsTestCase) Prepare(ctx context.Context, m *pkg.Wa
 		TestContracts: make([]TestContract, 0),
 	}
 	for index, deployerUser := range deployerUsers {
-		log.Println(fmt.Sprintf("start to deploy %v contract", index))
+		log.Printf("start to deploy %v contract", index)
 		router, tokenPairs, err := cd.prepareDeployerContract(deployerUser, testUsers, gasPrice, client)
 		if err != nil {
 			return fmt.Errorf("prepare contract failed, err:%v", err)
 		}
 		preparedTestData.TestContracts = append(preparedTestData.TestContracts, TestContract{router, tokenPairs})
-		log.Println(fmt.Sprintf("create %v deploy contract done", index+1))
+		log.Printf("create %v deploy contract done", index+1)
 	}
 	saveTestDataToFile("test/tmp/prepared_test_data.json", preparedTestData)
 	return err
@@ -336,7 +335,7 @@ func (cd *UniswapV2TPSStatisticsTestCase) executeSwapSteps(client *ethclient.Cli
 	for _, step := range steps {
 		if err := cd.rm.Wait(context.Background()); err == nil {
 			if err := executeSwapStep(client, step, chainID, gasPrice, gasLimit); err != nil {
-				log.Println(fmt.Sprintf("execute swap step err:%v", err.Error()))
+				log.Printf("execute swap step err:%v", err.Error())
 			}
 		}
 	}
