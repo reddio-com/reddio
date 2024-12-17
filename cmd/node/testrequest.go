@@ -19,6 +19,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/reddio-com/reddio/evm"
+	"github.com/sirupsen/logrus"
 )
 
 // How To Use
@@ -275,7 +276,11 @@ func sendRequest(dataString string) {
 		return
 	}
 
-	defer resp.Body.Close()
+	defer func() {
+		if err = resp.Body.Close(); err != nil {
+			logrus.Errorf("could not close response body, err:%v", err)
+		}
+	}()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

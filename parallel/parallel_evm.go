@@ -69,7 +69,7 @@ func (k *ParallelEVM) prepareTxnList(block *types.Block) ([]*txnCtx, map[common.
 	}()
 	stxns := block.Txns
 	receipts := make(map[common.Hash]*types.Receipt)
-	txnCtxList := make([]*txnCtx, len(stxns), len(stxns))
+	txnCtxList := make([]*txnCtx, len(stxns))
 	for index, stxn := range stxns {
 		wrCall := stxn.Raw.WrCall
 		ctx, err := context.NewWriteContext(stxn, block, index)
