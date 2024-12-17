@@ -141,5 +141,4 @@ func StartupL1Watcher(chain *kernel.Kernel, cfg *evm.GethConfig, db *gorm.DB) {
 			log.Fatal("run http server failure", "error", runServerErr)
 		}
 	}()
-
 }

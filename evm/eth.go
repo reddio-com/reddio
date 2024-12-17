@@ -1,8 +1,6 @@
 package evm
 
 import (
-	// "github.com/yu-org/yu/common/yerror"
-
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
