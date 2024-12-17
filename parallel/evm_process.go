@@ -34,7 +34,6 @@ func NewParallelEVM() *ParallelEVM {
 	evm := &ParallelEVM{
 		Tripod: tripod.NewTripod(),
 	}
-	evm.setupProcessor()
 	return evm
 }
 
@@ -48,6 +47,7 @@ func (k *ParallelEVM) setupProcessor() {
 
 func (k *ParallelEVM) Execute(block *types.Block) error {
 	k.statManager = &BlockTxnStatManager{TxnCount: len(block.Txns)}
+	k.setupProcessor()
 	start := time.Now()
 	defer func() {
 		k.statManager.ExecuteDuration = time.Since(start)

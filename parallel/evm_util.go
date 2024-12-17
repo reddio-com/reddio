@@ -5,6 +5,7 @@ import (
 
 	common2 "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/yu-org/yu/common"
 	"github.com/yu-org/yu/core/context"
 	"github.com/yu-org/yu/core/tripod/dev"
 	"github.com/yu-org/yu/core/types"
@@ -42,41 +43,6 @@ func checkAddressConflict(curTxn *txnCtx, curList []*txnCtx) bool {
 
 	}
 	return false
-}
-
-func (k *ParallelEVM) gcCopiedStateDB(copiedStateDBList []*pending_state.PendingStateWrapper, list []*txnCtx) {
-	copiedStateDBList = nil
-	for _, ctx := range list {
-		ctx.ctx.ExtraInterface = nil
-		ctx.ps = nil
-	}
-}
-
-func (k *ParallelEVM) mergeStateDB(originStateDB *state.StateDB, list []*txnCtx) {
-	k.Solidity.Lock()
-	for _, tctx := range list {
-		tctx.ps.MergeInto(originStateDB, tctx.req.Origin)
-	}
-	k.Solidity.Unlock()
-}
-
-func (k *ParallelEVM) CopyStateDb(originStateDB *state.StateDB, list []*txnCtx) []*pending_state.PendingStateWrapper {
-	copiedStateDBList := make([]*pending_state.PendingStateWrapper, 0)
-	k.Solidity.Lock()
-	start := time.Now()
-	defer func() {
-		k.statManager.CopyDuration += time.Since(start)
-		k.Solidity.Unlock()
-	}()
-	for i := 0; i < len(list); i++ {
-		needCopy := make(map[common2.Address]struct{})
-		if list[i].req.Address != nil {
-			needCopy[*list[i].req.Address] = struct{}{}
-		}
-		needCopy[list[i].req.Origin] = struct{}{}
-		copiedStateDBList = append(copiedStateDBList, pending_state.NewPendingStateWrapper(pending_state.NewPendingState(originStateDB.SimpleCopy(needCopy)), int64(i)))
-	}
-	return copiedStateDBList
 }
 
 type txnCtx struct {
@@ -154,5 +120,71 @@ func (k *ParallelEVM) updateTxnObjInc(txns []*txnCtx) {
 			inc(*addr1)
 		}
 		inc(txn.req.Origin)
+	}
+}
+
+func (k *ParallelEVM) prepareTxnList(block *types.Block) ([]*txnCtx, map[common.Hash]*types.Receipt) {
+	start := time.Now()
+	defer func() {
+		k.statManager.PrepareDuration = time.Since(start)
+	}()
+	stxns := block.Txns
+	receipts := make(map[common.Hash]*types.Receipt)
+	txnCtxList := make([]*txnCtx, len(stxns), len(stxns))
+	for index, stxn := range stxns {
+		wrCall := stxn.Raw.WrCall
+		ctx, err := context.NewWriteContext(stxn, block, index)
+		if err != nil {
+			receipt := k.handleTxnError(err, ctx, block, stxn)
+			receipts[stxn.TxnHash] = receipt
+			continue
+		}
+		req := &evm.TxRequest{}
+		if err := ctx.BindJson(req); err != nil {
+			receipt := k.handleTxnError(err, ctx, block, stxn)
+			receipts[stxn.TxnHash] = receipt
+			continue
+		}
+		writing, _ := k.Land.GetWriting(wrCall.TripodName, wrCall.FuncName)
+		stxnCtx := &txnCtx{
+			ctx:     ctx,
+			txn:     stxn,
+			writing: writing,
+			req:     req,
+		}
+		txnCtxList[index] = stxnCtx
+	}
+	return txnCtxList, receipts
+}
+
+func (k *ParallelEVM) executeTxnCtxListInOrder(originStateDB *state.StateDB, list []*txnCtx, isRedo bool) []*txnCtx {
+	currStateDb := originStateDB
+	for index, tctx := range list {
+		if tctx.err != nil {
+			list[index] = tctx
+			continue
+		}
+		tctx.ctx.ExtraInterface = pending_state.NewPendingStateWrapper(pending_state.NewPendingState(currStateDb), 0)
+		err := tctx.writing(tctx.ctx)
+		if err != nil {
+			tctx.err = err
+			tctx.receipt = k.handleTxnError(err, tctx.ctx, tctx.ctx.Block, tctx.txn)
+		} else {
+			tctx.receipt = k.handleTxnEvent(tctx.ctx, tctx.ctx.Block, tctx.txn, isRedo)
+		}
+		tctx.ps = tctx.ctx.ExtraInterface.(*pending_state.PendingStateWrapper)
+		currStateDb = tctx.ps.GetStateDB()
+		list[index] = tctx
+	}
+	k.Solidity.SetStateDB(currStateDb)
+	k.gcCopiedStateDB(nil, list)
+	return list
+}
+
+func (k *ParallelEVM) gcCopiedStateDB(copiedStateDBList []*pending_state.PendingStateWrapper, list []*txnCtx) {
+	copiedStateDBList = nil
+	for _, ctx := range list {
+		ctx.ctx.ExtraInterface = nil
+		ctx.ps = nil
 	}
 }
