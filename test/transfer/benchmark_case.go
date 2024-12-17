@@ -2,9 +2,9 @@ package transfer
 
 import (
 	"context"
-	"github.com/sirupsen/logrus"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"golang.org/x/time/rate"
 
 	"github.com/reddio-com/reddio/test/pkg"
