@@ -74,7 +74,7 @@ func NewUniswapV2TPSStatisticsTestCase(name string, t, d, maxUser int, rm *rate.
 	return tc
 }
 
-// TestUniswapTPS is a test case to measure the transactions per second (TPS) of Uniswap.
+// Run TestUniswapTPS is a test case to measure the transactions per second (TPS) of Uniswap.
 // The test case follows these steps:
 // 1. Arrange
 //   - Create a deployer user with sufficient balance
