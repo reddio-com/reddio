@@ -102,12 +102,12 @@ func (m *WalletManager) CreateEthWalletByAddress(initialEthCount uint64, private
 	if err := m.transferEth(GenesisPrivateKey, address, initialEthCount, uint64(time.Now().UnixNano()+int64(nonceCount))); err != nil {
 		return nil, err
 	}
-	// log.Println(fmt.Sprintf("create wallet %v", address))
+	// log.Printf("create wallet %v", address))
 	return &EthWallet{PK: privateKey, Address: address}, nil
 }
 
 func (m *WalletManager) TransferEth(from, to *EthWallet, amount, nonce uint64) error {
-	// log.Println(fmt.Sprintf("transfer %v eth from %v to %v", amount, from.Address, to.Address))
+	// log.Printf("transfer %v eth from %v to %v", amount, from.Address, to.Address))
 	if err := m.transferEth(from.PK, to.Address, amount, nonce); err != nil {
 		return err
 	}
