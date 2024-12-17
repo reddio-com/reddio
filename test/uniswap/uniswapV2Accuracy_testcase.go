@@ -25,8 +25,8 @@ type UniswapV2AccuracyTestCase struct {
 	deployedUsers int
 }
 
-func (cd *UniswapV2AccuracyTestCase) Name() string {
-	return cd.CaseName
+func (ca *UniswapV2AccuracyTestCase) Name() string {
+	return ca.CaseName
 }
 
 func NewUniswapV2AccuracyTestCase(name string, count int, initial uint64) *UniswapV2AccuracyTestCase {
