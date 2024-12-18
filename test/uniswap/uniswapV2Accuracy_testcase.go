@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"math/big"
 	"time"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/sirupsen/logrus"
 
 	"github.com/reddio-com/reddio/test/contracts"
 	"github.com/reddio-com/reddio/test/pkg"
@@ -49,18 +49,18 @@ func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManag
 
 	client, err := ethclient.Dial("http://localhost:9092")
 	if err != nil {
-		log.Fatalf("Failed to connect to the Ethereum client: %v", err)
+		logrus.Fatalf("Failed to connect to the Ethereum client: %v", err)
 	}
 
 	defer client.Close()
 	if err != nil {
-		log.Fatalf("Failed to Close  the Ethereum client: %v", err)
+		logrus.Fatalf("Failed to Close  the Ethereum client: %v", err)
 	}
 
 	// get gas price
 	gasPrice, err := client.SuggestGasPrice(context.Background())
 	if err != nil {
-		log.Fatalf("Failed to suggest gas price: %v", err)
+		logrus.Fatalf("Failed to suggest gas price: %v", err)
 	}
 
 	// Arrange :
@@ -70,11 +70,11 @@ func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManag
 	}
 	testUserPK, err := crypto.HexToECDSA(testUser[0].PK)
 	if err != nil {
-		log.Fatalf("Failed to parse private key: %v", err)
+		logrus.Fatalf("Failed to parse private key: %v", err)
 	}
 	testUserAuth, err := bind.NewKeyedTransactorWithChainID(testUserPK, big.NewInt(50341))
 	if err != nil {
-		log.Fatalf("Failed to create authorized transactor: %v", err)
+		logrus.Fatalf("Failed to create authorized transactor: %v", err)
 	}
 	testUserAuth.GasPrice = gasPrice
 	testUserAuth.GasLimit = uint64(6e7)
@@ -90,7 +90,7 @@ func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManag
 	routeraddress := preparedTestData.TestContracts[0].UniswapV2Router
 	uniswapV2RouterInstance, err := contracts.NewUniswapV2Router01(routeraddress, client)
 	if err != nil {
-		log.Fatalf("Failed to get UniswapV2Router instance: %v", err)
+		logrus.Fatalf("Failed to get UniswapV2Router instance: %v", err)
 	}
 	swapPath := []common.Address{
 		preparedTestData.TestContracts[0].TokenPairs[0][0],
@@ -100,7 +100,7 @@ func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManag
 		// Execute swap operation
 		nonce, err := client.PendingNonceAt(context.Background(), common.HexToAddress(testUser[0].Address))
 		if err != nil {
-			log.Fatalf("Failed to get nonce: %v", err)
+			logrus.Fatalf("Failed to get nonce: %v", err)
 		}
 
 		for j := 0; j < maxRetries; j++ {
@@ -111,10 +111,10 @@ func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManag
 				if i == (swapTimes - 1) {
 					isConfirmed, err := waitForConfirmation(client, swapETHForExactTokensTx.Hash())
 					if err != nil {
-						log.Fatalf("Failed to confirm swapETHForExactTokensTx transaction: %v", err)
+						logrus.Fatalf("Failed to confirm swapETHForExactTokensTx transaction: %v", err)
 					}
 					if !isConfirmed {
-						log.Fatalf("SwapETHForExactTokens transaction was not confirmed")
+						logrus.Fatalf("SwapETHForExactTokens transaction was not confirmed")
 					}
 				}
 				break
@@ -127,7 +127,7 @@ func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManag
 		}
 
 		if err != nil {
-			log.Fatalf("Failed to swapETHForExactTokensTx transaction after %d attempts: %v", maxRetries, err)
+			logrus.Fatalf("Failed to swapETHForExactTokensTx transaction after %d attempts: %v", maxRetries, err)
 		}
 
 	}
@@ -136,22 +136,22 @@ func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManag
 	token1ddress := preparedTestData.TestContracts[0].TokenPairs[0][0]
 	token1AddressInstance, err := contracts.NewToken(token1ddress, client)
 	if err != nil {
-		log.Fatalf("Failed to get Token1 instance: %v", err)
+		logrus.Fatalf("Failed to get Token1 instance: %v", err)
 	}
 	token2ddress := preparedTestData.TestContracts[0].TokenPairs[0][1]
 	token2AddressInstance, err := contracts.NewToken(token2ddress, client)
 	if err != nil {
-		log.Fatalf("Failed to get Token2 instance: %v", err)
+		logrus.Fatalf("Failed to get Token2 instance: %v", err)
 	}
 	token1Balance, err := token1AddressInstance.BalanceOf(nil, common.HexToAddress(testUser[0].Address))
 	if err != nil {
-		log.Fatalf("Failed to get Token1 balance: %v", err)
+		logrus.Fatalf("Failed to get Token1 balance: %v", err)
 	}
 	fmt.Printf("Token2 balance: %s\n", token1Balance.String())
 
 	token2Balance, err := token2AddressInstance.BalanceOf(nil, common.HexToAddress(testUser[0].Address))
 	if err != nil {
-		log.Fatalf("Failed to get Token2 balance: %v", err)
+		logrus.Fatalf("Failed to get Token2 balance: %v", err)
 	}
 	fmt.Printf("Token2 balance: %s\n", token2Balance.String())
 	// Expect results
@@ -184,11 +184,11 @@ func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManag
 	fmt.Printf("Final token2Reserve: %s\n", token2Reserve.String())
 
 	if token1Balance.Cmp(expectedToken1Balance) != 0 {
-		log.Fatalf("Expected user TokenA balance to be %s, but got %s", expectedToken1Balance.String(), token1Balance.String())
+		logrus.Fatalf("Expected user TokenA balance to be %s, but got %s", expectedToken1Balance.String(), token1Balance.String())
 	}
 
 	if token2Balance.Cmp(expectedToken2Balance) != 0 {
-		log.Fatalf("Expected user token2Balance balance to be %s, but got %s", expectedToken2Balance.String(), token2Balance.String())
+		logrus.Fatalf("Expected user token2Balance balance to be %s, but got %s", expectedToken2Balance.String(), token2Balance.String())
 	}
 	return err
 }
@@ -249,7 +249,7 @@ func (ca *UniswapV2AccuracyTestCase) prepareDeployerContract(deployerUser *pkg.E
 				return [20]byte{}, nil, fmt.Errorf("failed to create approve transaction for user %s: %v", user.Address, err)
 			}
 			lastTxHash = tx.Hash()
-			// log.Printf("Approve transaction hash for user %s: %s", user.Address, tx.Hash().Hex())
+			// logrus.Infof("Approve transaction hash for user %s: %s", user.Address, tx.Hash().Hex())
 			testAuth.Nonce = testAuth.Nonce.Add(testAuth.Nonce, big.NewInt(1))
 		}
 	}

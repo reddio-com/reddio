@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"flag"
-	"log"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/yu-org/yu/core/startup"
 	"golang.org/x/time/rate"
 
@@ -79,7 +79,7 @@ func blockBenchmark(ethManager *uniswap.EthManager) {
 func prepareBenchmark(ctx context.Context, manager *uniswap.EthManager) {
 	err := manager.Prepare(ctx)
 	if err != nil {
-		log.Printf("err:%v", err.Error())
+		logrus.Infof("err:%v", err.Error())
 	}
 }
 

@@ -9,12 +9,13 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/sirupsen/logrus"
+	
 	"github.com/reddio-com/reddio/bridge/contract"
 	"github.com/reddio-com/reddio/bridge/logic"
 	"github.com/reddio-com/reddio/bridge/relayer"
 	"github.com/reddio-com/reddio/evm"
 	"github.com/reddio-com/reddio/metrics"
-	"github.com/sirupsen/logrus"
 )
 
 type L1EventsWatcher struct {
@@ -143,7 +144,6 @@ func (w *L1EventsWatcher) handleRelayerMessage(msg *contract.UpwardMessageDispat
 	if err != nil {
 		return err
 	}
-	//fmt.Printf("Received RelayerMessage: %+v\n", msg)
 	return nil
 }
 

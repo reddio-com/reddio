@@ -3,9 +3,10 @@ package main
 import (
 	"context"
 	"flag"
-	"log"
 	"os"
 	"time"
+
+	"github.com/sirupsen/logrus"
 
 	"github.com/reddio-com/reddio/cmd/node/app"
 	config2 "github.com/reddio-com/reddio/config"
@@ -37,24 +38,24 @@ func main() {
 	config.AsyncCommit = true
 	go func() {
 		if config.IsParallel {
-			log.Println("start transfer test in parallel")
+			logrus.Info("start transfer test in parallel")
 		} else {
-			log.Println("start transfer test in serial")
+			logrus.Info("start transfer test in serial")
 		}
 		app.Start(evmConfigPath, yuConfigPath, poaConfigPath, "")
 	}()
 	time.Sleep(5 * time.Second)
-	log.Println("finish start reddio")
+	logrus.Info("finish start reddio")
 	if err := assertEthTransfer(context.Background(), evmConfig); err != nil {
-		log.Println(err)
+		logrus.Info(err)
 		os.Exit(1)
 	}
-	log.Println("assert success")
+	logrus.Info("assert success")
 	os.Exit(0)
 }
 
 func assertEthTransfer(ctx context.Context, evmCfg *evm.GethConfig) error {
-	log.Println("start asserting transfer eth")
+	logrus.Info("start asserting transfer eth")
 	ethManager := &transfer.EthManager{}
 	cfg := conf.Config.EthCaseConf
 	ethManager.Configure(cfg, evmCfg)

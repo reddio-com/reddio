@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"log"
 	"math/big"
 	"strings"
 	"time"
@@ -16,16 +15,18 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto/kzg4844"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/sirupsen/logrus"
+	yucommon "github.com/yu-org/yu/common"
+	"github.com/yu-org/yu/core/kernel"
+	"github.com/yu-org/yu/core/protocol"
+	"gorm.io/gorm"
+
 	"github.com/reddio-com/reddio/bridge/contract"
 	"github.com/reddio-com/reddio/bridge/logic"
 	"github.com/reddio-com/reddio/bridge/orm"
 	"github.com/reddio-com/reddio/bridge/utils"
 	"github.com/reddio-com/reddio/evm"
 	"github.com/reddio-com/reddio/metrics"
-	yucommon "github.com/yu-org/yu/common"
-	"github.com/yu-org/yu/core/kernel"
-	"github.com/yu-org/yu/core/protocol"
-	"gorm.io/gorm"
 )
 
 type L1ToL2Relayer struct {
@@ -91,13 +92,13 @@ func NewL1ToL2Relayer(ctx context.Context, cfg *evm.GethConfig, l1Client *ethcli
 func (b *L1ToL2Relayer) HandleRelayerMessage(msg *contract.UpwardMessageDispatcherFacetRelayedMessage) error {
 	relayedMessages, err := b.l1EventParser.ParseL1RelayMessagePayload(b.ctx, msg)
 	if err != nil {
-		log.Printf("Failed to parse L1 cross chain payload: %v", err)
+		logrus.Infof("Failed to parse L1 cross chain payload: %v", err)
 	}
 	b.crossMessageOrm.InsertOrUpdateL1RelayedMessagesOfL2Withdrawals(b.ctx, relayedMessages)
 	return nil
 }
 
-// handleDownwardMessage
+// HandleDownwardMessageWithSystemCall handles the downward message
 func (b *L1ToL2Relayer) HandleDownwardMessageWithSystemCall(msg *contract.ParentBridgeCoreFacetDownwardMessage) error {
 	// 1. parse downward message
 	// 2. setup auth
@@ -111,31 +112,24 @@ func (b *L1ToL2Relayer) HandleDownwardMessageWithSystemCall(msg *contract.Parent
 		},
 	}
 	metrics.DownwardMessageReceivedCounter.WithLabelValues(fmt.Sprintf("%d", msg.PayloadType)).Inc()
-	// log.Printf("Sending downward messages: %v", downwardMessages)
-	// jsonData, err := json.MarshalIndent(downwardMessages, "", "  ")
-	// if err != nil {
-	// 	log.Fatalf("Failed to marshal downward messages: %v", err)
-	// }
 
-	// fmt.Printf("Downward messages in JSON format:\n%s\n", string(jsonData))
 	txNonce := uint64(0)
 	value := big.NewInt(0)
 	gasLimit := uint64(6e6)
 	gasPrice, err := b.l2Client.SuggestGasPrice(context.Background())
 	if err != nil {
-		log.Fatalf("Failed to suggest gas price: %v", err)
+		logrus.Fatalf("Failed to suggest gas price: %v", err)
 	}
 
 	contractABI, err := abi.JSON(strings.NewReader(contract.DownwardMessageDispatcherFacetABI))
 	if err != nil {
-		log.Fatalf("Failed to parse contract ABI: %v", err)
+		logrus.Fatalf("Failed to parse contract ABI: %v", err)
 	}
 
 	data, err := contractABI.Pack("receiveDownwardMessages", downwardMessages)
 	if err != nil {
-		log.Fatalf("Failed to pack data: %v", err)
+		logrus.Fatalf("Failed to pack data: %v", err)
 	}
-	// fmt.Printf("Packed data: %s\n", hex.EncodeToString(data))
 
 	tx := types.NewTransaction(txNonce, common.HexToAddress(b.cfg.ChildLayerContractAddress), value, gasLimit, gasPrice, data)
 	err = b.systemCall(context.Background(), tx)
@@ -148,7 +142,7 @@ func (b *L1ToL2Relayer) HandleDownwardMessageWithSystemCall(msg *contract.Parent
 		if receipt != nil {
 			crossMessages, err := b.l1EventParser.ParseL1CrossChainPayloadToRefundMsg(b.ctx, msg, tx, receipt)
 			if err != nil {
-				log.Printf("Failed to parse L1 cross chain payload: %v", err)
+				logrus.Infof("Failed to parse L1 cross chain payload: %v", err)
 			}
 			b.refund(crossMessages)
 		}
@@ -157,7 +151,7 @@ func (b *L1ToL2Relayer) HandleDownwardMessageWithSystemCall(msg *contract.Parent
 		if receipt != nil {
 			crossMessages, err := b.l1EventParser.ParseL1CrossChainPayloadToRefundMsg(b.ctx, msg, tx, receipt)
 			if err != nil {
-				log.Printf("Failed to parse L1 cross chain payload: %v", err)
+				logrus.Infof("Failed to parse L1 cross chain payload: %v", err)
 			}
 			b.refund(crossMessages)
 		}
@@ -166,7 +160,7 @@ func (b *L1ToL2Relayer) HandleDownwardMessageWithSystemCall(msg *contract.Parent
 		if receipt != nil {
 			crossMessages, err := b.l1EventParser.ParseL1CrossChainPayload(b.ctx, msg, tx, receipt)
 			if err != nil {
-				log.Printf("Failed to parse L1 cross chain payload: %v", err)
+				logrus.Infof("Failed to parse L1 cross chain payload: %v", err)
 			}
 			metrics.DownwardMessageSuccessCounter.WithLabelValues(fmt.Sprintf("%d", msg.PayloadType)).Inc()
 			b.insertDeposit(crossMessages, downwardMessages[0].Nonce)
@@ -242,12 +236,6 @@ func newTxArgsFromTx(tx *types.Transaction) *TransactionArgs {
 }
 func (b *L1ToL2Relayer) systemCall(ctx context.Context, signedTx *types.Transaction) error {
 	// Check if this tx has been created
-	// Create Tx
-	//v, r, s := signedTx.RawSignatureValues()
-	// fmt.Printf("v: %s\n", v.String())
-	// fmt.Printf("r: %s\n", r.String())
-	// fmt.Printf("s: %s\n", s.String())
-
 	v, r, s := signedTx.RawSignatureValues()
 	txArg := newTxArgsFromTx(signedTx)
 	txArgByte, _ := json.Marshal(txArg)
@@ -268,18 +256,12 @@ func (b *L1ToL2Relayer) systemCall(ctx context.Context, signedTx *types.Transact
 	}
 	txNonce, err := b.l2Client.PendingNonceAt(context.Background(), txReq.Origin)
 	if err != nil {
-		log.Printf("Failed to get nonce: %v", err)
+		logrus.Infof("Failed to get nonce: %v", err)
 	}
 	txReq.Nonce = txNonce
-	//jsonData, err := json.MarshalIndent(txReq, "", "    ")
-	// if err != nil {
-	// 	log.Printf("Failed to marshal txReq to JSON: %v", err)
-	// }
-
-	//fmt.Println("systemCall jsonData:", string(jsonData))
 	byt, err := json.Marshal(txReq)
 	if err != nil {
-		log.Printf("json.Marshal(txReq) failed: %v", err)
+		logrus.Infof("json.Marshal(txReq) failed: %v", err)
 		return err
 	}
 	signedWrCall := &protocol.SignedWrCall{
@@ -289,16 +271,13 @@ func (b *L1ToL2Relayer) systemCall(ctx context.Context, signedTx *types.Transact
 			Params:     string(byt),
 		},
 	}
-	// fmt.Println("signedWrCall", signedWrCall)
-	// fmt.Println("signedWrCall", signedWrCall.Call.Params)
 
 	err = b.chain.HandleTxn(signedWrCall)
 	if err != nil {
-		log.Printf("json.Marshal(txReq) failed: %v", err)
+		logrus.Infof("json.Marshal(txReq) failed: %v", err)
 		return err
 	}
 	return nil
-
 }
 
 func waitForConfirmation(client *ethclient.Client, txHash common.Hash) (bool, *types.Receipt, error) {
@@ -318,7 +297,7 @@ func waitForConfirmation(client *ethclient.Client, txHash common.Hash) (bool, *t
 func (b *L1ToL2Relayer) refund(msgs []*orm.CrossMessage) error {
 	privateKey, err := LoadPrivateKey("bridge/relayer/.sepolia.env")
 	if err != nil {
-		log.Fatalf("Error loading private key: %v", err)
+		logrus.Fatalf("Error loading private key: %v", err)
 	}
 
 	privateKeys := []string{
@@ -328,7 +307,6 @@ func (b *L1ToL2Relayer) refund(msgs []*orm.CrossMessage) error {
 		var upwardMessages []contract.UpwardMessage
 		payloadBytes, err := hex.DecodeString(msg.MessagePayload)
 		if err != nil {
-			//fmt.Println("Failed to decode hex string:", err)
 			return err
 		}
 		upwardMessages = append(upwardMessages, contract.UpwardMessage{
@@ -338,15 +316,14 @@ func (b *L1ToL2Relayer) refund(msgs []*orm.CrossMessage) error {
 		})
 		signaturesArray, err := generateUpwardMessageMultiSignatures(upwardMessages, privateKeys)
 		if err != nil {
-			log.Fatalf("Failed to generate multi-signatures: %v", err)
+			logrus.Fatalf("Failed to generate multi-signatures: %v", err)
 		}
 
 		messageHash, err := utils.ComputeMessageHash(upwardMessages[0].PayloadType, upwardMessages[0].Payload, upwardMessages[0].Nonce)
 		if err != nil {
-			log.Fatalf("Failed to compute message hash: %v", err)
+			logrus.Fatalf("Failed to compute message hash: %v", err)
 		}
 		msg.MessageHash = messageHash.Hex()
-		//fmt.Println("msg.MessageHash:", msg.MessageHash)
 		msg.MessageNonce = upwardMessages[0].Nonce.String()
 		var multiSignProofs []string
 		for _, sig := range signaturesArray {
@@ -354,12 +331,9 @@ func (b *L1ToL2Relayer) refund(msgs []*orm.CrossMessage) error {
 		}
 
 		msg.MultiSignProof = strings.Join(multiSignProofs, ",")
-		//msg.BlockTimestamp = blockTimestampsMap[msg.L2BlockNumber]
-		//fmt.Println("msg.MultiSignProof:", msg.MultiSignProof)
 	}
 
 	if msgs != nil {
-		//fmt.Println("msgs:", msgs)
 		err = b.crossMessageOrm.InsertOrUpdateL2Messages(context.Background(), msgs)
 		if err != nil {
 			fmt.Println("Failed to insert or update L2 messages:", err)
@@ -374,7 +348,7 @@ func (b *L1ToL2Relayer) insertDeposit(msgs []*orm.CrossMessage, messageNonce *bi
 		var downwardMessages []contract.UpwardMessage
 		payloadBytes, err := hex.DecodeString(msg.MessagePayload)
 		if err != nil {
-			//fmt.Println("Failed to decode hex string:", err)
+			logrus.Error("Failed to decode payload: %v", err)
 			return err
 		}
 		downwardMessages = append(downwardMessages, contract.UpwardMessage{
@@ -384,18 +358,13 @@ func (b *L1ToL2Relayer) insertDeposit(msgs []*orm.CrossMessage, messageNonce *bi
 
 		messageHash, err := utils.ComputeMessageHash(downwardMessages[0].PayloadType, downwardMessages[0].Payload, messageNonce)
 		if err != nil {
-			log.Fatalf("Failed to compute message hash: %v", err)
+			logrus.Fatalf("Failed to compute message hash: %v", err)
 		}
 		msg.MessageHash = messageHash.Hex()
-		//fmt.Println("msg.MessageHash:", msg.MessageHash)
 		msg.MessageNonce = messageNonce.String()
-
-		//msg.BlockTimestamp = blockTimestampsMap[msg.L2BlockNumber]
-		//fmt.Println("msg.MultiSignProof:", msg.MultiSignProof)
 	}
 
 	if msgs != nil {
-		//fmt.Println("msgs:", msgs)
 		err := b.crossMessageOrm.InsertOrUpdateL2Messages(context.Background(), msgs)
 		if err != nil {
 			fmt.Println("Failed to insert or update L2 messages:", err)

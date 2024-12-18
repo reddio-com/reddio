@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -24,13 +23,12 @@ import (
 	watcher "github.com/reddio-com/reddio/bridge/controller"
 	"github.com/reddio-com/reddio/bridge/controller/api"
 	"github.com/reddio-com/reddio/bridge/controller/route"
+	"github.com/reddio-com/reddio/bridge/relayer"
 	"github.com/reddio-com/reddio/bridge/utils/database"
 	"github.com/reddio-com/reddio/config"
 	"github.com/reddio-com/reddio/evm"
 	"github.com/reddio-com/reddio/evm/ethrpc"
 	"github.com/reddio-com/reddio/parallel"
-
-	"github.com/reddio-com/reddio/bridge/relayer"
 )
 
 func Start(evmPath, yuPath, poaPath, configPath string) {
@@ -53,7 +51,7 @@ func StartUpChain(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm
 	if evmCfg.EnableBridge {
 		db, err = database.InitDB(evmCfg.BridgeDBConfig)
 		if err != nil {
-			log.Fatal("failed to init db", "err", err)
+			logrus.Fatal("failed to init db", "err", err)
 		}
 	}
 	chain := InitReddio(yuCfg, poaCfg, evmCfg, db)
@@ -111,12 +109,12 @@ func StartupL1Watcher(chain *kernel.Kernel, cfg *evm.GethConfig, db *gorm.DB) {
 
 	l1Client, err := ethclient.Dial(cfg.L1ClientAddress)
 	if err != nil {
-		log.Fatal("failed to connect to L1 geth", "endpoint", cfg.L1ClientAddress, "err", err)
+		logrus.Fatal("failed to connect to L1 geth", "endpoint", cfg.L1ClientAddress, "err", err)
 	}
 
 	l2Client, err := ethclient.Dial(cfg.L2ClientAddress)
 	if err != nil {
-		log.Fatal("failed to connect to L2 geth", "endpoint", cfg.L2ClientAddress, "err", err)
+		logrus.Fatal("failed to connect to L2 geth", "endpoint", cfg.L2ClientAddress, "err", err)
 	}
 	l1ToL2Relayer, err := relayer.NewL1ToL2Relayer(ctx, cfg, l1Client, l2Client, chain, db)
 	if err != nil {
@@ -140,7 +138,7 @@ func StartupL1Watcher(chain *kernel.Kernel, cfg *evm.GethConfig, db *gorm.DB) {
 	go func() {
 		port := cfg.BridgePort
 		if runServerErr := router.Run(fmt.Sprintf(":%s", port)); runServerErr != nil {
-			log.Fatal("run http server failure", "error", runServerErr)
+			logrus.Fatal("run http server failure", "error", runServerErr)
 		}
 	}()
 }
