@@ -2,6 +2,7 @@ package parallel
 
 import (
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"strconv"
 	"sync"
 	"time"
@@ -115,12 +116,15 @@ func (e *ParallelEvmExecutor) executeTxnCtxListInConcurrency(originStateDB *stat
 			}()
 			tctx.ctx.ExtraInterface = cpDb
 			err := tctx.writing(tctx.ctx)
+			logrus.Info("start handle the result: ", tctx.txn.TxnHash.String())
 			if err != nil {
 				tctx.err = err
 				tctx.receipt = e.k.handleTxnError(err, tctx.ctx, tctx.ctx.Block, tctx.txn)
 			} else {
 				tctx.receipt = e.k.handleTxnEvent(tctx.ctx, tctx.ctx.Block, tctx.txn, false)
 			}
+			logrus.Info("end handle the result: ", tctx.txn.TxnHash.String())
+
 			tctx.ps = tctx.ctx.ExtraInterface.(*pending_state.PendingStateWrapper)
 
 			list[index] = tctx
