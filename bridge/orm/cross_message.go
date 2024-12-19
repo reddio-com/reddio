@@ -38,6 +38,7 @@ type CrossMessage struct {
 	MessageValue       string     `json:"message_value" gorm:"column:message_value"`
 	MessageNonce       string     `json:"message_nonce" gorm:"column:message_nonce"`
 	MultiSignProof     string     `json:"multisign_proof" gorm:"column:multisign_proof"`
+	RefundTxHash       string     `json:"refund_address" gorm:"column:refund_tx_hash"`
 	CreatedAt          time.Time  `json:"created_at" gorm:"column:created_at"`
 	UpdatedAt          time.Time  `json:"updated_at" gorm:"column:updated_at"`
 	DeletedAt          *time.Time `json:"deleted_at" gorm:"column:deleted_at"`
@@ -161,6 +162,63 @@ func (c *CrossMessage) InsertOrUpdateL1RelayedMessagesOfL2Withdrawals(ctx contex
 	})
 	if err := db.Create(uniqueL1RelayedMessages).Error; err != nil {
 		return fmt.Errorf("failed to update L1 relayed message of L2 withdrawal, error: %w", err)
+	}
+	return nil
+}
+
+func (c *CrossMessage) QueryL1ToL2UnConsumedMessages(ctx context.Context, tx_type btypes.TxType) ([]*CrossMessage, error) {
+	var messages []*CrossMessage
+
+	db := c.db.WithContext(ctx)
+	db = db.Model(&CrossMessage{})
+	db = db.Where("message_type = ?", btypes.MessageTypeL1SentMessage)
+	db = db.Where("tx_status = ?", btypes.TxStatusTypeSent)
+	db = db.Where("tx_type = ?", tx_type)
+	db = db.Order("block_timestamp desc")
+	db = db.Limit(500)
+	if err := db.Find(&messages).Error; err != nil {
+		return nil, fmt.Errorf("failed to get L1 UnConsumed message, err: %v", err)
+	}
+	return messages, nil
+}
+
+func (c *CrossMessage) QueryL2ToL1UnConsumedMessages(ctx context.Context, tx_type btypes.TxType) ([]*CrossMessage, error) {
+	var messages []*CrossMessage
+
+	db := c.db.WithContext(ctx)
+	db = db.Model(&CrossMessage{})
+	db = db.Where("message_type = ?", btypes.MessageTypeL2SentMessage)
+	db = db.Where("tx_status = ?", btypes.TxStatusTypeSent)
+	db = db.Where("tx_type = ?", tx_type)
+	db = db.Order("block_timestamp desc")
+	db = db.Limit(500)
+	if err := db.Find(&messages).Error; err != nil {
+		return nil, fmt.Errorf("failed to get L2 UnConsumed message, err: %v", err)
+	}
+	return messages, nil
+}
+
+func (c *CrossMessage) UpdateL1ToL2Message(ctx context.Context, message_hash string, txStatus int, l2BlockNumber uint64) error {
+	db := c.db.WithContext(ctx)
+	err := db.Model(&CrossMessage{}).Where("message_hash = ? AND message_type = ?", message_hash, btypes.MessageTypeL1SentMessage).Updates(map[string]interface{}{
+		"tx_status":       txStatus,
+		"l2_block_number": l2BlockNumber,
+		"updated_at":      time.Now(),
+	}).Error
+	if err != nil {
+		return fmt.Errorf("failed to update L2 message, id: %s, error: %v", message_hash, err)
+	}
+	return nil
+}
+
+func (c *CrossMessage) UpdateL2ToL1Message(ctx context.Context, message_hash string, txStatus int) error {
+	db := c.db.WithContext(ctx)
+	err := db.Model(&CrossMessage{}).Where("message_hash = ? AND message_type = ?", message_hash, btypes.MessageTypeL2SentMessage).Updates(map[string]interface{}{
+		"tx_status":  txStatus,
+		"updated_at": time.Now(),
+	}).Error
+	if err != nil {
+		return fmt.Errorf("failed to update L1 message, message_hash: %s, error: %v", message_hash, err)
 	}
 	return nil
 }
