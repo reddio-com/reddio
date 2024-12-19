@@ -221,8 +221,9 @@ func (s *Solidity) CheckTxn(txn *yu_types.SignedTxn) error {
 // Execute sets up an in-memory, temporary, environment for the execution of
 // the given code. It makes sure that it's restored to its original state afterwards.
 func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
+	logrus.Infof("Solidity.ExecuteTxn Try RLock (%d) ......", ctx.Block.Height)
+
 	s.RLock()
-	logrus.Infof("Solidity.ExecuteTxn RLock (%d) ......", ctx.Block.Height)
 	defer s.RUnlock()
 
 	start := time.Now()
@@ -300,12 +301,9 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 // EVM's return value or an error if it failed.
 func (s *Solidity) Call(ctx *context.ReadContext) {
 	s.Lock()
-	logrus.Info("Solidity.Call Lock ...")
 
-	defer func() {
-		logrus.Info("Solidity.Call unLock ...")
-		s.Unlock()
-	}()
+	defer s.Unlock()
+
 	callReq := new(CallRequest)
 	err := ctx.BindJson(callReq)
 	if err != nil {
