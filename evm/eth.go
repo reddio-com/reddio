@@ -44,8 +44,6 @@ type Solidity struct {
 }
 
 func (s *Solidity) StateDB() *state.StateDB {
-	//s.Lock()
-	//defer s.Unlock()
 	return s.ethState.StateDB()
 }
 
@@ -224,10 +222,12 @@ func (s *Solidity) CheckTxn(txn *yu_types.SignedTxn) error {
 // the given code. It makes sure that it's restored to its original state afterwards.
 func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 	s.RLock()
+	logrus.Infof("Solidity.ExecuteTxn RLock (%d) ......", ctx.Block.Height)
 	defer s.RUnlock()
 
 	start := time.Now()
 	defer func() {
+		logrus.Infof("Solidity.ExecuteTxn UnRLock (%d) ......", ctx.Block.Height)
 		end := time.Now()
 		metrics.TxnDuration.WithLabelValues().Observe(end.Sub(start).Seconds())
 	}()
@@ -235,8 +235,9 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 	txReq := new(TxRequest)
 	coinbase := common.BytesToAddress(s.cfg.Coinbase.Bytes())
 
-	// s.Lock()
 	_ = ctx.BindJson(txReq)
+
+	logrus.Infof("start to ExecuteTxn (%s) on height(%d)", txReq.Hash.String(), ctx.Block.Height)
 
 	pd := ctx.ExtraInterface.(*pending_state.PendingStateWrapper)
 
@@ -299,7 +300,12 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 // EVM's return value or an error if it failed.
 func (s *Solidity) Call(ctx *context.ReadContext) {
 	s.Lock()
-	defer s.Unlock()
+	logrus.Info("Solidity.Call Lock ...")
+
+	defer func() {
+		logrus.Info("Solidity.Call unLock ...")
+		s.Unlock()
+	}()
 	callReq := new(CallRequest)
 	err := ctx.BindJson(callReq)
 	if err != nil {
@@ -542,14 +548,10 @@ func makeEvmReceipt(ctx *context.WriteContext, vmEvm *vm.EVM, code []byte, signe
 }
 
 func (s *Solidity) StateAt(root common.Hash) (*state.StateDB, error) {
-	//s.Lock()
-	//defer s.Unlock()
 	return s.ethState.StateAt(root)
 }
 
 func (s *Solidity) GetEthDB() ethdb.Database {
-	//s.Lock()
-	//defer s.Unlock()
 	return s.ethState.ethDB
 }
 
