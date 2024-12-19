@@ -141,6 +141,7 @@ func (w *L1EventsWatcher) handleDownwardMessage(
 func (w *L1EventsWatcher) handleRelayerMessage(msg *contract.UpwardMessageDispatcherFacetRelayedMessage) error {
 	err := w.l1toL2Relayer.HandleRelayerMessage(msg)
 	if err != nil {
+		logrus.Errorf("Failed to handle RelayerMessage: %v", err)
 		return err
 	}
 	//fmt.Printf("Received RelayerMessage: %+v\n", msg)

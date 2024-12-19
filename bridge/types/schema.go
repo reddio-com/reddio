@@ -44,6 +44,7 @@ type TxStatusType int
 const (
 	TxStatusTypeSent TxStatusType = iota
 	TxStatusTypeConsumed
+	TxStatusTypeDropped
 )
 
 // MessageType represents the type of message.
