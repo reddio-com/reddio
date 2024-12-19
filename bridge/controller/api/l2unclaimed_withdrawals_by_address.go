@@ -1,11 +1,11 @@
 package api
 
 import (
-	"github.com/reddio-com/reddio/bridge/types"
-
 	"github.com/gin-gonic/gin"
-	"github.com/reddio-com/reddio/bridge/logic"
 	"gorm.io/gorm"
+
+	"github.com/reddio-com/reddio/bridge/logic"
+	"github.com/reddio-com/reddio/bridge/types"
 )
 
 // L2UnclaimedWithdrawalsByAddressController the controller of GetL2UnclaimedWithdrawalsByAddress
@@ -22,7 +22,6 @@ func NewL2UnclaimedWithdrawalsByAddressController(db *gorm.DB) *L2UnclaimedWithd
 
 // GetL2UnclaimedWithdrawalsByAddress defines the http get method behavior
 func (c *L2UnclaimedWithdrawalsByAddressController) GetL2UnclaimedWithdrawalsByAddress(ctx *gin.Context) {
-	//fmt.Println("GetL2UnclaimedWithdrawalsByAddress")
 	var req types.QueryByAddressRequest
 	if err := ctx.ShouldBind(&req); err != nil {
 		types.RenderFailure(ctx, types.ErrParameterInvalidNo, err)

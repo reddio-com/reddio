@@ -6,12 +6,12 @@ import (
 	"crypto/rand"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/sirupsen/logrus"
 )
 
 func generatePrivateKey() (string, string) {
@@ -33,7 +33,7 @@ func sendRequest(hostAddress string, dataString string) ([]byte, error) {
 	if err == nil {
 		return resp, nil
 	}
-	log.Printf("send request got Err:%v", err)
+	logrus.Infof("send request got Err:%v", err)
 	for {
 		time.Sleep(10 * time.Millisecond)
 		resp, err = sendSingleRequest(hostAddress, dataString)

@@ -1,8 +1,9 @@
 package parallel
 
 import (
-	"log"
 	"time"
+	
+	"github.com/sirupsen/logrus"
 
 	"github.com/reddio-com/reddio/config"
 	"github.com/reddio-com/reddio/metrics"
@@ -27,7 +28,7 @@ func (stat *BlockTxnStatManager) UpdateMetrics() {
 	metrics.BlockTxnPrepareDurationGauge.WithLabelValues().Set(float64(stat.PrepareDuration.Seconds()))
 	metrics.BlockTxnCommitDurationGauge.WithLabelValues().Set(float64(stat.CommitDuration.Seconds()))
 	if config.GlobalConfig.IsBenchmarkMode {
-		log.Printf("execute %v txn, total:%v, execute cost:%v, prepare:%v, copy:%v, commit:%v, txnBatch:%v, conflict:%v, redoBatch:%v",
+		logrus.Infof("execute %v txn, total:%v, execute cost:%v, prepare:%v, copy:%v, commit:%v, txnBatch:%v, conflict:%v, redoBatch:%v",
 			stat.TxnCount, stat.ExecuteDuration.String(), stat.ExecuteTxnDuration.String(),
 			stat.PrepareDuration.String(), stat.CopyDuration.String(), stat.CommitDuration.String(), stat.TxnBatchCount, stat.ConflictCount, stat.TxnBatchRedoCount)
 	}

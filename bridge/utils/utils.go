@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"math/big"
 	"os"
 	"strings"
@@ -17,6 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/holiman/uint256"
 	"github.com/joho/godotenv"
+	"github.com/sirupsen/logrus"
 	yu_common "github.com/yu-org/yu/common"
 )
 
@@ -52,9 +52,7 @@ func UnpackLog(c *abi.ABI, out interface{}, event string, log types.Log) error {
 	}
 	if len(log.Data) > 0 {
 		if err := c.UnpackIntoInterface(out, event, log.Data); err != nil {
-			// fmt.Println("log.Data ", log.Data)
-			// fmt.Println("event ", event)
-			// fmt.Println("Failed to UnpackIntoInterface", "err", err)
+			logrus.Error("unpack event data error:", err)
 			return err
 		}
 	}
@@ -135,7 +133,7 @@ func ComputeMessageHash(payloadType uint32, payload []byte, nonce *big.Int) (com
 		{Type: abi.Type{T: abi.UintTy, Size: 256}}, // Use UintTy with size 256 for *big.Int
 	}.Pack(payloadType, payload, nonce)
 	if err != nil {
-		log.Fatalf("Failed to pack data: %v", err)
+		logrus.Fatalf("Failed to pack data: %v", err)
 	}
 
 	dataHash := crypto.Keccak256Hash(packedData)

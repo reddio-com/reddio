@@ -3,8 +3,9 @@ package transfer
 import (
 	"context"
 	"fmt"
-	"log"
 
+	"github.com/sirupsen/logrus"
+	
 	"github.com/reddio-com/reddio/evm"
 	"github.com/reddio-com/reddio/test/conf"
 	"github.com/reddio-com/reddio/test/pkg"
@@ -43,11 +44,11 @@ func (m *EthManager) AddTestCase(tc ...TestCase) {
 
 func (m *EthManager) Run(ctx context.Context) error {
 	for _, tc := range m.testcases {
-		log.Printf("start to test %v", tc.Name())
+		logrus.Infof("start to test %v", tc.Name())
 		if err := tc.Run(ctx, m.wm); err != nil {
 			return fmt.Errorf("%s failed, err:%v", tc.Name(), err)
 		}
-		log.Printf("test %v success", tc.Name())
+		logrus.Infof("test %v success", tc.Name())
 	}
 	return nil
 }

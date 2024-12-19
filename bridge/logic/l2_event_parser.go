@@ -9,7 +9,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/log"
+	"github.com/sirupsen/logrus"
+
 	backendabi "github.com/reddio-com/reddio/bridge/abi"
 	"github.com/reddio-com/reddio/bridge/contract"
 	"github.com/reddio-com/reddio/bridge/orm"
@@ -18,14 +19,14 @@ import (
 	"github.com/reddio-com/reddio/evm"
 )
 
-// represent the structure of the event logs ParentEthBurnt from ChildTokenMessageTransmitterFacet.sol
+// L2ETHBurnt represent the structure of the event logs ParentEthBurnt from ChildTokenMessageTransmitterFacet.sol
 type L2ETHBurnt struct {
 	ChildSender     common.Address // address
 	ParentRecipient common.Address // address
 	Amount          *big.Int       // uint256
 }
 
-// represent the structure of the event logs ParentREDTokenBurnt from ChildTokenMessageTransmitterFacet.sol
+// L2REDBurnt represent the structure of the event logs ParentREDTokenBurnt from ChildTokenMessageTransmitterFacet.sol
 type L2REDBurnt struct {
 	TokenAddress    common.Address // address
 	ChildSender     common.Address // address
@@ -33,7 +34,7 @@ type L2REDBurnt struct {
 	Amount          *big.Int       // uint256
 }
 
-// represent the structure of the event logs ParentERC20TokenBurnt from ChildTokenMessageTransmitterFacet.sol
+// L2ERC20TokenBurnt represent the structure of the event logs ParentERC20TokenBurnt from ChildTokenMessageTransmitterFacet.sol
 type L2ERC20TokenBurnt struct {
 	TokenAddress    common.Address // address
 	ChildSender     common.Address // address
@@ -41,7 +42,7 @@ type L2ERC20TokenBurnt struct {
 	Amount          *big.Int       // uint256
 }
 
-// represent the structure of the event logs ParentERC721TokenBurnt from ChildTokenMessageTransmitterFacet.sol
+// L2Erc721TokenBurnt represent the structure of the event logs ParentERC721TokenBurnt from ChildTokenMessageTransmitterFacet.sol
 type L2Erc721TokenBurnt struct {
 	TokenAddress    common.Address // address
 	ChildSender     common.Address // address
@@ -49,7 +50,7 @@ type L2Erc721TokenBurnt struct {
 	TokenID         *big.Int       // uint256
 }
 
-// represent the structure of the event logs ParentERC1155TokenBurnt from ChildTokenMessageTransmitterFacet.sol
+// L2Erc1155BatchTokenBurnt represent the structure of the event logs ParentERC1155TokenBurnt from ChildTokenMessageTransmitterFacet.sol
 type L2Erc1155BatchTokenBurnt struct {
 	TokenAddress    common.Address // address
 	ChildSender     common.Address // address
@@ -85,11 +86,10 @@ func (e *L2EventParser) ParseL2UpwardMessageEventEventLogs(ctx context.Context, 
 	for _, vlog := range logs {
 		switch vlog.Topics[0] {
 		case backendabi.L2UpwardMessageEventSig:
-			//fmt.Println("catch L2UpwardMessageEventSig")
 			event := new(contract.ChildBridgeCoreFacetUpwardMessage)
 			err := utils.UnpackLog(backendabi.IL2ChildBridgeCoreFacetABI, event, "UpwardMessage", vlog)
 			if err != nil {
-				log.Error("Failed to unpack UpwardMessage event", "err", err)
+				logrus.Error("Failed to unpack UpwardMessage event", "err", err)
 				return nil, err
 			}
 			event.Raw = vlog
@@ -100,7 +100,7 @@ func (e *L2EventParser) ParseL2UpwardMessageEventEventLogs(ctx context.Context, 
 	return events, nil
 }
 
-// L2->L1 ParseL2SingleCrossChainEventLogs parses L2 watched events
+// ParseL2SingleCrossChainEventLogs L2->L1 ParseL2SingleCrossChainEventLogs parses L2 watched events
 func (e *L2EventParser) ParseL2SingleCrossChainEventLogs(ctx context.Context, logs []types.Log) ([]*orm.CrossMessage, error) {
 	var l2WithdrawMessages []*orm.CrossMessage
 
@@ -109,16 +109,15 @@ func (e *L2EventParser) ParseL2SingleCrossChainEventLogs(ctx context.Context, lo
 			event := new(contract.ChildBridgeCoreFacetUpwardMessage)
 			err := utils.UnpackLog(backendabi.IL2ChildBridgeCoreFacetABI, event, "UpwardMessage", vlog)
 			if err != nil {
-				log.Error("Failed to unpack UpwardMessage event", "err", err)
+				logrus.Error("Failed to unpack UpwardMessage event", "err", err)
 				return nil, err
 			}
 			switch utils.MessagePayloadType(event.PayloadType) {
 			case utils.ETH:
 				payloadHex := hex.EncodeToString(event.Payload)
-				//fmt.Println("payloadHex: ", payloadHex)
 				l2ETHBurntMsg, err := decodeL2ETHBurnt(payloadHex)
 				if err != nil {
-					log.Error("Failed to decode ETHLocked", "err", err)
+					logrus.Error("Failed to decode ETHLocked", "err", err)
 					return nil, err
 				}
 				l2WithdrawMessages = append(l2WithdrawMessages, &orm.CrossMessage{
@@ -146,7 +145,7 @@ func (e *L2EventParser) ParseL2SingleCrossChainEventLogs(ctx context.Context, lo
 
 				l2ERC20BurntMsg, err := decodeERC20TokenBurnt(payloadHex)
 				if err != nil {
-					log.Error("Failed to decode ERC20TokenBurnt", "err", err)
+					logrus.Error("Failed to decode ERC20TokenBurnt", "err", err)
 					return nil, err
 				}
 				l2WithdrawMessages = append(l2WithdrawMessages, &orm.CrossMessage{
@@ -176,7 +175,7 @@ func (e *L2EventParser) ParseL2SingleCrossChainEventLogs(ctx context.Context, lo
 
 				l2REDBurntMsg, err := decodeREDTokenBurnt(payloadHex)
 				if err != nil {
-					log.Error("Failed to decode REDTokenBurnt", "err", err)
+					logrus.Error("Failed to decode REDTokenBurnt", "err", err)
 					return nil, err
 				}
 				l2WithdrawMessages = append(l2WithdrawMessages, &orm.CrossMessage{
@@ -194,17 +193,15 @@ func (e *L2EventParser) ParseL2SingleCrossChainEventLogs(ctx context.Context, lo
 					MessageFrom:        l2REDBurntMsg.ChildSender.String(),
 					MessageTo:          l2REDBurntMsg.ParentRecipient.String(),
 					MessageValue:       l2REDBurntMsg.Amount.String(),
-					//MessageNonce: "",
-					//MultiSignProof: "",
-					TokenAmounts: l2REDBurntMsg.Amount.String(),
-					CreatedAt:    time.Now().UTC(),
-					UpdatedAt:    time.Now().UTC(),
+					TokenAmounts:       l2REDBurntMsg.Amount.String(),
+					CreatedAt:          time.Now().UTC(),
+					UpdatedAt:          time.Now().UTC(),
 				})
 				// case utils.ERC721:
 				// 	payloadHex := hex.EncodeToString(event.Payload)
 				// 	l2ERC721BurntMsg, err := decodeERC721TokenBurnt(payloadHex)
 				// 	if err != nil {
-				// 		log.Error("Failed to decode ERC721TokenBurnt", "err", err)
+				// 		logrus.Error("Failed to decode ERC721TokenBurnt", "err", err)
 				// 		return nil, err
 				// 	}
 				// 	l2WithdrawMessages = append(l2WithdrawMessages, &orm.CrossMessage{
@@ -230,7 +227,7 @@ func (e *L2EventParser) ParseL2SingleCrossChainEventLogs(ctx context.Context, lo
 				// 	payloadHex := hex.EncodeToString(event.Payload)
 				// 	l2ERC1155BurntMsg, err := decodeERC1155BatchTokenBurnt(payloadHex)
 				// 	if err != nil {
-				// 		log.Error("Failed to decode ERC1155BatchTokenBurnt", "err", err)
+				// 		logrus.Error("Failed to decode ERC1155BatchTokenBurnt", "err", err)
 				// 		return nil, err
 				// 	}
 				// 	l2WithdrawMessages = append(l2WithdrawMessages, &orm.CrossMessage{

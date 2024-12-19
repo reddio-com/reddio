@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"log"
 	"math/big"
 	"os"
 	"strings"
@@ -14,12 +13,14 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/joho/godotenv"
+	"github.com/sirupsen/logrus"
+	"gorm.io/gorm"
+
 	"github.com/reddio-com/reddio/bridge/contract"
 	"github.com/reddio-com/reddio/bridge/orm"
 	"github.com/reddio-com/reddio/bridge/utils"
 	"github.com/reddio-com/reddio/evm"
 	"github.com/reddio-com/reddio/metrics"
-	"gorm.io/gorm"
 )
 
 type L2ToL1Relayer struct {
@@ -67,7 +68,7 @@ func (b *L2ToL1Relayer) HandleUpwardMessage(msgs []*orm.CrossMessage, blockTimes
 	// }
 	privateKey, err := LoadPrivateKey("bridge/relayer/.sepolia.env")
 	if err != nil {
-		log.Fatalf("Error loading private key: %v", err)
+		logrus.Fatalf("Error loading private key: %v", err)
 	}
 	// testUserPK, err := crypto.HexToECDSA(privateKey)
 	// if err != nil {
@@ -80,7 +81,7 @@ func (b *L2ToL1Relayer) HandleUpwardMessage(msgs []*orm.CrossMessage, blockTimes
 
 	// auth, err := bind.NewKeyedTransactorWithChainID(testUserPK, l1ChainId)
 	// if err != nil {
-	// 	log.Fatalf("Failed to create authorized transactor: %v", err)
+	// 	logrus.Fatalf("Failed to create authorized transactor: %v", err)
 	// }
 
 	privateKeys := []string{
@@ -90,7 +91,7 @@ func (b *L2ToL1Relayer) HandleUpwardMessage(msgs []*orm.CrossMessage, blockTimes
 		var upwardMessages []contract.UpwardMessage
 		payloadBytes, err := hex.DecodeString(msg.MessagePayload)
 		if err != nil {
-			//fmt.Println("Failed to decode hex string:", err)
+			logrus.Errorf("Error decoding payload: %v", err)
 			return err
 		}
 		upwardMessages = append(upwardMessages, contract.UpwardMessage{
@@ -100,15 +101,14 @@ func (b *L2ToL1Relayer) HandleUpwardMessage(msgs []*orm.CrossMessage, blockTimes
 		})
 		signaturesArray, err := generateUpwardMessageMultiSignatures(upwardMessages, privateKeys)
 		if err != nil {
-			log.Fatalf("Failed to generate multi-signatures: %v", err)
+			logrus.Fatalf("Failed to generate multi-signatures: %v", err)
 		}
 
 		messageHash, err := utils.ComputeMessageHash(upwardMessages[0].PayloadType, upwardMessages[0].Payload, upwardMessages[0].Nonce)
 		if err != nil {
-			log.Fatalf("Failed to compute message hash: %v", err)
+			logrus.Fatalf("Failed to compute message hash: %v", err)
 		}
 		msg.MessageHash = messageHash.Hex()
-		//fmt.Println("msg.MessageHash:", msg.MessageHash)
 		msg.MessageNonce = upwardMessages[0].Nonce.String()
 		var multiSignProofs []string
 		for _, sig := range signaturesArray {
@@ -117,47 +117,14 @@ func (b *L2ToL1Relayer) HandleUpwardMessage(msgs []*orm.CrossMessage, blockTimes
 
 		msg.MultiSignProof = strings.Join(multiSignProofs, ",")
 		msg.BlockTimestamp = blockTimestampsMap[msg.L2BlockNumber]
-		//fmt.Println("msg.MultiSignProof:", msg.MultiSignProof)
 	}
 
 	if msgs != nil {
-		//fmt.Println("msgs:", msgs)
 		err = b.crossMessageOrm.InsertOrUpdateL2Messages(context.Background(), msgs)
 		if err != nil {
 			fmt.Println("Failed to insert or update L2 messages:", err)
 		}
 	}
-	// upwardMessagesJSON, err := json.MarshalIndent(upwardMessages, "", "  ")
-	// if err != nil {
-	// 	fmt.Printf("Error marshalling upwardMessages to JSON: %v\n", err)
-	// 	return err
-	// }
-
-	// // Print JSON
-	// fmt.Printf("UpwardMessages JSON:\n%s\n", string(upwardMessagesJSON))
-
-	// signaturesArray, err := generateUpwardMessageMultiSignatures(upwardMessages, privateKeys)
-	// if err != nil {
-	// 	log.Fatalf("Failed to generate multi-signatures: %v", err)
-	// }
-
-	// for i, sig := range signaturesArray {
-	// 	log.Printf("MultiSignature %d: %x\n", i+1, sig)
-	// }
-
-	// tx, err := upwardMessageDispatcher.ReceiveUpwardMessages(auth, upwardMessages, signaturesArray)
-	// if err != nil {
-	// 	log.Printf("Failed to send transaction: %v", err)
-	// 	for _, msg := range msgs {
-	// 		metrics.UpwardMessageFailureCounter.WithLabelValues(fmt.Sprintf("%d", msg.PayloadType)).Inc()
-	// 	}
-	// 	return err
-	// }
-
-	// log.Printf("Transaction sent: %s", tx.Hash().Hex())
-	// for _, msg := range msgs {
-	// 	metrics.UpwardMessageSuccessCounter.WithLabelValues(fmt.Sprintf("%d", msg.PayloadType)).Inc()
-	// }
 	return nil
 }
 
@@ -184,7 +151,6 @@ func generateUpwardMessageMultiSignatures(upwardMessages []contract.UpwardMessag
 		return nil, err
 	}
 
-	//fmt.Println("newdataHash:", dataHash)
 	// Generate multiple signatures
 	var signaturesArray [][]byte
 	for _, pk := range privateKeys {
@@ -201,23 +167,6 @@ func generateUpwardMessageMultiSignatures(upwardMessages []contract.UpwardMessag
 		signaturesArray = append(signaturesArray, signature)
 	}
 
-	// for print
-	// Recover the public key
-	// sigPublicKey, err := crypto.Ecrecover(dataHash.Bytes(), signaturesArray[0])
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-
-	// // Convert public key to address
-	// publicKeyECDSA, err := crypto.UnmarshalPubkey(sigPublicKey)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// address := crypto.PubkeyToAddress(*publicKeyECDSA)
-
-	// fmt.Printf("Signed hash: %x\n", signaturesArray[0])
-	// fmt.Printf("Signer address: %s\n", address.Hex())
-
 	return signaturesArray, nil
 }
 
@@ -228,14 +177,14 @@ func generateUpwardMessageToHash(upwardMessages []contract.UpwardMessage) (commo
 		{Type: abi.Type{T: abi.UintTy, Size: 256}},
 	}.Pack(initialOffset)
 	if err != nil {
-		log.Fatalf("Failed to pack initial offset: %v", err)
+		logrus.Fatalf("Failed to pack initial offset: %v", err)
 	}
 
 	lengthData, err := abi.Arguments{
 		{Type: abi.Type{T: abi.UintTy, Size: 256}},
 	}.Pack(arrayLength)
 	if err != nil {
-		log.Fatalf("Failed to pack array length: %v", err)
+		logrus.Fatalf("Failed to pack array length: %v", err)
 	}
 
 	tupleOffset := big.NewInt(32)
@@ -243,7 +192,7 @@ func generateUpwardMessageToHash(upwardMessages []contract.UpwardMessage) (commo
 		{Type: abi.Type{T: abi.UintTy, Size: 256}},
 	}.Pack(tupleOffset)
 	if err != nil {
-		log.Fatalf("Failed to pack tuple offset: %v", err)
+		logrus.Fatalf("Failed to pack tuple offset: %v", err)
 	}
 
 	var data []byte
@@ -258,13 +207,10 @@ func generateUpwardMessageToHash(upwardMessages []contract.UpwardMessage) (commo
 			{Type: abi.Type{T: abi.UintTy, Size: 256}}, // Use UintTy with size 256 for *big.Int
 		}.Pack(msg.PayloadType, msg.Payload, msg.Nonce)
 		if err != nil {
-			//fmt.Printf("Failed to pack upwardMessages: %v\n", err)
 			return common.Hash{}, err
 		}
 		data = append(data, packedData...)
 	}
-
-	//fmt.Printf("Encoded Data (Hex): %s\n", hex.EncodeToString(data))
 
 	dataHash := crypto.Keccak256Hash(data)
 	return dataHash, nil

@@ -3,11 +3,12 @@ package main
 import (
 	"context"
 	"flag"
-	"log"
 	"os"
 	"runtime"
 	"time"
 
+	"github.com/sirupsen/logrus"
+	
 	"github.com/reddio-com/reddio/cmd/node/app"
 	config2 "github.com/reddio-com/reddio/config"
 	"github.com/reddio-com/reddio/evm"
@@ -37,21 +38,21 @@ func main() {
 	config.IsParallel = isParallel
 	config.AsyncCommit = true
 	go func() {
-		log.Printf("Number of goroutines after app.Start: %d", runtime.NumGoroutine())
+		logrus.Infof("Number of goroutines after app.Start: %d", runtime.NumGoroutine())
 		if config.IsParallel {
-			log.Println("start uniswap test in parallel")
+			logrus.Info("start uniswap test in parallel")
 		} else {
-			log.Println("start uniswap test in serial")
+			logrus.Info("start uniswap test in serial")
 		}
 		app.Start(evmConfigPath, yuConfigPath, poaConfigPath, "")
 	}()
 	time.Sleep(5 * time.Second)
-	log.Println("finish start reddio")
+	logrus.Info("finish start reddio")
 	if err := assertUniswapV2(context.Background(), evmConfig); err != nil {
-		log.Println(err)
+		logrus.Info(err)
 		os.Exit(1)
 	}
-	log.Println("assert success")
+	logrus.Info("assert success")
 	os.Exit(0)
 }
 

@@ -6,27 +6,13 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/singleflight"
 	"gorm.io/gorm"
 
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/reddio-com/reddio/bridge/orm"
 	"github.com/reddio-com/reddio/bridge/types"
 	"github.com/reddio-com/reddio/bridge/utils"
-)
-
-const (
-// cacheKeyPrefixBridgeHistory serves as a specific namespace for all Redis cache keys
-// associated with the 'bridge-history' user. This prefix is used to enforce access controls
-// in Redis, allowing permissions to be set such that only users with the appropriate
-// access rights can read or write to keys starting with "bridge-history".
-// cacheKeyPrefixBridgeHistory = "bridge-history-"
-
-// cacheKeyPrefixL2ClaimableWithdrawalsByAddr = cacheKeyPrefixBridgeHistory + "l2ClaimableWithdrawalsByAddr:"
-// cacheKeyPrefixL2WithdrawalsByAddr          = cacheKeyPrefixBridgeHistory + "l2WithdrawalsByAddr:"
-// cacheKeyPrefixTxsByAddr                    = cacheKeyPrefixBridgeHistory + "txsByAddr:"
-// cacheKeyPrefixQueryTxsByHashes             = cacheKeyPrefixBridgeHistory + "queryTxsByHashes:"
-// cacheKeyExpiredTime                        = 1 * time.Minute
 )
 
 // HistoryLogic services.
@@ -39,7 +25,7 @@ type HistoryLogic struct {
 // NewHistoryLogic returns bridge history services.
 func NewHistoryLogic(db *gorm.DB) *HistoryLogic {
 	if err := db.AutoMigrate(&orm.CrossMessage{}); err != nil {
-		log.Error("Failed to auto migrate: %v", err)
+		logrus.Error("Failed to auto migrate: %v", err)
 	}
 	logic := &HistoryLogic{
 		crossMessageOrm: orm.NewCrossMessage(db),
@@ -50,8 +36,7 @@ func NewHistoryLogic(db *gorm.DB) *HistoryLogic {
 // GetL2UnclaimedWithdrawalsByAddress gets all unclaimed withdrawal txs under given address.
 func (h *HistoryLogic) GetL2UnclaimedWithdrawalsByAddress(ctx context.Context, address string, page, pageSize uint64) ([]*types.TxHistoryInfo, uint64, error) {
 	cacheKey := fmt.Sprintf("unclaimed_withdrawals_%s_%d_%d", address, page, pageSize)
-	log.Info("cache miss", "cache key", cacheKey)
-	//fmt.Println("cache miss", "cache key", cacheKey)
+	logrus.Info("cache miss", "cache key", cacheKey)
 	var total uint64
 	result, err, _ := h.singleFlight.Do(cacheKey, func() (interface{}, error) {
 		var txHistoryInfos []*types.TxHistoryInfo
@@ -66,13 +51,13 @@ func (h *HistoryLogic) GetL2UnclaimedWithdrawalsByAddress(ctx context.Context, a
 		return txHistoryInfos, nil
 	})
 	if err != nil {
-		log.Error("failed to get L2 claimable withdrawals by address", "address", address, "error", err)
+		logrus.Error("failed to get L2 claimable withdrawals by address", "address", address, "error", err)
 		return nil, 0, err
 	}
 
 	txHistoryInfos, ok := result.([]*types.TxHistoryInfo)
 	if !ok {
-		log.Error("unexpected type", "expected", "[]*types.TxHistoryInfo", "got", reflect.TypeOf(result), "address", address)
+		logrus.Error("unexpected type", "expected", "[]*types.TxHistoryInfo", "got", reflect.TypeOf(result), "address", address)
 		return nil, 0, errors.New("unexpected error")
 	}
 
@@ -82,8 +67,7 @@ func (h *HistoryLogic) GetL2UnclaimedWithdrawalsByAddress(ctx context.Context, a
 // GetL2UnclaimedWithdrawalsByAddress gets all unclaimed withdrawal txs under given address.
 func (h *HistoryLogic) GetTxsByAddress(ctx context.Context, address string, page, pageSize uint64) ([]*types.TxHistoryInfo, uint64, error) {
 	cacheKey := fmt.Sprintf("txs_by_address_%s_%d_%d", address, page, pageSize)
-	log.Info("cache miss", "cache key", cacheKey)
-	//fmt.Println("cache miss", "cache key", cacheKey)
+	logrus.Info("cache miss", "cache key", cacheKey)
 	var total uint64
 	result, err, _ := h.singleFlight.Do(cacheKey, func() (interface{}, error) {
 		var txHistoryInfos []*types.TxHistoryInfo
@@ -98,13 +82,13 @@ func (h *HistoryLogic) GetTxsByAddress(ctx context.Context, address string, page
 		return txHistoryInfos, nil
 	})
 	if err != nil {
-		log.Error("failed to get L2 claimable withdrawals by address", "address", address, "error", err)
+		logrus.Error("failed to get L2 claimable withdrawals by address", "address", address, "error", err)
 		return nil, 0, err
 	}
 
 	txHistoryInfos, ok := result.([]*types.TxHistoryInfo)
 	if !ok {
-		log.Error("unexpected type", "expected", "[]*types.TxHistoryInfo", "got", reflect.TypeOf(result), "address", address)
+		logrus.Error("unexpected type", "expected", "[]*types.TxHistoryInfo", "got", reflect.TypeOf(result), "address", address)
 		return nil, 0, errors.New("unexpected error")
 	}
 

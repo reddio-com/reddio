@@ -3,7 +3,6 @@ package pkg
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"math/big"
 	"strconv"
 	"strings"
@@ -13,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/sirupsen/logrus"
 
 	"github.com/reddio-com/reddio/evm"
 	"github.com/reddio-com/reddio/evm/ethrpc"
@@ -56,7 +56,7 @@ func (m *WalletManager) GenerateRandomWallets(count int, initialEthCount uint64)
 		wallets = append(wallets, wallet)
 		if i%2000 == 0 {
 			m.AssertWallet(wallet, initialEthCount)
-			log.Printf("assert %v/%v wallet done", i, count)
+			logrus.Infof("assert %v/%v wallet done", i, count)
 		}
 	}
 	m.AssertWallet(wallets[len(wallets)-1], initialEthCount)
@@ -102,12 +102,12 @@ func (m *WalletManager) CreateEthWalletByAddress(initialEthCount uint64, private
 	if err := m.transferEth(GenesisPrivateKey, address, initialEthCount, uint64(time.Now().UnixNano()+int64(nonceCount))); err != nil {
 		return nil, err
 	}
-	// log.Printf("create wallet %v", address))
+	// logrus.Infof("create wallet %v", address))
 	return &EthWallet{PK: privateKey, Address: address}, nil
 }
 
 func (m *WalletManager) TransferEth(from, to *EthWallet, amount, nonce uint64) error {
-	// log.Printf("transfer %v eth from %v to %v", amount, from.Address, to.Address))
+	// logrus.Infof("transfer %v eth from %v to %v", amount, from.Address, to.Address))
 	if err := m.transferEth(from.PK, to.Address, amount, nonce); err != nil {
 		return err
 	}
@@ -174,17 +174,17 @@ func (m *WalletManager) sendRawTx(privateKeyHex string, toAddress string, amount
 
 	privateKey, err := crypto.HexToECDSA(privateKeyHex)
 	if err != nil {
-		log.Fatal(err)
+		logrus.Fatal(err)
 	}
 
 	chainID := m.cfg.ChainConfig.ChainID
 	signedTx, err := types.SignTx(tx, types.NewEIP155Signer(chainID), privateKey)
 	if err != nil {
-		log.Fatal(err)
+		logrus.Fatal(err)
 	}
 	rawTxBytes, err := rlp.EncodeToBytes(signedTx)
 	if err != nil {
-		log.Fatal(err)
+		logrus.Fatal(err)
 	}
 
 	requestBody := fmt.Sprintf(
@@ -229,17 +229,17 @@ func (m *WalletManager) sendBatchRawTxs(rawTxs []*RawTxReq) error {
 
 		privateKey, err := crypto.HexToECDSA(rawTx.privateKeyHex)
 		if err != nil {
-			log.Fatal(err)
+			logrus.Fatal(err)
 		}
 
 		chainID := m.cfg.ChainConfig.ChainID
 		signedTx, err := types.SignTx(tx, types.NewEIP155Signer(chainID), privateKey)
 		if err != nil {
-			log.Fatal(err)
+			logrus.Fatal(err)
 		}
 		rawTxBytes, err := rlp.EncodeToBytes(signedTx)
 		if err != nil {
-			log.Fatal(err)
+			logrus.Fatal(err)
 		}
 		batchTx.TxsBytes = append(batchTx.TxsBytes, rawTxBytes)
 	}
