@@ -9,6 +9,7 @@ import (
 	"github.com/yu-org/yu/common"
 	"github.com/yu-org/yu/core/types"
 
+	"github.com/reddio-com/reddio/config"
 	"github.com/reddio-com/reddio/evm"
 )
 
@@ -30,23 +31,28 @@ type ParallelEVM struct {
 }
 
 func NewParallelEVM() *ParallelEVM {
-	return &ParallelEVM{
+	evm := &ParallelEVM{
 		Tripod: tripod.NewTripod(),
 	}
+	return evm
 }
 
 func (k *ParallelEVM) setupProcessor() {
-	k.processor = NewParallelEvmExecutor(k)
+	if config.GetGlobalConfig().IsParallel {
+		k.processor = NewParallelEvmExecutor(k)
+	} else {
+		k.processor = NewSerialEvmExecutor(k)
+	}
 }
 
 func (k *ParallelEVM) Execute(block *types.Block) error {
 	k.statManager = &BlockTxnStatManager{TxnCount: len(block.Txns)}
+	k.setupProcessor()
 	start := time.Now()
 	defer func() {
 		k.statManager.ExecuteDuration = time.Since(start)
 		k.statManager.UpdateMetrics()
 	}()
-	k.setupProcessor()
 	k.processor.Prepare(block)
 	k.processor.Execute(block)
 	receipts := k.processor.Receipts(block)
