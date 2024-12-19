@@ -27,22 +27,22 @@ func NewPendingStateWrapper(ps *PendingState, TxnID int64) *PendingStateWrapper 
 }
 
 func (psw *PendingStateWrapper) CreateAccount(address common.Address) {
-	psw.sCtx.WriteAccount(address)
+	psw.sCtx.WriteAccount(address, psw.TxnID)
 	psw.PS.CreateAccount(address)
 }
 
 func (psw *PendingStateWrapper) SubBalance(address common.Address, u *uint256.Int, reason tracing.BalanceChangeReason) {
-	psw.sCtx.WriteBalance(address)
+	psw.sCtx.WriteBalance(address, psw.TxnID)
 	psw.PS.SubBalance(address, u, reason)
 }
 
 func (psw *PendingStateWrapper) AddBalance(address common.Address, u *uint256.Int, reason tracing.BalanceChangeReason) {
-	psw.sCtx.WriteBalance(address)
+	psw.sCtx.WriteBalance(address, psw.TxnID)
 	psw.PS.AddBalance(address, u, reason)
 }
 
 func (psw *PendingStateWrapper) GetBalance(address common.Address) *uint256.Int {
-	psw.sCtx.ReadBalance(address)
+	psw.sCtx.ReadBalance(address, psw.TxnID)
 	return psw.PS.GetBalance(address)
 }
 
@@ -55,22 +55,22 @@ func (psw *PendingStateWrapper) SetNonce(address common.Address, u uint64) {
 }
 
 func (psw *PendingStateWrapper) GetCodeHash(address common.Address) common.Hash {
-	psw.sCtx.ReadCode(address)
+	psw.sCtx.ReadCode(address, psw.TxnID)
 	return psw.PS.GetCodeHash(address)
 }
 
 func (psw *PendingStateWrapper) GetCode(address common.Address) []byte {
-	psw.sCtx.ReadCode(address)
+	psw.sCtx.ReadCode(address, psw.TxnID)
 	return psw.PS.GetCode(address)
 }
 
 func (psw *PendingStateWrapper) SetCode(address common.Address, bytes []byte) {
-	psw.sCtx.WriteCode(address)
+	psw.sCtx.WriteCode(address, psw.TxnID)
 	psw.PS.SetCode(address, bytes)
 }
 
 func (psw *PendingStateWrapper) GetCodeSize(address common.Address) int {
-	psw.sCtx.ReadCode(address)
+	psw.sCtx.ReadCode(address, psw.TxnID)
 	return psw.PS.GetCodeSize(address)
 }
 
@@ -91,12 +91,12 @@ func (psw *PendingStateWrapper) GetCommittedState(address common.Address, hash c
 }
 
 func (psw *PendingStateWrapper) GetState(address common.Address, hash common.Hash) common.Hash {
-	psw.sCtx.ReadState(address, hash)
+	psw.sCtx.ReadState(address, hash, psw.TxnID)
 	return psw.PS.GetState(address, hash)
 }
 
 func (psw *PendingStateWrapper) SetState(address common.Address, hash common.Hash, hash2 common.Hash) {
-	psw.sCtx.WriteState(address, hash)
+	psw.sCtx.WriteState(address, hash, psw.TxnID)
 	psw.PS.SetState(address, hash, hash2)
 }
 
@@ -113,7 +113,7 @@ func (psw *PendingStateWrapper) SetTransientState(addr common.Address, key, valu
 }
 
 func (psw *PendingStateWrapper) SelfDestruct(address common.Address) {
-	psw.sCtx.SelfDestruct(address)
+	psw.sCtx.SelfDestruct(address, psw.TxnID)
 	psw.PS.SelfDestruct(address)
 }
 
@@ -122,7 +122,7 @@ func (psw *PendingStateWrapper) HasSelfDestructed(address common.Address) bool {
 }
 
 func (psw *PendingStateWrapper) Selfdestruct6780(address common.Address) {
-	psw.sCtx.SelfDestruct(address)
+	psw.sCtx.SelfDestruct(address, psw.TxnID)
 	psw.PS.Selfdestruct6780(address)
 }
 
