@@ -112,6 +112,7 @@ func (e *ParallelEvmExecutor) executeTxnCtxListInConcurrency(originStateDB *stat
 		wg.Add(1)
 		logrus.Infof("spawn gorotine to run tx(%s)....", c.txn.TxnHash.String())
 		go func(index int, tctx *txnCtx, cpDb *pending_state.PendingStateWrapper) {
+			logrus.Infof("start gorotine tx(%s)", tctx.txn.TxnHash.String())
 			defer func() {
 				wg.Done()
 			}()
