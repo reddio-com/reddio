@@ -3,7 +3,8 @@ package uniswap
 import (
 	"context"
 	"fmt"
-	"log"
+
+	"github.com/sirupsen/logrus"
 
 	"github.com/reddio-com/reddio/evm"
 	"github.com/reddio-com/reddio/test/conf"
