@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"math/big"
 	"net/http"
 	"sync"
@@ -45,8 +44,6 @@ type Solidity struct {
 }
 
 func (s *Solidity) StateDB() *state.StateDB {
-	//s.Lock()
-	//defer s.Unlock()
 	return s.ethState.StateDB()
 }
 
@@ -224,11 +221,14 @@ func (s *Solidity) CheckTxn(txn *yu_types.SignedTxn) error {
 // Execute sets up an in-memory, temporary, environment for the execution of
 // the given code. It makes sure that it's restored to its original state afterwards.
 func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
+	logrus.Infof("Solidity.ExecuteTxn Try RLock (%d) ......", ctx.Block.Height)
+
 	s.RLock()
 	defer s.RUnlock()
 
 	start := time.Now()
 	defer func() {
+		logrus.Infof("Solidity.ExecuteTxn UnRLock (%d) ......", ctx.Block.Height)
 		end := time.Now()
 		metrics.TxnDuration.WithLabelValues().Observe(end.Sub(start).Seconds())
 	}()
@@ -236,8 +236,9 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 	txReq := new(TxRequest)
 	coinbase := common.BytesToAddress(s.cfg.Coinbase.Bytes())
 
-	// s.Lock()
 	_ = ctx.BindJson(txReq)
+
+	logrus.Infof("start to ExecuteTxn (%s) on height(%d)", txReq.Hash.String(), ctx.Block.Height)
 
 	pd := ctx.ExtraInterface.(*pending_state.PendingStateWrapper)
 
@@ -264,12 +265,14 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 	rules := cfg.ChainConfig.Rules(vmenv.Context.BlockNumber, vmenv.Context.Random != nil, vmenv.Context.Time)
 	// s.Unlock()
 
+	logrus.Infof("ExecuteTxn: start txn(%s) in block(%d)", txReq.Hash.String(), ctx.Block.Height)
 	var gasUsed uint64
 	if txReq.Address == nil {
 		gasUsed, err = s.executeContractCreation(ctx, txReq, pd, txReq.Origin, coinbase, vmenv, sender, rules)
 	} else {
 		gasUsed, err = s.executeContractCall(ctx, txReq, pd, txReq.Origin, coinbase, vmenv, sender, rules)
 	}
+	logrus.Infof("ExecuteTxn: end txn(%s) in block(%d)", txReq.Hash.String(), ctx.Block.Height)
 
 	if !rules.IsLondon {
 		// Before EIP-3529: refunds were capped to gasUsed / 2
@@ -298,7 +301,9 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 // EVM's return value or an error if it failed.
 func (s *Solidity) Call(ctx *context.ReadContext) {
 	s.Lock()
+
 	defer s.Unlock()
+
 	callReq := new(CallRequest)
 	err := ctx.BindJson(callReq)
 	if err != nil {
@@ -406,12 +411,35 @@ func (s *Solidity) refundGas(state vm.StateDB, req *TxRequest, gasUsed uint64, r
 }
 
 func (s *Solidity) preCheck(req *TxRequest, stateDB vm.StateDB) error {
-	stNonce := stateDB.GetNonce(req.Origin)
-
-	if req.Nonce < stNonce {
-		return fmt.Errorf("%w: txHash: %s address %v, tx: %d state: %d", core.ErrNonceTooLow, req.Hash.String(),
-			req.Origin.Hex(), req.Nonce, stNonce)
-	}
+	//// Make sure this transaction's nonce is correct.
+	//stNonce := stateDB.GetNonce(tx.Origin)
+	//fmt.Printf("From(%s) stateDB.Nonce = %d, request.Nonce = %d \n", tx.Origin.Hex(), stNonce, tx.Nonce)
+	//if msgNonce := tx.Nonce; stNonce < msgNonce {
+	//	return fmt.Errorf("%w: address %v, tx: %d state: %d", core.ErrNonceTooHigh,
+	//		tx.Origin.Hex(), msgNonce, stNonce)
+	//} else if stNonce > msgNonce {
+	//	return fmt.Errorf("%w: address %v, tx: %d state: %d", core.ErrNonceTooLow,
+	//		tx.Origin.Hex(), msgNonce, stNonce)
+	//} else if stNonce+1 < stNonce {
+	//	return fmt.Errorf("%w: address %v, nonce: %d", core.ErrNonceMax,
+	//		tx.Origin.Hex(), stNonce)
+	//}
+	//
+	//// Make sure the sender is an EOA
+	//codeHash := stateDB.GetCodeHash(tx.Origin)
+	//if codeHash != (common.Hash{}) && codeHash != types.EmptyCodeHash {
+	//	return fmt.Errorf("%w: address %v, codehash: %s", core.ErrSenderNoEOA,
+	//		tx.Origin.Hex(), codeHash)
+	//}
+	//
+	//return nil
+	//stNonce := stateDB.GetNonce(req.Origin)
+	//
+	//// fmt.Printf("address %s, tx.nonce: %d, state.nonce: %d \n", req.Origin.Hex(), req.Nonce, stNonce)
+	//if req.Nonce < stNonce {
+	//	return fmt.Errorf("%w: txHash: %s address %v, tx: %d state: %d", core.ErrNonceTooLow, req.Hash.String(),
+	//		req.Origin.Hex(), req.Nonce, stNonce)
+	//}
 	return s.buyGas(stateDB, req)
 }
 
@@ -515,14 +543,10 @@ func makeEvmReceipt(ctx *context.WriteContext, vmEvm *vm.EVM, code []byte, signe
 }
 
 func (s *Solidity) StateAt(root common.Hash) (*state.StateDB, error) {
-	//s.Lock()
-	//defer s.Unlock()
 	return s.ethState.StateAt(root)
 }
 
 func (s *Solidity) GetEthDB() ethdb.Database {
-	//s.Lock()
-	//defer s.Unlock()
 	return s.ethState.ethDB
 }
 
