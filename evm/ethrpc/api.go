@@ -162,7 +162,7 @@ func (s *EthereumAPI) BlobBaseFee(ctx context.Context) *hexutil.Big {
 func (s *EthereumAPI) Syncing() (interface{}, error) {
 	progress := s.b.SyncProgress()
 
-	// Return not syncing if the synchronisation already completed
+	// Return not syncing if the synchronization already completed
 	if progress.Done() {
 		return false, nil
 	}

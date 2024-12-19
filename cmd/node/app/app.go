@@ -47,7 +47,7 @@ func Start(evmPath, yuPath, poaPath, configPath string) {
 
 func StartUpChain(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm.GethConfig) {
 	figure.NewColorFigure("Reddio", "big", "green", false).Print()
-	fmt.Println("--- Start the Reddio Chain ---")
+	logrus.Info("--- Start the Reddio Chain ---")
 	var db *gorm.DB
 	var err error
 	if evmCfg.EnableBridge {
@@ -70,7 +70,7 @@ func StartUpChain(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm
 		<-sigCh
 		if evmCfg.EnableBridge {
 			if err := database.CloseDB(db); err != nil {
-				log.Fatal("Failed to close database:", err)
+				logrus.Fatal("Failed to close database:", "error", err)
 			}
 		}
 		wg.Wait()
@@ -97,7 +97,9 @@ func InitReddio(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm.G
 func startPromServer() {
 	// Export Prometheus metrics
 	http.Handle("/metrics", promhttp.Handler())
-	http.ListenAndServe(":8080", nil)
+	if err := http.ListenAndServe(":8080", nil); err != nil {
+		logrus.Fatal("start prometheus server failed", "error", err)
+	}
 }
 
 func StartupL1Watcher(chain *kernel.Kernel, cfg *evm.GethConfig, db *gorm.DB) {
@@ -141,5 +143,4 @@ func StartupL1Watcher(chain *kernel.Kernel, cfg *evm.GethConfig, db *gorm.DB) {
 			log.Fatal("run http server failure", "error", runServerErr)
 		}
 	}()
-
 }

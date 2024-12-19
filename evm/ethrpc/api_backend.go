@@ -49,7 +49,7 @@ func (e *EthAPIBackend) SyncProgress() ethereum.SyncProgress {
 //	panic("implement me")
 //}
 
-// Move to ethrpc/gasprice.go
+// BlobBaseFee Move to ethrpc/gasprice.go
 // func (e *EthAPIBackend) FeeHistory(ctx context.Context, blockCount uint64, lastBlock rpc.BlockNumber, rewardPercentiles []float64) (*big.Int, [][]*big.Int, []*big.Int, []float64, []*big.Int, []float64, error) {}
 func (e *EthAPIBackend) BlobBaseFee(ctx context.Context) *big.Int {
 	// TODO implement me
@@ -388,7 +388,7 @@ func (e *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction)
 }
 
 func YuTxn2EthTxn(yuSignedTxn *yutypes.SignedTxn) (*types.Transaction, error) {
-	// Un-serialize wrCall.params to retrive datas:
+	// Un-serialize wrCall.params to retrieve data:
 	wrCallParams := yuSignedTxn.Raw.WrCall.Params
 	txReq := &evm.TxRequest{}
 	err := json.Unmarshal([]byte(wrCallParams), txReq)
