@@ -91,7 +91,7 @@ func (e *ParallelEvmExecutor) splitTxnCtxList(list []*txnCtx) [][]*txnCtx {
 
 func (e *ParallelEvmExecutor) executeTxnCtxListInParallel(list []*txnCtx) []*txnCtx {
 	defer func() {
-		e.k.Solidity.FinaliseStateDB(true)
+		e.cpdb.Finalise(true)
 		if config.GetGlobalConfig().AsyncCommit {
 			e.k.updateTxnObjSub(list)
 			e.cpdb.PendingCommit(true, e.k.objectInc)
