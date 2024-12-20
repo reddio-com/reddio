@@ -315,8 +315,10 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 // EVM's return value or an error if it failed.
 func (s *Solidity) Call(ctx *context.ReadContext) {
 	metrics.SolidityCounter.WithLabelValues(callTxnLbl).Inc()
+	s.Lock()
 	start := time.Now()
 	defer func() {
+		s.Unlock()
 		metrics.SolidityHist.WithLabelValues(callTxnLbl).Observe(time.Since(start).Seconds())
 	}()
 
@@ -333,22 +335,19 @@ func (s *Solidity) Call(ctx *context.ReadContext) {
 	gasPrice := callReq.GasPrice
 	value := callReq.Value
 
-	s.Lock()
 	cfg := s.cfg
 	cfg.Origin = origin
 	cfg.GasLimit = gasLimit
 	cfg.GasPrice = gasPrice
 	cfg.Value = value
 	ethState := s.ethState
-	stateDB := s.ethState.stateDB
-	s.Unlock()
 
 	var (
 		vmenv  = newEVM(cfg)
 		sender = vm.AccountRef(origin)
 		rules  = cfg.ChainConfig.Rules(vmenv.Context.BlockNumber, vmenv.Context.Random != nil, vmenv.Context.Time)
 	)
-	vmenv.StateDB = stateDB
+	vmenv.StateDB = s.ethState.StateDB()
 	if cfg.EVMConfig.Tracer != nil && cfg.EVMConfig.Tracer.OnTxStart != nil {
 		cfg.EVMConfig.Tracer.OnTxStart(vmenv.GetVMContext(), types.NewTx(&types.LegacyTx{To: &address, Data: input, Value: value, Gas: gasLimit}), origin)
 	}
@@ -374,7 +373,6 @@ func (s *Solidity) Call(ctx *context.ReadContext) {
 		return
 	}
 	result := CallResponse{Ret: ret, LeftOverGas: leftOverGas}
-
 	ctx.JsonOk(&result)
 }
 
