@@ -254,8 +254,6 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 
 	_ = ctx.BindJson(txReq)
 
-	logrus.Infof("start to ExecuteTxn (%s) on height(%d)", txReq.Hash.String(), ctx.Block.Height)
-
 	pd := ctx.ExtraInterface.(*pending_state.PendingStateWrapper)
 
 	cfg := s.cfg
@@ -281,14 +279,12 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 	rules := cfg.ChainConfig.Rules(vmenv.Context.BlockNumber, vmenv.Context.Random != nil, vmenv.Context.Time)
 	// s.Unlock()
 
-	logrus.Infof("ExecuteTxn: start txn(%s) in block(%d)", txReq.Hash.String(), ctx.Block.Height)
 	var gasUsed uint64
 	if txReq.Address == nil {
 		gasUsed, err = s.executeContractCreation(ctx, txReq, pd, txReq.Origin, coinbase, vmenv, sender, rules)
 	} else {
 		gasUsed, err = s.executeContractCall(ctx, txReq, pd, txReq.Origin, coinbase, vmenv, sender, rules)
 	}
-	logrus.Infof("ExecuteTxn: end txn(%s) in block(%d)", txReq.Hash.String(), ctx.Block.Height)
 
 	if !rules.IsLondon {
 		// Before EIP-3529: refunds were capped to gasUsed / 2
