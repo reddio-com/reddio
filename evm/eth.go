@@ -31,6 +31,17 @@ import (
 	"github.com/reddio-com/reddio/metrics"
 )
 
+var (
+	startBlockLbl  = "start"
+	finaliseLbl    = "finalise"
+	setStateDBLbl  = "set"
+	executeTxnLbl  = "execute"
+	callTxnLbl     = "call"
+	commitLbl      = "commit"
+	getReceiptsLbl = "gets"
+	getReceiptLbl  = "get"
+)
+
 type Solidity struct {
 	sync.RWMutex
 
@@ -48,8 +59,13 @@ func (s *Solidity) StateDB() *state.StateDB {
 }
 
 func (s *Solidity) FinaliseStateDB(deleteEmptyObjects bool) {
+	metrics.SolidityCounter.WithLabelValues(finaliseLbl).Inc()
 	s.Lock()
-	defer s.Unlock()
+	start := time.Now()
+	defer func() {
+		s.Unlock()
+		metrics.SolidityHist.WithLabelValues(finaliseLbl).Observe(time.Since(start).Seconds())
+	}()
 	s.ethState.StateDB().Finalise(deleteEmptyObjects)
 }
 
@@ -168,8 +184,13 @@ func NewSolidity(gethConfig *GethConfig) *Solidity {
 // region ---- Tripod Api ----
 
 func (s *Solidity) StartBlock(block *yu_types.Block) {
+	metrics.SolidityCounter.WithLabelValues(startBlockLbl).Inc()
 	s.Lock()
-	defer s.Unlock()
+	start := time.Now()
+	defer func() {
+		s.Unlock()
+		metrics.SolidityHist.WithLabelValues(startBlockLbl).Observe(time.Since(start).Seconds())
+	}()
 	s.cfg.BlockNumber = big.NewInt(int64(block.Height))
 	// s.gasPool = new(core.GasPool).AddGas(block.LeiLimit)
 	s.cfg.GasLimit = block.LeiLimit
@@ -221,18 +242,13 @@ func (s *Solidity) CheckTxn(txn *yu_types.SignedTxn) error {
 // Execute sets up an in-memory, temporary, environment for the execution of
 // the given code. It makes sure that it's restored to its original state afterwards.
 func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
-	logrus.Infof("Solidity.ExecuteTxn Try RLock (%d) ......", ctx.Block.Height)
-
+	metrics.SolidityCounter.WithLabelValues(executeTxnLbl).Inc()
 	s.RLock()
-	defer s.RUnlock()
-
 	start := time.Now()
 	defer func() {
-		logrus.Infof("Solidity.ExecuteTxn UnRLock (%d) ......", ctx.Block.Height)
-		end := time.Now()
-		metrics.TxnDuration.WithLabelValues().Observe(end.Sub(start).Seconds())
+		s.RUnlock()
+		metrics.SolidityHist.WithLabelValues(executeTxnLbl).Observe(time.Since(start).Seconds())
 	}()
-
 	txReq := new(TxRequest)
 	coinbase := common.BytesToAddress(s.cfg.Coinbase.Bytes())
 
@@ -300,9 +316,13 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 // Call executes the code given by the contract's address. It will return the
 // EVM's return value or an error if it failed.
 func (s *Solidity) Call(ctx *context.ReadContext) {
+	metrics.SolidityCounter.WithLabelValues(callTxnLbl).Inc()
 	s.Lock()
-
-	defer s.Unlock()
+	start := time.Now()
+	defer func() {
+		s.Unlock()
+		metrics.SolidityHist.WithLabelValues(callTxnLbl).Observe(time.Since(start).Seconds())
+	}()
 
 	callReq := new(CallRequest)
 	err := ctx.BindJson(callReq)
@@ -363,8 +383,13 @@ func (s *Solidity) Call(ctx *context.ReadContext) {
 }
 
 func (s *Solidity) Commit(block *yu_types.Block) {
+	metrics.SolidityCounter.WithLabelValues(commitLbl).Inc()
 	s.Lock()
-	defer s.Unlock()
+	start := time.Now()
+	defer func() {
+		s.Unlock()
+		metrics.SolidityHist.WithLabelValues(commitLbl).Observe(time.Since(start).Seconds())
+	}()
 
 	// reward coinbase
 	s.ethState.AddBalance(s.cfg.Coinbase, uint256.NewInt(s.coinbaseReward.Load()), tracing.BalanceIncreaseRewardTransactionFee)
@@ -572,8 +597,13 @@ type ReceiptsResponse struct {
 }
 
 func (s *Solidity) GetReceipt(ctx *context.ReadContext) {
+	metrics.SolidityCounter.WithLabelValues(getReceiptLbl).Inc()
 	s.RLock()
-	defer s.RUnlock()
+	start := time.Now()
+	defer func() {
+		s.RUnlock()
+		metrics.SolidityHist.WithLabelValues(getReceiptLbl).Observe(time.Since(start).Seconds())
+	}()
 	var rq ReceiptRequest
 	err := ctx.BindJson(&rq)
 	if err != nil {
@@ -621,8 +651,13 @@ func (s *Solidity) getReceipt(hash common.Hash) (*types.Receipt, error) {
 }
 
 func (s *Solidity) GetReceipts(ctx *context.ReadContext) {
+	metrics.SolidityCounter.WithLabelValues(getReceiptsLbl).Inc()
 	s.RLock()
-	defer s.RUnlock()
+	start := time.Now()
+	defer func() {
+		s.RUnlock()
+		metrics.SolidityHist.WithLabelValues(getReceiptsLbl).Observe(time.Since(start).Seconds())
+	}()
 	var rq ReceiptsRequest
 	err := ctx.BindJson(&rq)
 	if err != nil {
