@@ -1,0 +1,42 @@
+name: Deploy devnet
+
+on:
+  workflow_dispatch:
+    inputs:
+      reddio-devnet-version:
+        description: 'Version of devnet,e.g: devnet-v2.1.13'
+        required: true
+        default: 'devnet-v2.1.13'
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    name: Deploy tagged image to devnet
+
+    steps:
+      - uses: tspascoal/get-user-teams-membership@v3
+        id: checkUserMember
+        with:
+          username: ${{ github.actor }}
+          team: 'reddio-com'
+          GITHUB_TOKEN: ${{ secrets.PAT }}
+
+      - name: Stop on non-member
+        if: steps.checkUserMember.outputs.isMember == 'false'
+        run: exit 1
+
+      - name: Deploy tagged image to devnet
+        uses: appleboy/ssh-action@master
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          host: ${{ secrets.DEVNET_IP }}
+          username: root
+          key: ${{ secrets.API_SSH_KEY }}
+          script: |
+            docker login ghcr.io -u reddio-com -p ${{ secrets.GITHUB_TOKEN }}
+
+            cd ${{ secrets.DEVNET_PATH }}
+
+            # Change Tag to ${{ github.event.inputs.reddio-devnet-version }}
+            sed -E -i'' "s|(.*reddio-com/reddio:).*|\\1${{ github.event.inputs.reddio-devnet-version }}|" 'docker-compose.yml'
+
+            docker-compose up -d
