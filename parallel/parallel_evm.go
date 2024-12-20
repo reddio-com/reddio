@@ -95,10 +95,10 @@ func (e *ParallelEvmExecutor) executeTxnCtxListInParallel(list []*txnCtx) []*txn
 		}
 	}()
 	metrics.BatchTxnSplitCounter.WithLabelValues(strconv.FormatInt(int64(len(list)), 10)).Inc()
-	return e.executeTxnCtxListInConcurrency(e.k.Solidity.StateDB(), list)
+	return e.executeTxnCtxListInConcurrency(list)
 }
 
-func (e *ParallelEvmExecutor) executeTxnCtxListInConcurrency(originStateDB *state.StateDB, list []*txnCtx) []*txnCtx {
+func (e *ParallelEvmExecutor) executeTxnCtxListInConcurrency(list []*txnCtx) []*txnCtx {
 	conflict := false
 	start := time.Now()
 	defer func() {
@@ -156,7 +156,7 @@ func (e *ParallelEvmExecutor) mergeStateDB(originStateDB *state.StateDB, list []
 	}
 }
 
-func (e *ParallelEvmExecutor) CopyStateDb(originStateDB *state.StateDB, list []*txnCtx) []*pending_state.PendingStateWrapper {
+func (e *ParallelEvmExecutor) CopyStateDb(list []*txnCtx) []*pending_state.PendingStateWrapper {
 	copiedStateDBList := make([]*pending_state.PendingStateWrapper, 0)
 	start := time.Now()
 	e.k.Solidity.Lock()

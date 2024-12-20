@@ -55,15 +55,17 @@ type Solidity struct {
 }
 
 func (s *Solidity) StateDB() *state.StateDB {
+	s.RLock()
+	defer s.RUnlock()
 	return s.ethState.StateDB()
 }
 
 func (s *Solidity) FinaliseStateDB(deleteEmptyObjects bool) {
 	metrics.SolidityCounter.WithLabelValues(finaliseLbl).Inc()
-	s.Lock()
+	s.RLock()
 	start := time.Now()
 	defer func() {
-		s.Unlock()
+		s.RUnlock()
 		metrics.SolidityHist.WithLabelValues(finaliseLbl).Observe(time.Since(start).Seconds())
 	}()
 	s.ethState.StateDB().Finalise(deleteEmptyObjects)
@@ -313,10 +315,8 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 // EVM's return value or an error if it failed.
 func (s *Solidity) Call(ctx *context.ReadContext) {
 	metrics.SolidityCounter.WithLabelValues(callTxnLbl).Inc()
-	s.Lock()
 	start := time.Now()
 	defer func() {
-		s.Unlock()
 		metrics.SolidityHist.WithLabelValues(callTxnLbl).Observe(time.Since(start).Seconds())
 	}()
 
@@ -326,8 +326,6 @@ func (s *Solidity) Call(ctx *context.ReadContext) {
 		ctx.Json(http.StatusBadRequest, &CallResponse{Err: err})
 		return
 	}
-
-	cfg := s.cfg
 	address := callReq.Address
 	input := callReq.Input
 	origin := callReq.Origin
@@ -335,20 +333,22 @@ func (s *Solidity) Call(ctx *context.ReadContext) {
 	gasPrice := callReq.GasPrice
 	value := callReq.Value
 
+	s.Lock()
+	cfg := s.cfg
 	cfg.Origin = origin
 	cfg.GasLimit = gasLimit
 	cfg.GasPrice = gasPrice
 	cfg.Value = value
+	ethState := s.ethState
+	stateDB := s.ethState.stateDB
+	s.Unlock()
 
 	var (
-		vmenv    = newEVM(cfg)
-		sender   = vm.AccountRef(origin)
-		ethState = s.ethState
-		rules    = cfg.ChainConfig.Rules(vmenv.Context.BlockNumber, vmenv.Context.Random != nil, vmenv.Context.Time)
+		vmenv  = newEVM(cfg)
+		sender = vm.AccountRef(origin)
+		rules  = cfg.ChainConfig.Rules(vmenv.Context.BlockNumber, vmenv.Context.Random != nil, vmenv.Context.Time)
 	)
-
-	vmenv.StateDB = s.ethState.stateDB
-
+	vmenv.StateDB = stateDB
 	if cfg.EVMConfig.Tracer != nil && cfg.EVMConfig.Tracer.OnTxStart != nil {
 		cfg.EVMConfig.Tracer.OnTxStart(vmenv.GetVMContext(), types.NewTx(&types.LegacyTx{To: &address, Data: input, Value: value, Gas: gasLimit}), origin)
 	}
@@ -380,10 +380,10 @@ func (s *Solidity) Call(ctx *context.ReadContext) {
 
 func (s *Solidity) Commit(block *yu_types.Block) {
 	metrics.SolidityCounter.WithLabelValues(commitLbl).Inc()
-	s.Lock()
+	s.RLock()
 	start := time.Now()
 	defer func() {
-		s.Unlock()
+		s.RUnlock()
 		metrics.SolidityHist.WithLabelValues(commitLbl).Observe(time.Since(start).Seconds())
 	}()
 
@@ -594,10 +594,8 @@ type ReceiptsResponse struct {
 
 func (s *Solidity) GetReceipt(ctx *context.ReadContext) {
 	metrics.SolidityCounter.WithLabelValues(getReceiptLbl).Inc()
-	s.RLock()
 	start := time.Now()
 	defer func() {
-		s.RUnlock()
 		metrics.SolidityHist.WithLabelValues(getReceiptLbl).Observe(time.Since(start).Seconds())
 	}()
 	var rq ReceiptRequest
@@ -648,10 +646,8 @@ func (s *Solidity) getReceipt(hash common.Hash) (*types.Receipt, error) {
 
 func (s *Solidity) GetReceipts(ctx *context.ReadContext) {
 	metrics.SolidityCounter.WithLabelValues(getReceiptsLbl).Inc()
-	s.RLock()
 	start := time.Now()
 	defer func() {
-		s.RUnlock()
 		metrics.SolidityHist.WithLabelValues(getReceiptsLbl).Observe(time.Since(start).Seconds())
 	}()
 	var rq ReceiptsRequest
@@ -673,6 +669,12 @@ func (s *Solidity) GetReceipts(ctx *context.ReadContext) {
 	}
 
 	ctx.JsonOk(&ReceiptsResponse{Receipts: receipts})
+}
+
+func (s *Solidity) GetCopiedStateDB() *state.StateDB {
+	s.RLock()
+	defer s.RUnlock()
+	return s.ethState.StateDB().Copy()
 }
 
 func emitReceipt(ctx *context.WriteContext, vmEmv *vm.EVM, txReq *TxRequest, code []byte, contractAddr common.Address, leftOverGas uint64, err error) error {
