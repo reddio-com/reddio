@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"math/big"
 	"net/http"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -42,6 +43,8 @@ var (
 )
 
 type Solidity struct {
+	sync.RWMutex
+
 	*tripod.Tripod
 	ethState    *EthState
 	cfg         *GethConfig
@@ -57,14 +60,18 @@ func (s *Solidity) StateDB() *state.StateDB {
 
 func (s *Solidity) FinaliseStateDB(deleteEmptyObjects bool) {
 	metrics.SolidityCounter.WithLabelValues(finaliseLbl).Inc()
+	s.Lock()
 	start := time.Now()
 	defer func() {
+		s.Unlock()
 		metrics.SolidityHist.WithLabelValues(finaliseLbl).Observe(time.Since(start).Seconds())
 	}()
 	s.ethState.StateDB().Finalise(deleteEmptyObjects)
 }
 
 func (s *Solidity) SetStateDB(d *state.StateDB) {
+	s.Lock()
+	defer s.Unlock()
 	s.ethState.SetStateDB(d)
 }
 
@@ -178,8 +185,10 @@ func NewSolidity(gethConfig *GethConfig) *Solidity {
 
 func (s *Solidity) StartBlock(block *yu_types.Block) {
 	metrics.SolidityCounter.WithLabelValues(startBlockLbl).Inc()
+	s.Lock()
 	start := time.Now()
 	defer func() {
+		s.Unlock()
 		metrics.SolidityHist.WithLabelValues(startBlockLbl).Observe(time.Since(start).Seconds())
 	}()
 	s.cfg.BlockNumber = big.NewInt(int64(block.Height))
@@ -234,8 +243,10 @@ func (s *Solidity) CheckTxn(txn *yu_types.SignedTxn) error {
 // the given code. It makes sure that it's restored to its original state afterwards.
 func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 	metrics.SolidityCounter.WithLabelValues(executeTxnLbl).Inc()
+	s.RLock()
 	start := time.Now()
 	defer func() {
+		s.RUnlock()
 		metrics.SolidityHist.WithLabelValues(executeTxnLbl).Observe(time.Since(start).Seconds())
 	}()
 	txReq := new(TxRequest)
@@ -302,8 +313,10 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 // EVM's return value or an error if it failed.
 func (s *Solidity) Call(ctx *context.ReadContext) {
 	metrics.SolidityCounter.WithLabelValues(callTxnLbl).Inc()
+	s.Lock()
 	start := time.Now()
 	defer func() {
+		s.Unlock()
 		metrics.SolidityHist.WithLabelValues(callTxnLbl).Observe(time.Since(start).Seconds())
 	}()
 
@@ -367,8 +380,10 @@ func (s *Solidity) Call(ctx *context.ReadContext) {
 
 func (s *Solidity) Commit(block *yu_types.Block) {
 	metrics.SolidityCounter.WithLabelValues(commitLbl).Inc()
+	s.Lock()
 	start := time.Now()
 	defer func() {
+		s.Unlock()
 		metrics.SolidityHist.WithLabelValues(commitLbl).Observe(time.Since(start).Seconds())
 	}()
 
@@ -579,8 +594,10 @@ type ReceiptsResponse struct {
 
 func (s *Solidity) GetReceipt(ctx *context.ReadContext) {
 	metrics.SolidityCounter.WithLabelValues(getReceiptLbl).Inc()
+	s.RLock()
 	start := time.Now()
 	defer func() {
+		s.RUnlock()
 		metrics.SolidityHist.WithLabelValues(getReceiptLbl).Observe(time.Since(start).Seconds())
 	}()
 	var rq ReceiptRequest
@@ -631,8 +648,10 @@ func (s *Solidity) getReceipt(hash common.Hash) (*types.Receipt, error) {
 
 func (s *Solidity) GetReceipts(ctx *context.ReadContext) {
 	metrics.SolidityCounter.WithLabelValues(getReceiptsLbl).Inc()
+	s.RLock()
 	start := time.Now()
 	defer func() {
+		s.RUnlock()
 		metrics.SolidityHist.WithLabelValues(getReceiptsLbl).Observe(time.Since(start).Seconds())
 	}()
 	var rq ReceiptsRequest
