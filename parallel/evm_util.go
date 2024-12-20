@@ -70,7 +70,7 @@ func (k *ParallelEVM) handleTxnEvent(ctx *context.WriteContext, block *types.Blo
 
 func (k *ParallelEVM) prepareExecute() {
 	if config.GetGlobalConfig().AsyncCommit {
-		k.Solidity.StateDB().ClearPendingCommitMark()
+		k.cpdb.ClearPendingCommitMark()
 		k.clearObjInc()
 	}
 }
@@ -157,14 +157,13 @@ func (k *ParallelEVM) prepareTxnList(block *types.Block) ([]*txnCtx, map[common.
 	return txnCtxList, receipts
 }
 
-func (k *ParallelEVM) executeTxnCtxListInOrder(originStateDB *state.StateDB, list []*txnCtx, isRedo bool) []*txnCtx {
-	currStateDb := originStateDB
+func (k *ParallelEVM) executeTxnCtxListInOrder(sdb *state.StateDB, list []*txnCtx, isRedo bool) []*txnCtx {
 	for index, tctx := range list {
 		if tctx.err != nil {
 			list[index] = tctx
 			continue
 		}
-		tctx.ctx.ExtraInterface = pending_state.NewPendingStateWrapper(pending_state.NewPendingState(currStateDb), 0)
+		tctx.ctx.ExtraInterface = pending_state.NewPendingStateWrapper(pending_state.NewPendingState(sdb), 0)
 		err := tctx.writing(tctx.ctx)
 		if err != nil {
 			tctx.err = err
@@ -173,10 +172,9 @@ func (k *ParallelEVM) executeTxnCtxListInOrder(originStateDB *state.StateDB, lis
 			tctx.receipt = k.handleTxnEvent(tctx.ctx, tctx.ctx.Block, tctx.txn, isRedo)
 		}
 		tctx.ps = tctx.ctx.ExtraInterface.(*pending_state.PendingStateWrapper)
-		currStateDb = tctx.ps.GetStateDB()
+		sdb = tctx.ps.GetStateDB()
 		list[index] = tctx
 	}
-	k.Solidity.SetStateDB(currStateDb)
 	k.gcCopiedStateDB(nil, list)
 	return list
 }
