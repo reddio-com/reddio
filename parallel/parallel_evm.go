@@ -149,8 +149,6 @@ func (e *ParallelEvmExecutor) executeTxnCtxListInConcurrency(originStateDB *stat
 }
 
 func (e *ParallelEvmExecutor) mergeStateDB(originStateDB *state.StateDB, list []*txnCtx) {
-	e.k.Solidity.Lock()
-	defer e.k.Solidity.Unlock()
 	for _, tctx := range list {
 		tctx.ps.MergeInto(originStateDB, tctx.req.Origin)
 	}
@@ -159,9 +157,7 @@ func (e *ParallelEvmExecutor) mergeStateDB(originStateDB *state.StateDB, list []
 func (e *ParallelEvmExecutor) CopyStateDb(originStateDB *state.StateDB, list []*txnCtx) []*pending_state.PendingStateWrapper {
 	copiedStateDBList := make([]*pending_state.PendingStateWrapper, 0)
 	start := time.Now()
-	e.k.Solidity.Lock()
 	defer func() {
-		e.k.Solidity.Unlock()
 		e.k.statManager.CopyDuration += time.Since(start)
 	}()
 	for i := 0; i < len(list); i++ {
