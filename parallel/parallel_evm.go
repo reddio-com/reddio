@@ -2,7 +2,6 @@ package parallel
 
 import (
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"strconv"
 	"sync"
 	"time"
@@ -110,9 +109,7 @@ func (e *ParallelEvmExecutor) executeTxnCtxListInConcurrency(originStateDB *stat
 	wg := sync.WaitGroup{}
 	for i, c := range list {
 		wg.Add(1)
-		logrus.Infof("spawn gorotine to run tx(%s)....", c.txn.TxnHash.String())
 		go func(index int, tctx *txnCtx, cpDb *pending_state.PendingStateWrapper) {
-			logrus.Infof("start gorotine tx(%s)", tctx.txn.TxnHash.String())
 			defer func() {
 				wg.Done()
 			}()
