@@ -87,7 +87,6 @@ func (e *L1EventParser) ParseL1RelayMessagePayload(ctx context.Context, msg *con
 		L1BlockNumber: msg.Raw.BlockNumber,
 		L1TxHash:      msg.Raw.TxHash.String(),
 		TxStatus:      int(btypes.TxStatusTypeConsumed),
-		MessageType:   int(btypes.MessageTypeL2SentMessage),
 	})
 
 	return l1RelayedMessages, nil

@@ -42,6 +42,7 @@ type CrossMessage struct {
 	CreatedAt          time.Time  `json:"created_at" gorm:"column:created_at"`
 	UpdatedAt          time.Time  `json:"updated_at" gorm:"column:updated_at"`
 	DeletedAt          *time.Time `json:"deleted_at" gorm:"column:deleted_at"`
+	Remark             string     `json:"remark" gorm:"column:remark"`
 }
 
 // TableName returns the table name for the CrossMessage model.
@@ -64,8 +65,19 @@ func (c *CrossMessage) InsertOrUpdateL2Messages(ctx context.Context, messages []
 	db = db.Model(&CrossMessage{})
 	// 'tx_status' column is not explicitly assigned during the update to prevent a later status from being overwritten back to "sent".
 	db = db.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "message_hash"}},
-		DoUpdates: clause.AssignmentColumns([]string{"sender", "receiver", "token_type", "l2_block_number", "l2_tx_hash", "l1_token_address", "l2_token_address", "token_ids", "token_amounts", "message_type", "block_timestamp", "message_from", "message_to", "message_value", "message_payload", "message_payloadtype", "message_nonce"}),
+		Columns: []clause.Column{
+			{Name: "message_hash"},
+			{Name: "tx_type"},
+			{Name: "message_type"}},
+		DoUpdates: clause.AssignmentColumns([]string{"sender", "receiver", "token_type", "l2_block_number", "l2_tx_hash", "l1_token_address", "l2_token_address", "token_ids", "token_amounts", "message_type", "block_timestamp", "message_from", "message_to", "message_value", "message_payload", "message_payloadtype", "message_nonce", "updated_at"}),
+		Where: clause.Where{
+			Exprs: []clause.Expression{
+				clause.And(
+					// do not over-write terminal statuses.
+					clause.Neq{Column: "cross_message.tx_status", Value: btypes.TxStatusTypeConsumed},
+				),
+			},
+		},
 	})
 	if err := db.Create(messages).Error; err != nil {
 		return fmt.Errorf("failed to insert message, error: %w", err)
@@ -126,47 +138,37 @@ func (c *CrossMessage) GetTxsByAddress(ctx context.Context, sender string, page,
 }
 
 // InsertOrUpdateL1RelayedMessagesOfL2Withdrawals inserts or updates the database with a list of L1 relayed messages related to L2 withdrawals.
-func (c *CrossMessage) InsertOrUpdateL1RelayedMessagesOfL2Withdrawals(ctx context.Context, l1RelayedMessages []*CrossMessage) error {
-	if len(l1RelayedMessages) == 0 {
-		return nil
-	}
-	mergedL1RelayedMessages := make(map[string]*CrossMessage)
-	for _, message := range l1RelayedMessages {
-		if existing, found := mergedL1RelayedMessages[message.MessageHash]; found {
-			if btypes.TxStatusType(message.TxStatus) == btypes.TxStatusTypeConsumed || message.L1BlockNumber > existing.L1BlockNumber {
-				mergedL1RelayedMessages[message.MessageHash] = message
-			}
-		} else {
-			mergedL1RelayedMessages[message.MessageHash] = message
-		}
-	}
-	uniqueL1RelayedMessages := make([]*CrossMessage, 0, len(mergedL1RelayedMessages))
-	for _, msg := range mergedL1RelayedMessages {
-		uniqueL1RelayedMessages = append(uniqueL1RelayedMessages, msg)
-	}
-	db := c.db
-	db = db.WithContext(ctx)
-	db = db.Model(&CrossMessage{})
-	db = db.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "message_hash"}},
-		DoUpdates: clause.AssignmentColumns([]string{"message_type", "l1_block_number", "l1_tx_hash", "tx_status"}),
-		Where: clause.Where{
-			Exprs: []clause.Expression{
-				clause.And(
-					// do not over-write terminal statuses.
-					clause.Neq{Column: "cross_message_v2.tx_status", Value: btypes.TxStatusTypeConsumed},
-					//clause.Neq{Column: "cross_message_v2.tx_status", Value: btypes.TxStatusTypeDropped},
-				),
-			},
-		},
-	})
-	if err := db.Create(uniqueL1RelayedMessages).Error; err != nil {
-		return fmt.Errorf("failed to update L1 relayed message of L2 withdrawal, error: %w", err)
-	}
-	return nil
-}
+// func (c *CrossMessage) InsertOrUpdateL1Messages(ctx context.Context, l1RelayedMessages []*CrossMessage) error {
+// 	if len(l1RelayedMessages) == 0 {
+// 		return nil
+// 	}
 
-func (c *CrossMessage) QueryL1ToL2UnConsumedMessages(ctx context.Context, tx_type btypes.TxType) ([]*CrossMessage, error) {
+// 	db := c.db
+// 	db = db.WithContext(ctx)
+// 	db = db.Model(&CrossMessage{})
+// 	db = db.Clauses(clause.OnConflict{
+// 		Columns: []clause.Column{
+// 			{Name: "message_hash"},
+// 			{Name: "tx_type"},
+// 			{Name: "message_type"}},
+// 		DoUpdates: clause.AssignmentColumns([]string{"sender", "receiver", "token_type", "l2_block_number", "l2_tx_hash", "l1_token_address", "l2_token_address", "token_ids", "token_amounts", "message_type", "block_timestamp", "message_from", "message_to", "message_value", "message_payload", "message_payloadtype", "message_nonce", "updated_at"}),
+// 		Where: clause.Where{
+// 			Exprs: []clause.Expression{
+// 				clause.And(
+// 					// do not over-write terminal statuses.
+// 					clause.Neq{Column: "cross_message.tx_status", Value: btypes.TxStatusTypeConsumed},
+// 				),
+// 			},
+// 		},
+// 	})
+// 	if err := db.Create(l1RelayedMessages).Error; err != nil {
+// 		return fmt.Errorf("failed to update L1 relayed message of L2 withdrawal, error: %w", err)
+// 	}
+// 	return nil
+
+// }
+
+func (c *CrossMessage) QueryL1UnConsumedMessages(ctx context.Context, tx_type btypes.TxType) ([]*CrossMessage, error) {
 	var messages []*CrossMessage
 
 	db := c.db.WithContext(ctx)
@@ -175,14 +177,14 @@ func (c *CrossMessage) QueryL1ToL2UnConsumedMessages(ctx context.Context, tx_typ
 	db = db.Where("tx_status = ?", btypes.TxStatusTypeSent)
 	db = db.Where("tx_type = ?", tx_type)
 	db = db.Order("block_timestamp desc")
-	db = db.Limit(500)
+	db = db.Limit(2000)
 	if err := db.Find(&messages).Error; err != nil {
 		return nil, fmt.Errorf("failed to get L1 UnConsumed message, err: %v", err)
 	}
 	return messages, nil
 }
 
-func (c *CrossMessage) QueryL2ToL1UnConsumedMessages(ctx context.Context, tx_type btypes.TxType) ([]*CrossMessage, error) {
+func (c *CrossMessage) QueryL2UnConsumedMessages(ctx context.Context, tx_type btypes.TxType) ([]*CrossMessage, error) {
 	var messages []*CrossMessage
 
 	db := c.db.WithContext(ctx)
@@ -191,14 +193,29 @@ func (c *CrossMessage) QueryL2ToL1UnConsumedMessages(ctx context.Context, tx_typ
 	db = db.Where("tx_status = ?", btypes.TxStatusTypeSent)
 	db = db.Where("tx_type = ?", tx_type)
 	db = db.Order("block_timestamp desc")
-	db = db.Limit(500)
+	db = db.Limit(2000)
 	if err := db.Find(&messages).Error; err != nil {
 		return nil, fmt.Errorf("failed to get L2 UnConsumed message, err: %v", err)
 	}
 	return messages, nil
 }
 
-func (c *CrossMessage) UpdateL1ToL2Message(ctx context.Context, message_hash string, txStatus int, l2BlockNumber uint64) error {
+func (c *CrossMessage) QueryUnConsumedMessages(ctx context.Context, tx_type btypes.TxType) ([]*CrossMessage, error) {
+	var messages []*CrossMessage
+
+	db := c.db.WithContext(ctx)
+	db = db.Model(&CrossMessage{})
+	db = db.Where("tx_status = ?", btypes.TxStatusTypeSent)
+	db = db.Where("tx_type = ?", tx_type)
+	db = db.Order("block_timestamp desc")
+	db = db.Limit(2000)
+	if err := db.Find(&messages).Error; err != nil {
+		return nil, fmt.Errorf("failed to get L2 UnConsumed message, err: %v", err)
+	}
+	return messages, nil
+}
+
+func (c *CrossMessage) UpdateL1Message(ctx context.Context, message_hash string, txStatus int, l2BlockNumber uint64) error {
 	db := c.db.WithContext(ctx)
 	err := db.Model(&CrossMessage{}).Where("message_hash = ? AND message_type = ?", message_hash, btypes.MessageTypeL1SentMessage).Updates(map[string]interface{}{
 		"tx_status":       txStatus,
@@ -211,14 +228,21 @@ func (c *CrossMessage) UpdateL1ToL2Message(ctx context.Context, message_hash str
 	return nil
 }
 
-func (c *CrossMessage) UpdateL2ToL1Message(ctx context.Context, message_hash string, txStatus int) error {
+func (c *CrossMessage) UpdateL2Message(ctx context.Context, l1RelayedMessages []*CrossMessage) error {
+	if len(l1RelayedMessages) == 0 {
+		return nil
+	}
+
+	// just have 1 message right now
 	db := c.db.WithContext(ctx)
-	err := db.Model(&CrossMessage{}).Where("message_hash = ? AND message_type = ?", message_hash, btypes.MessageTypeL2SentMessage).Updates(map[string]interface{}{
-		"tx_status":  txStatus,
-		"updated_at": time.Now(),
+	err := db.Model(&CrossMessage{}).Where("message_hash = ? AND message_type = ?", l1RelayedMessages[0].MessageHash, btypes.MessageTypeL2SentMessage).Updates(map[string]interface{}{
+		"tx_status":       l1RelayedMessages[0].TxStatus,
+		"l1_block_number": l1RelayedMessages[0].L1BlockNumber,
+		"l1_tx_hash":      l1RelayedMessages[0].L1TxHash,
+		"updated_at":      time.Now(),
 	}).Error
 	if err != nil {
-		return fmt.Errorf("failed to update L1 message, message_hash: %s, error: %v", message_hash, err)
+		return fmt.Errorf("failed to update L1 message, message_hash: %s, error: %v", l1RelayedMessages[0].MessageHash, err)
 	}
 	return nil
 }
