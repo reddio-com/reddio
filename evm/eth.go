@@ -603,16 +603,14 @@ type ReceiptsResponse struct {
 }
 
 func checkGetReceipt() (checkResult bool) {
-	if config.GetGlobalConfig().RateLimitConfig.GetReceipt < 1 {
+	limiter := utils.GetReceiptRateLimiter
+	if config.GetGlobalConfig().RateLimitConfig.GetReceipt < 1 || limiter == nil {
 		return true
 	}
-	limiter := utils.GetReceiptRateLimiter
 	if !limiter.Allow() {
 		return false
 	}
-	lctx, cancel := context2.WithTimeout(context2.Background(), time.Millisecond*30)
-	defer cancel()
-	if err := limiter.Wait(lctx); err != nil {
+	if err := limiter.Wait(context2.Background()); err != nil {
 		return false
 	}
 	return true
