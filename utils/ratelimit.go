@@ -1,8 +1,6 @@
 package utils
 
 import (
-	"time"
-
 	"golang.org/x/time/rate"
 
 	"github.com/reddio-com/reddio/config"
@@ -18,6 +16,9 @@ func IniLimiter() {
 
 func GenGetReceiptRateLimiter() *rate.Limiter {
 	qps := config.GetGlobalConfig().RateLimitConfig.GetReceipt
-	limiter := rate.NewLimiter(rate.Every(10*time.Millisecond), int(qps/100))
+	if qps < 1 {
+		return nil
+	}
+	limiter := rate.NewLimiter(rate.Limit(qps), 1)
 	return limiter
 }
