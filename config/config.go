@@ -26,7 +26,7 @@ func defaultConfig() *Config {
 		IsParallel:     true,
 		MaxConcurrency: runtime.NumCPU(),
 		RateLimitConfig: RateLimitConfig{
-			GetReceipt: 2500,
+			GetReceipt: 2000,
 		},
 	}
 }
