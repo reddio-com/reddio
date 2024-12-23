@@ -68,7 +68,7 @@ func (s *Solidity) StateDB() *state.StateDB {
 }
 
 func (s *Solidity) FinaliseStateDB(deleteEmptyObjects bool) {
-	metrics.SolidityCounter.WithLabelValues(finaliseLbl).Inc()
+	metrics.SolidityCounter.WithLabelValues(finaliseLbl, statusSuccess).Inc()
 	s.RLock()
 	start := time.Now()
 	defer func() {
@@ -193,7 +193,7 @@ func NewSolidity(gethConfig *GethConfig) *Solidity {
 // region ---- Tripod Api ----
 
 func (s *Solidity) StartBlock(block *yu_types.Block) {
-	metrics.SolidityCounter.WithLabelValues(startBlockLbl).Inc()
+	metrics.SolidityCounter.WithLabelValues(startBlockLbl, statusSuccess).Inc()
 	s.Lock()
 	start := time.Now()
 	defer func() {
@@ -251,12 +251,16 @@ func (s *Solidity) CheckTxn(txn *yu_types.SignedTxn) error {
 // Execute sets up an in-memory, temporary, environment for the execution of
 // the given code. It makes sure that it's restored to its original state afterwards.
 func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
-	metrics.SolidityCounter.WithLabelValues(executeTxnLbl).Inc()
 	s.RLock()
 	start := time.Now()
 	defer func() {
 		s.RUnlock()
 		metrics.SolidityHist.WithLabelValues(executeTxnLbl).Observe(time.Since(start).Seconds())
+		if err == nil {
+			metrics.SolidityCounter.WithLabelValues(executeTxnLbl, statusSuccess).Inc()
+		} else {
+			metrics.SolidityCounter.WithLabelValues(executeTxnLbl, statusErr).Inc()
+		}
 	}()
 	txReq := new(TxRequest)
 	coinbase := common.BytesToAddress(s.cfg.Coinbase.Bytes())
@@ -321,7 +325,7 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 // Call executes the code given by the contract's address. It will return the
 // EVM's return value or an error if it failed.
 func (s *Solidity) Call(ctx *context.ReadContext) {
-	metrics.SolidityCounter.WithLabelValues(callTxnLbl).Inc()
+	metrics.SolidityCounter.WithLabelValues(callTxnLbl, statusSuccess).Inc()
 	s.Lock()
 	start := time.Now()
 	defer func() {
@@ -384,7 +388,7 @@ func (s *Solidity) Call(ctx *context.ReadContext) {
 }
 
 func (s *Solidity) Commit(block *yu_types.Block) {
-	metrics.SolidityCounter.WithLabelValues(commitLbl).Inc()
+	metrics.SolidityCounter.WithLabelValues(commitLbl, statusSuccess).Inc()
 	s.RLock()
 	start := time.Now()
 	defer func() {
