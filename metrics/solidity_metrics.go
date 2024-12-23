@@ -10,7 +10,7 @@ var (
 			Name:      "op_counter",
 			Help:      "Total Operator number of counter",
 		},
-		[]string{TypeLbl},
+		[]string{TypeLbl, TypeStatusLbl},
 	)
 
 	SolidityHist = prometheus.NewHistogramVec(prometheus.HistogramOpts{

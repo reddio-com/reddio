@@ -2,8 +2,10 @@ package evm
 
 import (
 	"bytes"
+	context2 "context"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"math/big"
 	"net/http"
 	"sync"
@@ -29,6 +31,7 @@ import (
 	yuConfig "github.com/reddio-com/reddio/evm/config"
 	"github.com/reddio-com/reddio/evm/pending_state"
 	"github.com/reddio-com/reddio/metrics"
+	"github.com/reddio-com/reddio/utils"
 )
 
 var (
@@ -40,6 +43,10 @@ var (
 	commitLbl      = "commit"
 	getReceiptsLbl = "gets"
 	getReceiptLbl  = "get"
+
+	statusSuccess = "success"
+	statusErr     = "err"
+	statusExceed  = "exceed"
 )
 
 type Solidity struct {
@@ -591,7 +598,19 @@ type ReceiptsResponse struct {
 }
 
 func (s *Solidity) GetReceipt(ctx *context.ReadContext) {
-	metrics.SolidityCounter.WithLabelValues(getReceiptLbl).Inc()
+	limiter := utils.GetReceiptRateLimiter
+	if !limiter.Allow() {
+		metrics.SolidityCounter.WithLabelValues(getReceiptLbl, statusExceed).Inc()
+		ctx.Json(http.StatusBadRequest, &ReceiptResponse{Err: errors.New("exceed the limit")})
+		return
+	}
+	lctx, cancel := context2.WithTimeout(context2.Background(), time.Millisecond*30)
+	defer cancel()
+	if err := limiter.Wait(lctx); err != nil {
+		metrics.SolidityCounter.WithLabelValues(getReceiptLbl, statusExceed).Inc()
+		ctx.Json(http.StatusBadRequest, &ReceiptResponse{Err: errors.New("exceed the limit")})
+		return
+	}
 	start := time.Now()
 	defer func() {
 		metrics.SolidityHist.WithLabelValues(getReceiptLbl).Observe(time.Since(start).Seconds())
@@ -599,16 +618,18 @@ func (s *Solidity) GetReceipt(ctx *context.ReadContext) {
 	var rq ReceiptRequest
 	err := ctx.BindJson(&rq)
 	if err != nil {
+		metrics.SolidityCounter.WithLabelValues(getReceiptLbl, statusErr).Inc()
 		ctx.Json(http.StatusBadRequest, &ReceiptResponse{Err: err})
 		return
 	}
 
 	receipt, err := s.getReceipt(rq.Hash)
 	if err != nil {
+		metrics.SolidityCounter.WithLabelValues(getReceiptLbl, statusErr).Inc()
 		ctx.Json(http.StatusInternalServerError, &ReceiptResponse{Err: err})
 		return
 	}
-
+	metrics.SolidityCounter.WithLabelValues(getReceiptLbl, statusSuccess).Inc()
 	ctx.JsonOk(&ReceiptResponse{Receipt: receipt})
 }
 
