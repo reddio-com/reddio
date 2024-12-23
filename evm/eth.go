@@ -607,6 +607,9 @@ func checkGetReceipt() (checkResult bool) {
 	if config.GetGlobalConfig().RateLimitConfig.GetReceipt < 1 || limiter == nil {
 		return true
 	}
+	if !limiter.Allow() {
+		return false
+	}
 	if err := limiter.Wait(context2.Background()); err != nil {
 		return false
 	}
