@@ -607,9 +607,6 @@ func checkGetReceipt() (checkResult bool) {
 	if config.GetGlobalConfig().RateLimitConfig.GetReceipt < 1 || limiter == nil {
 		return true
 	}
-	if !limiter.Allow() {
-		return false
-	}
 	if err := limiter.Wait(context2.Background()); err != nil {
 		return false
 	}
@@ -674,7 +671,6 @@ func (s *Solidity) getReceipt(hash common.Hash) (*types.Receipt, error) {
 }
 
 func (s *Solidity) GetReceipts(ctx *context.ReadContext) {
-	metrics.SolidityCounter.WithLabelValues(getReceiptsLbl).Inc()
 	start := time.Now()
 	defer func() {
 		metrics.SolidityHist.WithLabelValues(getReceiptsLbl).Observe(time.Since(start).Seconds())
@@ -682,6 +678,7 @@ func (s *Solidity) GetReceipts(ctx *context.ReadContext) {
 	var rq ReceiptsRequest
 	err := ctx.BindJson(&rq)
 	if err != nil {
+		metrics.SolidityCounter.WithLabelValues(getReceiptsLbl, statusErr).Inc()
 		ctx.Json(http.StatusBadRequest, &ReceiptsResponse{Err: err})
 		return
 	}
@@ -690,13 +687,13 @@ func (s *Solidity) GetReceipts(ctx *context.ReadContext) {
 	for _, hash := range rq.Hashes {
 		receipt, err := s.getReceipt(hash)
 		if err != nil {
+			metrics.SolidityCounter.WithLabelValues(getReceiptsLbl, statusErr).Inc()
 			ctx.Json(http.StatusInternalServerError, &ReceiptsResponse{Err: err})
 			return
 		}
-
 		receipts = append(receipts, receipt)
 	}
-
+	metrics.SolidityCounter.WithLabelValues(getReceiptsLbl, statusSuccess).Inc()
 	ctx.JsonOk(&ReceiptsResponse{Receipts: receipts})
 }
 
