@@ -35,7 +35,7 @@ func main() {
 	config := config2.GetGlobalConfig()
 	config.IsBenchmarkMode = true
 	config.IsParallel = isParallel
-	config.AsyncCommit = true
+	config.AsyncCommit = false
 	go func() {
 		if config.IsParallel {
 			logrus.Info("start transfer test in parallel")

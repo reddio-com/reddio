@@ -3,6 +3,7 @@ package parallel
 import (
 	"time"
 
+	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/yu-org/yu/common"
 	"github.com/yu-org/yu/core/types"
 
@@ -10,6 +11,7 @@ import (
 )
 
 type SerialEvmExecutor struct {
+	cpdb       *state.StateDB
 	k          *ParallelEVM
 	receipts   map[common.Hash]*types.Receipt
 	txnCtxList []*txnCtx
@@ -17,7 +19,8 @@ type SerialEvmExecutor struct {
 
 func NewSerialEvmExecutor(evm *ParallelEVM) *SerialEvmExecutor {
 	return &SerialEvmExecutor{
-		k: evm,
+		k:    evm,
+		cpdb: evm.cpdb,
 	}
 }
 
@@ -36,6 +39,7 @@ func (s *SerialEvmExecutor) Execute(block *types.Block) {
 	for _, c := range got {
 		s.receipts[c.txn.TxnHash] = c.receipt
 	}
+	s.k.Solidity.SetStateDB(s.cpdb)
 }
 
 func (s *SerialEvmExecutor) Receipts(block *types.Block) map[common.Hash]*types.Receipt {
@@ -46,8 +50,8 @@ func (s *SerialEvmExecutor) executeTxnCtxListInSerial(list []*txnCtx) []*txnCtx 
 	defer func() {
 		if config.GetGlobalConfig().AsyncCommit {
 			s.k.updateTxnObjSub(list)
-			s.k.Solidity.StateDB().PendingCommit(true, s.k.objectInc)
+			s.cpdb.PendingCommit(true, s.k.objectInc)
 		}
 	}()
-	return s.k.executeTxnCtxListInOrder(s.k.Solidity.StateDB(), list, false)
+	return s.k.executeTxnCtxListInOrder(s.cpdb, list, false)
 }

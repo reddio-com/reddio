@@ -33,8 +33,8 @@ var (
 		ParentlayerContractAddress: "0x9F7e49fcAB7eD379451e8422D20908bF439011A5",
 		//ChildlayerContractAddress:  "0xe54eBA8bC87E43dF13109b4b2Fbcc111CAd6b4B4",
 		ChildlayerContractAddress: "0xeC054c6ee2DbbeBC9EbCA50CdBF94A94B02B2E40",
-		testPublicKey1:            "0x0CC0cD4A9024A2d15BbEdd348Fbf7Cd69B5489bA",
-		//testPublicKey1:          "0x7888b7B844B4B16c03F8daCACef7dDa0F5188645",
+		//testPublicKey1:            "0x0CC0cD4A9024A2d15BbEdd348Fbf7Cd69B5489bA",
+		testPublicKey1:          "0x7888b7B844B4B16c03F8daCACef7dDa0F5188645",
 		testPublicKey2:          "0x66eb032B3a74d85C8b6965a4df788f3C31678b1a",
 		adminPublicKey:          "0x7Bd36074b61Cfe75a53e1B9DF7678C96E6463b02",
 		maxRetries:              300,
@@ -577,7 +577,7 @@ func TestWithdrawETH(t *testing.T) {
 	t.Run("WithdrawETH", func(t *testing.T) {
 		fmt.Println("WithdrawETH1")
 
-		withdrawAmount := big.NewInt(50)
+		withdrawAmount := big.NewInt(5000)
 
 		// Arrange
 		l1Client, err := ethclient.Dial(sepoliaHelpConfig.L1ClientAddress)

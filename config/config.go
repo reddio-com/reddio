@@ -17,7 +17,7 @@ type Config struct {
 
 func defaultConfig() *Config {
 	return &Config{
-		AsyncCommit:    true,
+		AsyncCommit:    false,
 		IsParallel:     true,
 		MaxConcurrency: runtime.NumCPU(),
 	}

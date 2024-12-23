@@ -36,7 +36,7 @@ func main() {
 	evmConfig := evm.LoadEvmConfig(evmConfigPath)
 	config := config2.GetGlobalConfig()
 	config.IsParallel = isParallel
-	config.AsyncCommit = true
+	config.AsyncCommit = false
 	go func() {
 		logrus.Infof("Number of goroutines after app.Start: %d", runtime.NumGoroutine())
 		if config.IsParallel {

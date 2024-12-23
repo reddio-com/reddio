@@ -1,10 +1,10 @@
 package parallel
 
 import (
-	"github.com/sirupsen/logrus"
 	"time"
 
 	common2 "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/yu-org/yu/core/tripod"
 
 	"github.com/yu-org/yu/common"
@@ -25,6 +25,7 @@ const (
 
 type ParallelEVM struct {
 	*tripod.Tripod
+	cpdb        *state.StateDB
 	Solidity    *evm.Solidity `tripod:"solidity"`
 	statManager *BlockTxnStatManager
 	objectInc   map[common2.Address]int
@@ -48,6 +49,7 @@ func (k *ParallelEVM) setupProcessor() {
 
 func (k *ParallelEVM) Execute(block *types.Block) error {
 	k.statManager = &BlockTxnStatManager{TxnCount: len(block.Txns)}
+	k.cpdb = k.Solidity.GetCopiedStateDB()
 	k.setupProcessor()
 	start := time.Now()
 	defer func() {
@@ -55,11 +57,8 @@ func (k *ParallelEVM) Execute(block *types.Block) error {
 		k.statManager.UpdateMetrics()
 	}()
 	k.processor.Prepare(block)
-	logrus.Info("ParallelEVM.processor.Execute block --- ")
 	k.processor.Execute(block)
-	logrus.Info("ParallelEVM.processor.Receipts block --- ")
 	receipts := k.processor.Receipts(block)
-	logrus.Info("ParallelEVM.processor.Commit block --- ")
 	return k.Commit(block, receipts)
 }
 

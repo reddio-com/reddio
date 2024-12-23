@@ -103,7 +103,6 @@ func (b *L2ToL1Relayer) HandleUpwardMessage(msgs []*orm.CrossMessage, blockTimes
 		if err != nil {
 			logrus.Fatalf("Failed to generate multi-signatures: %v", err)
 		}
-
 		messageHash, err := utils.ComputeMessageHash(upwardMessages[0].PayloadType, upwardMessages[0].Payload, upwardMessages[0].Nonce)
 		if err != nil {
 			logrus.Fatalf("Failed to compute message hash: %v", err)
@@ -122,7 +121,7 @@ func (b *L2ToL1Relayer) HandleUpwardMessage(msgs []*orm.CrossMessage, blockTimes
 	if msgs != nil {
 		err = b.crossMessageOrm.InsertOrUpdateL2Messages(context.Background(), msgs)
 		if err != nil {
-			fmt.Println("Failed to insert or update L2 messages:", err)
+			logrus.Errorf("Failed to insert or update L2 messages: %v", err)
 		}
 	}
 	return nil

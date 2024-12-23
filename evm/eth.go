@@ -31,6 +31,17 @@ import (
 	"github.com/reddio-com/reddio/metrics"
 )
 
+var (
+	startBlockLbl  = "start"
+	finaliseLbl    = "finalise"
+	setStateDBLbl  = "set"
+	executeTxnLbl  = "execute"
+	callTxnLbl     = "call"
+	commitLbl      = "commit"
+	getReceiptsLbl = "gets"
+	getReceiptLbl  = "get"
+)
+
 type Solidity struct {
 	sync.RWMutex
 
@@ -44,12 +55,19 @@ type Solidity struct {
 }
 
 func (s *Solidity) StateDB() *state.StateDB {
+	s.RLock()
+	defer s.RUnlock()
 	return s.ethState.StateDB()
 }
 
 func (s *Solidity) FinaliseStateDB(deleteEmptyObjects bool) {
-	s.Lock()
-	defer s.Unlock()
+	metrics.SolidityCounter.WithLabelValues(finaliseLbl).Inc()
+	s.RLock()
+	start := time.Now()
+	defer func() {
+		s.RUnlock()
+		metrics.SolidityHist.WithLabelValues(finaliseLbl).Observe(time.Since(start).Seconds())
+	}()
 	s.ethState.StateDB().Finalise(deleteEmptyObjects)
 }
 
@@ -168,8 +186,13 @@ func NewSolidity(gethConfig *GethConfig) *Solidity {
 // region ---- Tripod Api ----
 
 func (s *Solidity) StartBlock(block *yu_types.Block) {
+	metrics.SolidityCounter.WithLabelValues(startBlockLbl).Inc()
 	s.Lock()
-	defer s.Unlock()
+	start := time.Now()
+	defer func() {
+		s.Unlock()
+		metrics.SolidityHist.WithLabelValues(startBlockLbl).Observe(time.Since(start).Seconds())
+	}()
 	s.cfg.BlockNumber = big.NewInt(int64(block.Height))
 	// s.gasPool = new(core.GasPool).AddGas(block.LeiLimit)
 	s.cfg.GasLimit = block.LeiLimit
@@ -221,24 +244,17 @@ func (s *Solidity) CheckTxn(txn *yu_types.SignedTxn) error {
 // Execute sets up an in-memory, temporary, environment for the execution of
 // the given code. It makes sure that it's restored to its original state afterwards.
 func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
-	logrus.Infof("Solidity.ExecuteTxn Try RLock (%d) ......", ctx.Block.Height)
-
+	metrics.SolidityCounter.WithLabelValues(executeTxnLbl).Inc()
 	s.RLock()
-	defer s.RUnlock()
-
 	start := time.Now()
 	defer func() {
-		logrus.Infof("Solidity.ExecuteTxn UnRLock (%d) ......", ctx.Block.Height)
-		end := time.Now()
-		metrics.TxnDuration.WithLabelValues().Observe(end.Sub(start).Seconds())
+		s.RUnlock()
+		metrics.SolidityHist.WithLabelValues(executeTxnLbl).Observe(time.Since(start).Seconds())
 	}()
-
 	txReq := new(TxRequest)
 	coinbase := common.BytesToAddress(s.cfg.Coinbase.Bytes())
 
 	_ = ctx.BindJson(txReq)
-
-	logrus.Infof("start to ExecuteTxn (%s) on height(%d)", txReq.Hash.String(), ctx.Block.Height)
 
 	pd := ctx.ExtraInterface.(*pending_state.PendingStateWrapper)
 
@@ -265,14 +281,12 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 	rules := cfg.ChainConfig.Rules(vmenv.Context.BlockNumber, vmenv.Context.Random != nil, vmenv.Context.Time)
 	// s.Unlock()
 
-	logrus.Infof("ExecuteTxn: start txn(%s) in block(%d)", txReq.Hash.String(), ctx.Block.Height)
 	var gasUsed uint64
 	if txReq.Address == nil {
 		gasUsed, err = s.executeContractCreation(ctx, txReq, pd, txReq.Origin, coinbase, vmenv, sender, rules)
 	} else {
 		gasUsed, err = s.executeContractCall(ctx, txReq, pd, txReq.Origin, coinbase, vmenv, sender, rules)
 	}
-	logrus.Infof("ExecuteTxn: end txn(%s) in block(%d)", txReq.Hash.String(), ctx.Block.Height)
 
 	if !rules.IsLondon {
 		// Before EIP-3529: refunds were capped to gasUsed / 2
@@ -300,9 +314,13 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 // Call executes the code given by the contract's address. It will return the
 // EVM's return value or an error if it failed.
 func (s *Solidity) Call(ctx *context.ReadContext) {
+	metrics.SolidityCounter.WithLabelValues(callTxnLbl).Inc()
 	s.Lock()
-
-	defer s.Unlock()
+	start := time.Now()
+	defer func() {
+		s.Unlock()
+		metrics.SolidityHist.WithLabelValues(callTxnLbl).Observe(time.Since(start).Seconds())
+	}()
 
 	callReq := new(CallRequest)
 	err := ctx.BindJson(callReq)
@@ -310,8 +328,6 @@ func (s *Solidity) Call(ctx *context.ReadContext) {
 		ctx.Json(http.StatusBadRequest, &CallResponse{Err: err})
 		return
 	}
-
-	cfg := s.cfg
 	address := callReq.Address
 	input := callReq.Input
 	origin := callReq.Origin
@@ -319,20 +335,19 @@ func (s *Solidity) Call(ctx *context.ReadContext) {
 	gasPrice := callReq.GasPrice
 	value := callReq.Value
 
+	cfg := s.cfg
 	cfg.Origin = origin
 	cfg.GasLimit = gasLimit
 	cfg.GasPrice = gasPrice
 	cfg.Value = value
+	ethState := s.ethState
 
 	var (
-		vmenv    = newEVM(cfg)
-		sender   = vm.AccountRef(origin)
-		ethState = s.ethState
-		rules    = cfg.ChainConfig.Rules(vmenv.Context.BlockNumber, vmenv.Context.Random != nil, vmenv.Context.Time)
+		vmenv  = newEVM(cfg)
+		sender = vm.AccountRef(origin)
+		rules  = cfg.ChainConfig.Rules(vmenv.Context.BlockNumber, vmenv.Context.Random != nil, vmenv.Context.Time)
 	)
-
-	vmenv.StateDB = s.ethState.stateDB
-
+	vmenv.StateDB = s.ethState.StateDB()
 	if cfg.EVMConfig.Tracer != nil && cfg.EVMConfig.Tracer.OnTxStart != nil {
 		cfg.EVMConfig.Tracer.OnTxStart(vmenv.GetVMContext(), types.NewTx(&types.LegacyTx{To: &address, Data: input, Value: value, Gas: gasLimit}), origin)
 	}
@@ -358,13 +373,17 @@ func (s *Solidity) Call(ctx *context.ReadContext) {
 		return
 	}
 	result := CallResponse{Ret: ret, LeftOverGas: leftOverGas}
-
 	ctx.JsonOk(&result)
 }
 
 func (s *Solidity) Commit(block *yu_types.Block) {
-	s.Lock()
-	defer s.Unlock()
+	metrics.SolidityCounter.WithLabelValues(commitLbl).Inc()
+	s.RLock()
+	start := time.Now()
+	defer func() {
+		s.RUnlock()
+		metrics.SolidityHist.WithLabelValues(commitLbl).Observe(time.Since(start).Seconds())
+	}()
 
 	// reward coinbase
 	s.ethState.AddBalance(s.cfg.Coinbase, uint256.NewInt(s.coinbaseReward.Load()), tracing.BalanceIncreaseRewardTransactionFee)
@@ -569,8 +588,11 @@ type ReceiptsResponse struct {
 }
 
 func (s *Solidity) GetReceipt(ctx *context.ReadContext) {
-	s.RLock()
-	defer s.RUnlock()
+	metrics.SolidityCounter.WithLabelValues(getReceiptLbl).Inc()
+	start := time.Now()
+	defer func() {
+		metrics.SolidityHist.WithLabelValues(getReceiptLbl).Observe(time.Since(start).Seconds())
+	}()
 	var rq ReceiptRequest
 	err := ctx.BindJson(&rq)
 	if err != nil {
@@ -618,8 +640,11 @@ func (s *Solidity) getReceipt(hash common.Hash) (*types.Receipt, error) {
 }
 
 func (s *Solidity) GetReceipts(ctx *context.ReadContext) {
-	s.RLock()
-	defer s.RUnlock()
+	metrics.SolidityCounter.WithLabelValues(getReceiptsLbl).Inc()
+	start := time.Now()
+	defer func() {
+		metrics.SolidityHist.WithLabelValues(getReceiptsLbl).Observe(time.Since(start).Seconds())
+	}()
 	var rq ReceiptsRequest
 	err := ctx.BindJson(&rq)
 	if err != nil {
@@ -639,6 +664,12 @@ func (s *Solidity) GetReceipts(ctx *context.ReadContext) {
 	}
 
 	ctx.JsonOk(&ReceiptsResponse{Receipts: receipts})
+}
+
+func (s *Solidity) GetCopiedStateDB() *state.StateDB {
+	s.RLock()
+	defer s.RUnlock()
+	return s.ethState.StateDB().Copy()
 }
 
 func emitReceipt(ctx *context.WriteContext, vmEmv *vm.EVM, txReq *TxRequest, code []byte, contractAddr common.Address, leftOverGas uint64, err error) error {
