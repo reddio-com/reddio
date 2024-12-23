@@ -3,8 +3,9 @@ package metrics
 import "github.com/prometheus/client_golang/prometheus"
 
 const (
-	TypeLbl      = "type"
-	TypeCountLbl = "count"
+	TypeLbl       = "type"
+	TypeCountLbl  = "count"
+	TypeStatusLbl = "status"
 )
 
 var (

@@ -21,7 +21,7 @@ require (
 	github.com/tendermint/tendermint v0.34.24
 	github.com/yu-org/yu v1.2.18
 	golang.org/x/sync v0.7.0
-	golang.org/x/time v0.5.0
+	golang.org/x/time v0.8.0
 	gopkg.in/yaml.v3 v3.0.1
 	gorm.io/driver/mysql v1.0.5
 	gorm.io/gorm v1.21.4

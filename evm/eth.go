@@ -2,8 +2,10 @@ package evm
 
 import (
 	"bytes"
+	context2 "context"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"math/big"
 	"net/http"
 	"sync"
@@ -26,9 +28,11 @@ import (
 	"github.com/yu-org/yu/core/tripod"
 	yu_types "github.com/yu-org/yu/core/types"
 
+	"github.com/reddio-com/reddio/config"
 	yuConfig "github.com/reddio-com/reddio/evm/config"
 	"github.com/reddio-com/reddio/evm/pending_state"
 	"github.com/reddio-com/reddio/metrics"
+	"github.com/reddio-com/reddio/utils"
 )
 
 var (
@@ -40,6 +44,10 @@ var (
 	commitLbl      = "commit"
 	getReceiptsLbl = "gets"
 	getReceiptLbl  = "get"
+
+	statusSuccess = "success"
+	statusErr     = "err"
+	statusExceed  = "exceed"
 )
 
 type Solidity struct {
@@ -61,7 +69,7 @@ func (s *Solidity) StateDB() *state.StateDB {
 }
 
 func (s *Solidity) FinaliseStateDB(deleteEmptyObjects bool) {
-	metrics.SolidityCounter.WithLabelValues(finaliseLbl).Inc()
+	metrics.SolidityCounter.WithLabelValues(finaliseLbl, statusSuccess).Inc()
 	s.RLock()
 	start := time.Now()
 	defer func() {
@@ -186,7 +194,7 @@ func NewSolidity(gethConfig *GethConfig) *Solidity {
 // region ---- Tripod Api ----
 
 func (s *Solidity) StartBlock(block *yu_types.Block) {
-	metrics.SolidityCounter.WithLabelValues(startBlockLbl).Inc()
+	metrics.SolidityCounter.WithLabelValues(startBlockLbl, statusSuccess).Inc()
 	s.Lock()
 	start := time.Now()
 	defer func() {
@@ -244,12 +252,16 @@ func (s *Solidity) CheckTxn(txn *yu_types.SignedTxn) error {
 // Execute sets up an in-memory, temporary, environment for the execution of
 // the given code. It makes sure that it's restored to its original state afterwards.
 func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
-	metrics.SolidityCounter.WithLabelValues(executeTxnLbl).Inc()
 	s.RLock()
 	start := time.Now()
 	defer func() {
 		s.RUnlock()
 		metrics.SolidityHist.WithLabelValues(executeTxnLbl).Observe(time.Since(start).Seconds())
+		if err == nil {
+			metrics.SolidityCounter.WithLabelValues(executeTxnLbl, statusSuccess).Inc()
+		} else {
+			metrics.SolidityCounter.WithLabelValues(executeTxnLbl, statusErr).Inc()
+		}
 	}()
 	txReq := new(TxRequest)
 	coinbase := common.BytesToAddress(s.cfg.Coinbase.Bytes())
@@ -314,7 +326,7 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 // Call executes the code given by the contract's address. It will return the
 // EVM's return value or an error if it failed.
 func (s *Solidity) Call(ctx *context.ReadContext) {
-	metrics.SolidityCounter.WithLabelValues(callTxnLbl).Inc()
+	metrics.SolidityCounter.WithLabelValues(callTxnLbl, statusSuccess).Inc()
 	s.Lock()
 	start := time.Now()
 	defer func() {
@@ -377,7 +389,7 @@ func (s *Solidity) Call(ctx *context.ReadContext) {
 }
 
 func (s *Solidity) Commit(block *yu_types.Block) {
-	metrics.SolidityCounter.WithLabelValues(commitLbl).Inc()
+	metrics.SolidityCounter.WithLabelValues(commitLbl, statusSuccess).Inc()
 	s.RLock()
 	start := time.Now()
 	defer func() {
@@ -590,8 +602,28 @@ type ReceiptsResponse struct {
 	Err      error            `json:"err"`
 }
 
+func checkGetReceipt() (checkResult bool) {
+	if config.GetGlobalConfig().RateLimitConfig.GetReceipt < 1 {
+		return true
+	}
+	limiter := utils.GetReceiptRateLimiter
+	if !limiter.Allow() {
+		return false
+	}
+	lctx, cancel := context2.WithTimeout(context2.Background(), time.Millisecond*30)
+	defer cancel()
+	if err := limiter.Wait(lctx); err != nil {
+		return false
+	}
+	return true
+}
+
 func (s *Solidity) GetReceipt(ctx *context.ReadContext) {
-	metrics.SolidityCounter.WithLabelValues(getReceiptLbl).Inc()
+	if !checkGetReceipt() {
+		metrics.SolidityCounter.WithLabelValues(getReceiptLbl, statusExceed).Inc()
+		ctx.Json(http.StatusBadRequest, &ReceiptResponse{Err: errors.New("exceed the limit")})
+		return
+	}
 	start := time.Now()
 	defer func() {
 		metrics.SolidityHist.WithLabelValues(getReceiptLbl).Observe(time.Since(start).Seconds())
@@ -599,16 +631,17 @@ func (s *Solidity) GetReceipt(ctx *context.ReadContext) {
 	var rq ReceiptRequest
 	err := ctx.BindJson(&rq)
 	if err != nil {
+		metrics.SolidityCounter.WithLabelValues(getReceiptLbl, statusErr).Inc()
 		ctx.Json(http.StatusBadRequest, &ReceiptResponse{Err: err})
 		return
 	}
-
 	receipt, err := s.getReceipt(rq.Hash)
 	if err != nil {
+		metrics.SolidityCounter.WithLabelValues(getReceiptLbl, statusErr).Inc()
 		ctx.Json(http.StatusInternalServerError, &ReceiptResponse{Err: err})
 		return
 	}
-
+	metrics.SolidityCounter.WithLabelValues(getReceiptLbl, statusSuccess).Inc()
 	ctx.JsonOk(&ReceiptResponse{Receipt: receipt})
 }
 
