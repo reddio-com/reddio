@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"github.com/sirupsen/logrus"
 	"golang.org/x/time/rate"
 
 	"github.com/reddio-com/reddio/config"
@@ -12,6 +13,7 @@ var (
 
 func IniLimiter() {
 	GetReceiptRateLimiter = GenGetReceiptRateLimiter()
+	logrus.Infof("GetReceipt Limit %v qps", config.GetGlobalConfig().RateLimitConfig.GetReceipt)
 }
 
 func GenGetReceiptRateLimiter() *rate.Limiter {
