@@ -28,6 +28,7 @@ import (
 	"github.com/yu-org/yu/core/tripod"
 	yu_types "github.com/yu-org/yu/core/types"
 
+	"github.com/reddio-com/reddio/config"
 	yuConfig "github.com/reddio-com/reddio/evm/config"
 	"github.com/reddio-com/reddio/evm/pending_state"
 	"github.com/reddio-com/reddio/metrics"
@@ -601,16 +602,24 @@ type ReceiptsResponse struct {
 	Err      error            `json:"err"`
 }
 
-func (s *Solidity) GetReceipt(ctx *context.ReadContext) {
+func checkGetReceipt() (checkResult bool) {
+	if config.GetGlobalConfig().RateLimitConfig.GetReceipt < 1 {
+		return true
+	}
 	limiter := utils.GetReceiptRateLimiter
 	if !limiter.Allow() {
-		metrics.SolidityCounter.WithLabelValues(getReceiptLbl, statusExceed).Inc()
-		ctx.Json(http.StatusBadRequest, &ReceiptResponse{Err: errors.New("exceed the limit")})
-		return
+		return false
 	}
 	lctx, cancel := context2.WithTimeout(context2.Background(), time.Millisecond*30)
 	defer cancel()
 	if err := limiter.Wait(lctx); err != nil {
+		return false
+	}
+	return true
+}
+
+func (s *Solidity) GetReceipt(ctx *context.ReadContext) {
+	if !checkGetReceipt() {
 		metrics.SolidityCounter.WithLabelValues(getReceiptLbl, statusExceed).Inc()
 		ctx.Json(http.StatusBadRequest, &ReceiptResponse{Err: errors.New("exceed the limit")})
 		return
@@ -626,7 +635,6 @@ func (s *Solidity) GetReceipt(ctx *context.ReadContext) {
 		ctx.Json(http.StatusBadRequest, &ReceiptResponse{Err: err})
 		return
 	}
-
 	receipt, err := s.getReceipt(rq.Hash)
 	if err != nil {
 		metrics.SolidityCounter.WithLabelValues(getReceiptLbl, statusErr).Inc()
