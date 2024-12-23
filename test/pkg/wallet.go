@@ -102,7 +102,7 @@ func (m *WalletManager) CreateEthWalletByAddress(initialEthCount uint64, private
 	if err := m.transferEth(GenesisPrivateKey, address, initialEthCount); err != nil {
 		return nil, err
 	}
-	// log.Println(fmt.Sprintf("create wallet %v", address))
+	// log.Printf("create wallet %v", address))
 	return &EthWallet{PK: privateKey, Address: address}, nil
 }
 

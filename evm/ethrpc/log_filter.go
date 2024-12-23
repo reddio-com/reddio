@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"math/big"
 	"slices"
 
@@ -13,7 +14,6 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/sirupsen/logrus"
 	yutypes "github.com/yu-org/yu/core/types"
 )
 
@@ -227,10 +227,10 @@ func (f *LogFilter) Logs(ctx context.Context) ([]*types.Log, error) {
 		return f.FilterLogs(ctx, yuHeader)
 	} else {
 		var result []*types.Log
-		for ; f.begin < f.end; f.begin++ {
+		for ; f.begin <= f.end; f.begin++ {
 			_, yuHeader, err := f.b.HeaderByNumber(ctx, rpc.BlockNumber(f.begin))
 			if err != nil {
-				logrus.Errorf("[GetLog] Failed to getHeaderByNumber %v", f.begin)
+				logrus.Errorf("[GetLog] Failed to getHeaderByNumber %v, error: %s", f.begin, err)
 				return nil, err
 			}
 			logs, err := f.FilterLogs(ctx, yuHeader)
@@ -276,17 +276,17 @@ func (f *LogFilter) checkMatches(ctx context.Context, vLog *types.Log) bool {
 	}
 
 	// TODO: The logic for topic filtering is a bit complex; it will not be implemented for now.
-	//if len(f.topics) > len(vLog.Topics) {
-	//	return false
-	//}
-	//for i, sub := range f.topics {
-	//	if len(sub) == 0 {
-	//		continue // empty rule set == wildcard
-	//	}
-	//	if !slices.Contains(sub, vLog.Topics[i]) {
-	//		return false
-	//	}
-	//}
+	// if len(f.topics) > len(vLog.Topics) {
+	// 	return false
+	// }
+	// for i, sub := range f.topics {
+	// 	if len(sub) == 0 {
+	// 		continue // empty rule set == wildcard
+	// 	}
+	// 	if !slices.Contains(sub, vLog.Topics[i]) {
+	// 		return false
+	// 	}
+	// }
 
 	return true
 }

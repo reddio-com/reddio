@@ -33,7 +33,7 @@ func sendRequest(hostAddress string, dataString string) ([]byte, error) {
 	if err == nil {
 		return resp, nil
 	}
-	log.Println(fmt.Sprintf("send request got Err:%v", err))
+	log.Printf("send request got Err:%v", err)
 	for {
 		time.Sleep(10 * time.Millisecond)
 		resp, err = sendSingleRequest(hostAddress, dataString)

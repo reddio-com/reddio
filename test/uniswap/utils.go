@@ -154,7 +154,9 @@ func saveTestDataToFile(filename string, data TestData) {
 	if err != nil {
 		log.Fatalf("Error creating file: %v", err)
 	}
-	defer file.Close()
+	defer func() {
+		_ = file.Close()
+	}()
 
 	writer := bufio.NewWriter(file)
 
@@ -177,7 +179,9 @@ func loadTestDataFromFile(filename string) (TestData, error) {
 	if err != nil {
 		return data, fmt.Errorf("error opening file: %v", err)
 	}
-	defer file.Close()
+	defer func() {
+		_ = file.Close()
+	}()
 
 	reader := bufio.NewReader(file)
 

@@ -9,12 +9,11 @@ import (
 	"math/rand"
 	"time"
 
-	"golang.org/x/time/rate"
-
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"golang.org/x/time/rate"
 
 	"github.com/reddio-com/reddio/test/contracts"
 	"github.com/reddio-com/reddio/test/pkg"
@@ -34,6 +33,8 @@ const (
 )
 
 type UniswapV2TPSStatisticsTestCase struct {
+	MaxUsers      int
+	NonConflict   bool
 	TestUsers     int
 	DeployedUsers int
 	rm            *rate.Limiter
@@ -53,8 +54,10 @@ func (cd *UniswapV2TPSStatisticsTestCase) Name() string {
 	return cd.CaseName
 }
 
-func NewUniswapV2TPSStatisticsTestCase(name string, t, d int, rm *rate.Limiter, needLoad bool) *UniswapV2TPSStatisticsTestCase {
+func NewUniswapV2TPSStatisticsTestCase(name string, t, d, maxUser int, rm *rate.Limiter, needLoad, nonConflict bool) *UniswapV2TPSStatisticsTestCase {
 	tc := &UniswapV2TPSStatisticsTestCase{
+		MaxUsers:      maxUser,
+		NonConflict:   nonConflict,
 		DeployedUsers: t,
 		TestUsers:     d,
 		CaseName:      name,
@@ -71,7 +74,7 @@ func NewUniswapV2TPSStatisticsTestCase(name string, t, d int, rm *rate.Limiter, 
 	return tc
 }
 
-// TestUniswapTPS is a test case to measure the transactions per second (TPS) of Uniswap.
+// Run TestUniswapTPS is a test case to measure the transactions per second (TPS) of Uniswap.
 // The test case follows these steps:
 // 1. Arrange
 //   - Create a deployer user with sufficient balance
@@ -220,20 +223,25 @@ func (cd *UniswapV2TPSStatisticsTestCase) Prepare(ctx context.Context, m *pkg.Wa
 		TestContracts: make([]TestContract, 0),
 	}
 	for index, deployerUser := range deployerUsers {
-		log.Println(fmt.Sprintf("start to deploy %v contract", index))
+		log.Printf("start to deploy %v contract", index)
 		router, tokenPairs, err := cd.prepareDeployerContract(deployerUser, testUsers, gasPrice, client)
 		if err != nil {
 			return fmt.Errorf("prepare contract failed, err:%v", err)
 		}
 		preparedTestData.TestContracts = append(preparedTestData.TestContracts, TestContract{router, tokenPairs})
-		log.Println(fmt.Sprintf("create %v deploy contract done", index+1))
+		log.Printf("create %v deploy contract done", index+1)
 	}
 	saveTestDataToFile("test/tmp/prepared_test_data.json", preparedTestData)
 	return err
 }
 
 func (cd *UniswapV2TPSStatisticsTestCase) executeTest(nodeUrl string, chainID int64, gasLimit uint64, stepCount int) error {
-	steps := generateRandomSwapSteps(cd.loadTestData, stepCount)
+	var steps []SwapStep
+	if cd.NonConflict {
+		steps = cd.generateNoConflictSwapSteps(cd.loadTestData)
+	} else {
+		steps = generateRandomSwapSteps(cd.loadTestData, stepCount)
+	}
 	client, err := ethclient.Dial(nodeUrl)
 	if err != nil {
 		log.Printf("Failed to connect to the Ethereum client: %v", err)
@@ -245,6 +253,7 @@ func (cd *UniswapV2TPSStatisticsTestCase) executeTest(nodeUrl string, chainID in
 		log.Printf("Failed to perform swap steps: %v", err)
 		return err
 	}
+
 	return nil
 }
 
@@ -265,6 +274,32 @@ type SwapStep struct {
 	TokenOut common.Address
 	AmountIn *big.Int
 	Router   common.Address
+}
+
+func (cd *UniswapV2TPSStatisticsTestCase) generateNoConflictSwapSteps(testData TestData) []SwapStep {
+	var steps []SwapStep
+	maxUsers := len(testData.TestUsers)
+	if cd.MaxUsers < maxUsers && cd.MaxUsers > 0 {
+		maxUsers = cd.MaxUsers
+	}
+	testUsers := testData.TestUsers
+	for i := 0; i < maxUsers; i++ {
+		user := testUsers[i]
+		contract := testData.TestContracts[i]
+		pair := contract.TokenPairs[0]
+		tokenIn := pair[0]
+		tokenOut := pair[1]
+		amountIn := big.NewInt(rand.Int63n(1e5))
+		step := SwapStep{
+			User:     user,
+			TokenIn:  tokenIn,
+			TokenOut: tokenOut,
+			AmountIn: amountIn,
+			Router:   contract.UniswapV2Router,
+		}
+		steps = append(steps, step)
+	}
+	return steps
 }
 
 func generateRandomSwapSteps(testData TestData, stepCount int) []SwapStep {
@@ -300,7 +335,7 @@ func (cd *UniswapV2TPSStatisticsTestCase) executeSwapSteps(client *ethclient.Cli
 	for _, step := range steps {
 		if err := cd.rm.Wait(context.Background()); err == nil {
 			if err := executeSwapStep(client, step, chainID, gasPrice, gasLimit); err != nil {
-				log.Println(fmt.Sprintf("execute swap step err:%v", err.Error()))
+				log.Printf("execute swap step err:%v", err.Error())
 			}
 		}
 	}

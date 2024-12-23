@@ -37,6 +37,7 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/ethereum/go-ethereum/trie"
 
+	"github.com/reddio-com/reddio/config"
 	"github.com/reddio-com/reddio/evm"
 )
 
@@ -71,6 +72,7 @@ func (s *EthereumAPI) GetLogs(ctx context.Context, crit FilterCriteria) ([]*type
 	if err != nil {
 		return nil, err
 	}
+
 	if logs == nil {
 		return []*types.Log{}, nil
 	}
@@ -160,7 +162,7 @@ func (s *EthereumAPI) BlobBaseFee(ctx context.Context) *hexutil.Big {
 func (s *EthereumAPI) Syncing() (interface{}, error) {
 	progress := s.b.SyncProgress()
 
-	// Return not syncing if the synchronisation already completed
+	// Return not syncing if the synchronization already completed
 	if progress.Done() {
 		return false, nil
 	}
@@ -1333,7 +1335,9 @@ func (s *TransactionAPI) FillTransaction(ctx context.Context, args TransactionAr
 func (s *TransactionAPI) SendRawTransaction(ctx context.Context, input hexutil.Bytes) (txHash common.Hash, err error) {
 	defer func() {
 		if err != nil {
-			logrus.Errorf("SendRawTransaction failed: %v, txHash(%s)", err, txHash.String())
+			if !config.GetGlobalConfig().IsBenchmarkMode {
+				logrus.Errorf("SendRawTransaction failed: %v, txHash(%s)", err, txHash.String())
+			}
 		}
 	}()
 	tx := new(types.Transaction)
