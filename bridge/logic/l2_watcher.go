@@ -64,7 +64,7 @@ func (f *L2WatcherLogic) L2FetcherUpwardMessageFromLogs(ctx context.Context, blo
 			Topics:    make([][]common.Hash, 1),
 		}
 		query.Topics[0] = make([]common.Hash, 1)
-		query.Topics[0][0] = backendabi.L2UpwardMessageEventSig
+		query.Topics[0][0] = backendabi.L2SentMessageEventSig
 
 		eventLogs, err := f.FilterLogs(ctx, block, query)
 		if err != nil {

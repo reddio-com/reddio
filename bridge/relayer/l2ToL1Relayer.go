@@ -16,7 +16,6 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/reddio-com/reddio/bridge/contract"
 	"github.com/reddio-com/reddio/bridge/orm"
-	"github.com/reddio-com/reddio/bridge/utils"
 	"github.com/reddio-com/reddio/evm"
 	"github.com/reddio-com/reddio/metrics"
 	"github.com/sirupsen/logrus"
@@ -94,22 +93,28 @@ func (b *L2ToL1Relayer) HandleUpwardMessage(msgs []*orm.CrossMessage, blockTimes
 			//fmt.Println("Failed to decode hex string:", err)
 			return err
 		}
+		nonce := new(big.Int)
+		nonce, ok := nonce.SetString(msg.MessageNonce, 10)
+		if !ok {
+			log.Fatalf("Failed to convert MessageNonce to *big.Int: %s", msg.MessageNonce)
+		}
 		upwardMessages = append(upwardMessages, contract.UpwardMessage{
 			PayloadType: uint32(msg.MessagePayloadType),
 			Payload:     payloadBytes,
-			Nonce:       utils.GenerateNonce(),
+			Nonce:       nonce,
 		})
+
 		signaturesArray, err := generateUpwardMessageMultiSignatures(upwardMessages, privateKeys)
 		if err != nil {
 			log.Fatalf("Failed to generate multi-signatures: %v", err)
 		}
-		messageHash, err := utils.ComputeMessageHash(upwardMessages[0].PayloadType, upwardMessages[0].Payload, upwardMessages[0].Nonce)
-		if err != nil {
-			log.Fatalf("Failed to compute message hash: %v", err)
-		}
-		msg.MessageHash = messageHash.Hex()
+		// messageHash, err := utils.ComputeMessageHash(upwardMessages[0].PayloadType, upwardMessages[0].Payload, upwardMessages[0].Nonce)
+		// if err != nil {
+		// 	log.Fatalf("Failed to compute message hash: %v", err)
+		// }
+		// msg.MessageHash = messageHash.Hex()
 		//fmt.Println("msg.MessageHash:", msg.MessageHash)
-		msg.MessageNonce = upwardMessages[0].Nonce.String()
+		//msg.MessageNonce = upwardMessages[0].Nonce.String()
 		var multiSignProofs []string
 		for _, sig := range signaturesArray {
 			multiSignProofs = append(multiSignProofs, "0x"+hex.EncodeToString(sig))
@@ -127,37 +132,7 @@ func (b *L2ToL1Relayer) HandleUpwardMessage(msgs []*orm.CrossMessage, blockTimes
 			logrus.Errorf("Failed to insert or update L2 messages: %v", err)
 		}
 	}
-	// upwardMessagesJSON, err := json.MarshalIndent(upwardMessages, "", "  ")
-	// if err != nil {
-	// 	fmt.Printf("Error marshalling upwardMessages to JSON: %v\n", err)
-	// 	return err
-	// }
 
-	// // Print JSON
-	// fmt.Printf("UpwardMessages JSON:\n%s\n", string(upwardMessagesJSON))
-
-	// signaturesArray, err := generateUpwardMessageMultiSignatures(upwardMessages, privateKeys)
-	// if err != nil {
-	// 	log.Fatalf("Failed to generate multi-signatures: %v", err)
-	// }
-
-	// for i, sig := range signaturesArray {
-	// 	log.Printf("MultiSignature %d: %x\n", i+1, sig)
-	// }
-
-	// tx, err := upwardMessageDispatcher.ReceiveUpwardMessages(auth, upwardMessages, signaturesArray)
-	// if err != nil {
-	// 	log.Printf("Failed to send transaction: %v", err)
-	// 	for _, msg := range msgs {
-	// 		metrics.UpwardMessageFailureCounter.WithLabelValues(fmt.Sprintf("%d", msg.PayloadType)).Inc()
-	// 	}
-	// 	return err
-	// }
-
-	// log.Printf("Transaction sent: %s", tx.Hash().Hex())
-	// for _, msg := range msgs {
-	// 	metrics.UpwardMessageSuccessCounter.WithLabelValues(fmt.Sprintf("%d", msg.PayloadType)).Inc()
-	// }
 	return nil
 }
 

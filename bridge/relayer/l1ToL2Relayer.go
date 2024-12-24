@@ -204,7 +204,7 @@ func (b *L1ToL2Relayer) HandleRelayerMessage(msg *contract.UpwardMessageDispatch
 }
 
 // handleDownwardMessage
-func (b *L1ToL2Relayer) HandleDownwardMessageWithSystemCall(msg *contract.ParentBridgeCoreFacetDownwardMessage) error {
+func (b *L1ToL2Relayer) HandleDownwardMessageWithSystemCall(msg *contract.ParentBridgeCoreFacetQueueTransaction) error {
 	// 1. parse downward message
 	// 2. setup auth
 	// 3. send downward message to child layer contract by calling downwardMessageDispatcher.ReceiveDownwardMessages
@@ -213,7 +213,7 @@ func (b *L1ToL2Relayer) HandleDownwardMessageWithSystemCall(msg *contract.Parent
 		{
 			PayloadType: msg.PayloadType,
 			Payload:     msg.Payload,
-			Nonce:       utils.GenerateNonce(),
+			Nonce:       new(big.Int).SetUint64(msg.QueueIndex),
 		},
 	}
 	metrics.DownwardMessageReceivedCounter.WithLabelValues(fmt.Sprintf("%d", msg.PayloadType)).Inc()

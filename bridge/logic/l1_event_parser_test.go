@@ -36,7 +36,7 @@ func TestETHParseL1SingleCrossChainEventLogs(t *testing.T) {
 		big.NewInt(1),              // gas price
 		nil,                        // data
 	)
-	msg := &contract.ParentBridgeCoreFacetDownwardMessage{
+	msg := &contract.ParentBridgeCoreFacetQueueTransaction{
 		PayloadType: uint32(utils.ETH),
 		Payload:     payload,
 		Raw: types.Log{
@@ -74,7 +74,7 @@ func TestREDParseL1SingleCrossChainEventLogs(t *testing.T) {
 		big.NewInt(1),              // gas price
 		nil,                        // data
 	)
-	msg := &contract.ParentBridgeCoreFacetDownwardMessage{
+	msg := &contract.ParentBridgeCoreFacetQueueTransaction{
 		PayloadType: uint32(utils.RED),
 		Payload:     payload,
 		Raw: types.Log{
@@ -113,7 +113,7 @@ func TestERC20ParseL1SingleCrossChainEventLogs(t *testing.T) {
 		big.NewInt(1),              // gas price
 		nil,                        // data
 	)
-	msg := &contract.ParentBridgeCoreFacetDownwardMessage{
+	msg := &contract.ParentBridgeCoreFacetQueueTransaction{
 		PayloadType: uint32(utils.ERC20),
 		Payload:     payload,
 		Raw: types.Log{
@@ -153,7 +153,7 @@ func TestERC20ParseL1SingleCrossChainEventLogs2(t *testing.T) {
 		big.NewInt(1),              // gas price
 		nil,                        // data
 	)
-	msg := &contract.ParentBridgeCoreFacetDownwardMessage{
+	msg := &contract.ParentBridgeCoreFacetQueueTransaction{
 		PayloadType: uint32(utils.ERC20),
 		Payload:     payload,
 		Raw: types.Log{
@@ -193,7 +193,7 @@ func TestERC20ParseL1SingleCrossChainEventLogs3(t *testing.T) {
 		big.NewInt(1),              // gas price
 		nil,                        // data
 	)
-	msg := &contract.ParentBridgeCoreFacetDownwardMessage{
+	msg := &contract.ParentBridgeCoreFacetQueueTransaction{
 		PayloadType: uint32(utils.ERC20),
 		Payload:     payload,
 		Raw: types.Log{

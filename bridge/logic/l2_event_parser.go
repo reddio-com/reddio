@@ -105,9 +105,9 @@ func (e *L2EventParser) ParseL2SingleCrossChainEventLogs(ctx context.Context, lo
 	var l2WithdrawMessages []*orm.CrossMessage
 
 	for _, vlog := range logs {
-		if vlog.Topics[0] == backendabi.L2UpwardMessageEventSig {
-			event := new(contract.ChildBridgeCoreFacetUpwardMessage)
-			err := utils.UnpackLog(backendabi.IL2ChildBridgeCoreFacetABI, event, "UpwardMessage", vlog)
+		if vlog.Topics[0] == backendabi.L2SentMessageEventSig {
+			event := new(contract.ChildBridgeCoreFacetSentMessage)
+			err := utils.UnpackLog(backendabi.IL2ChildBridgeCoreFacetABI, event, "SentMessage", vlog)
 			if err != nil {
 				log.Error("Failed to unpack UpwardMessage event", "err", err)
 				return nil, err
@@ -135,7 +135,8 @@ func (e *L2EventParser) ParseL2SingleCrossChainEventLogs(ctx context.Context, lo
 					MessageFrom:        l2ETHBurntMsg.ChildSender.String(),
 					MessageTo:          l2ETHBurntMsg.ParentRecipient.String(),
 					MessageValue:       l2ETHBurntMsg.Amount.String(),
-					//MessageNonce: "",
+					MessageNonce:       event.Nonce.String(),
+					MessageHash:        common.BytesToHash(event.XDomainCalldataHash[:]).String(),
 					//MultiSignProof: "",
 					TokenAmounts: l2ETHBurntMsg.Amount.String(),
 					CreatedAt:    time.Now().UTC(),
@@ -164,7 +165,9 @@ func (e *L2EventParser) ParseL2SingleCrossChainEventLogs(ctx context.Context, lo
 					MessageFrom:        l2ERC20BurntMsg.ChildSender.String(),
 					MessageTo:          l2ERC20BurntMsg.ParentRecipient.String(),
 					MessageValue:       l2ERC20BurntMsg.Amount.String(),
-					//MessageNonce: "",
+					MessageNonce:       event.Nonce.String(),
+					MessageHash:        common.BytesToHash(event.XDomainCalldataHash[:]).String(),
+
 					//MultiSignProof: "",
 					TokenAmounts: l2ERC20BurntMsg.Amount.String(),
 					CreatedAt:    time.Now().UTC(),
@@ -194,7 +197,9 @@ func (e *L2EventParser) ParseL2SingleCrossChainEventLogs(ctx context.Context, lo
 					MessageFrom:        l2REDBurntMsg.ChildSender.String(),
 					MessageTo:          l2REDBurntMsg.ParentRecipient.String(),
 					MessageValue:       l2REDBurntMsg.Amount.String(),
-					//MessageNonce: "",
+					MessageNonce:       event.Nonce.String(),
+					MessageHash:        common.BytesToHash(event.XDomainCalldataHash[:]).String(),
+
 					//MultiSignProof: "",
 					TokenAmounts: l2REDBurntMsg.Amount.String(),
 					CreatedAt:    time.Now().UTC(),
