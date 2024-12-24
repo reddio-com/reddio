@@ -39,6 +39,17 @@ import (
 
 	"github.com/reddio-com/reddio/config"
 	"github.com/reddio-com/reddio/evm"
+	"github.com/reddio-com/reddio/metrics"
+)
+
+var (
+	getLogsLbl    = "getLogs"
+	gasPriceLbl   = "gasPrice"
+	feeHistoryLbl = "feeHistory"
+
+	statusSuccess = "success"
+	statusErr     = "err"
+	statusExceed  = "exceed"
 )
 
 // estimateGasErrorRatio is the amount of overestimation eth_estimateGas is
@@ -58,7 +69,18 @@ func NewEthereumAPI(b Backend) *EthereumAPI {
 }
 
 // GetLogs from *FilterAPI
-func (s *EthereumAPI) GetLogs(ctx context.Context, crit FilterCriteria) ([]*types.Log, error) {
+func (s *EthereumAPI) GetLogs(ctx context.Context, crit FilterCriteria) (results []*types.Log, err error) {
+	start := time.Now()
+	defer func() {
+		if err != nil {
+			metrics.EthereumAPICounterHist.WithLabelValues(getLogsLbl, statusErr).Observe(time.Since(start).Seconds())
+			metrics.EthereumAPICounter.WithLabelValues(getLogsLbl, statusErr).Inc()
+		} else {
+			metrics.EthereumAPICounterHist.WithLabelValues(getLogsLbl, statusSuccess).Observe(time.Since(start).Seconds())
+			metrics.EthereumAPICounter.WithLabelValues(getLogsLbl, statusSuccess).Inc()
+		}
+	}()
+
 	if len(crit.Topics) > maxTopics {
 		return nil, errExceedMaxTopics
 	}
@@ -81,7 +103,17 @@ func (s *EthereumAPI) GetLogs(ctx context.Context, crit FilterCriteria) ([]*type
 }
 
 // GasPrice returns a suggestion for a gas price for legacy transactions.
-func (s *EthereumAPI) GasPrice(ctx context.Context) (*hexutil.Big, error) {
+func (s *EthereumAPI) GasPrice(ctx context.Context) (result *hexutil.Big, err error) {
+	start := time.Now()
+	defer func() {
+		if err != nil {
+			metrics.EthereumAPICounterHist.WithLabelValues(gasPriceLbl, statusErr).Observe(time.Since(start).Seconds())
+			metrics.EthereumAPICounter.WithLabelValues(gasPriceLbl, statusErr).Inc()
+		} else {
+			metrics.EthereumAPICounterHist.WithLabelValues(gasPriceLbl, statusSuccess).Observe(time.Since(start).Seconds())
+			metrics.EthereumAPICounter.WithLabelValues(gasPriceLbl, statusSuccess).Inc()
+		}
+	}()
 	tipcap, err := s.b.SuggestGasTipCap(ctx)
 	if err != nil {
 		return nil, err
@@ -111,7 +143,17 @@ type feeHistoryResult struct {
 }
 
 // FeeHistory returns the fee market history.
-func (s *EthereumAPI) FeeHistory(ctx context.Context, blockCount math.HexOrDecimal64, lastBlock rpc.BlockNumber, rewardPercentiles []float64) (*feeHistoryResult, error) {
+func (s *EthereumAPI) FeeHistory(ctx context.Context, blockCount math.HexOrDecimal64, lastBlock rpc.BlockNumber, rewardPercentiles []float64) (result *feeHistoryResult, err error) {
+	start := time.Now()
+	defer func() {
+		if err != nil {
+			metrics.EthereumAPICounterHist.WithLabelValues(feeHistoryLbl, statusErr).Observe(time.Since(start).Seconds())
+			metrics.EthereumAPICounter.WithLabelValues(feeHistoryLbl, statusErr).Inc()
+		} else {
+			metrics.EthereumAPICounterHist.WithLabelValues(feeHistoryLbl, statusSuccess).Observe(time.Since(start).Seconds())
+			metrics.EthereumAPICounter.WithLabelValues(feeHistoryLbl, statusSuccess).Inc()
+		}
+	}()
 	oldest, reward, baseFee, gasUsed, blobBaseFee, blobGasUsed, err := s.b.FeeHistory(ctx, uint64(blockCount), lastBlock, rewardPercentiles)
 	if err != nil {
 		return nil, err
