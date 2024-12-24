@@ -93,7 +93,7 @@ func (e *L1EventParser) ParseL1RelayMessagePayload(ctx context.Context, msg *con
 }
 
 // ParseL1CrossChainEventLogs parse l1 cross chain event logs
-func (e *L1EventParser) ParseL1CrossChainPayload(ctx context.Context, msg *contract.ParentBridgeCoreFacetDownwardMessage, tx *types.Transaction) ([]*orm.CrossMessage, error) {
+func (e *L1EventParser) ParseL1CrossChainPayload(ctx context.Context, msg *contract.ParentBridgeCoreFacetQueueTransaction, tx *types.Transaction) ([]*orm.CrossMessage, error) {
 	l1CrossChainDepositMessages, err := e.ParseL1SingleCrossChainPayload(ctx, msg, tx)
 	if err != nil {
 		return nil, err
@@ -200,7 +200,7 @@ func (e *L1EventParser) ParseL1CrossChainPayloadToRefundMsg(ctx context.Context,
 }
 
 // ParseL1SingleCrossChainEventLogs parses L1 watched single cross chain events.
-func (e *L1EventParser) ParseL1SingleCrossChainPayload(ctx context.Context, msg *contract.ParentBridgeCoreFacetDownwardMessage, tx *types.Transaction) ([]*orm.CrossMessage, error) {
+func (e *L1EventParser) ParseL1SingleCrossChainPayload(ctx context.Context, msg *contract.ParentBridgeCoreFacetQueueTransaction, tx *types.Transaction) ([]*orm.CrossMessage, error) {
 	var l1DepositMessages []*orm.CrossMessage
 
 	switch utils.MessagePayloadType(msg.PayloadType) {

@@ -43,6 +43,7 @@ type CrossMessage struct {
 	UpdatedAt          time.Time  `json:"updated_at" gorm:"column:updated_at"`
 	DeletedAt          *time.Time `json:"deleted_at" gorm:"column:deleted_at"`
 	Remark             string     `json:"remark" gorm:"column:remark"`
+	RetryCount         int        `json:"retry_count" gorm:"column:retry_count"`
 }
 
 // TableName returns the table name for the CrossMessage model.
