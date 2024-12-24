@@ -136,6 +136,10 @@ func (r *L1ToL2Relayer) pollUnconsumedMessages() {
 							logrus.Errorf("Failed to update L1 to L2 message: %v", err)
 						}
 					} else if receipt.Status == types.ReceiptStatusFailed {
+						err := r.crossMessageOrm.UpdateL1Message(ctx, message.MessageHash, int(btypes.TxStatusTypeDropped), receipt.BlockNumber.Uint64())
+						if err != nil {
+							logrus.Errorf("Failed to update L1 to L2 message: %v", err)
+						}
 						refundMessages, err := r.l1EventParser.ParseL1CrossChainPayloadToRefundMsg(r.ctx, message, receipt)
 						if err != nil {
 							logrus.Errorf("ParseL1CrossChainPayloadToRefundMsg to parse L1 cross chain payload: %v", err)
