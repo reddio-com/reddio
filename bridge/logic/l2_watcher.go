@@ -58,7 +58,7 @@ func (f *L2WatcherLogic) L2FetcherUpwardMessageFromLogs(ctx context.Context, blo
 			//fmt.Println("Watcher GetCompactBlock error: ", err)
 			return nil, nil, err
 		}
-		blockTimestampsMap[uint64(blockHeight)] = block.Timestamp
+		blockTimestampsMap[uint64(height)] = block.Timestamp
 		query := ethereum.FilterQuery{
 			// FromBlock: new(big.Int).SetUint64(from), // inclusive
 			// ToBlock:   new(big.Int).SetUint64(to),   // inclusive
