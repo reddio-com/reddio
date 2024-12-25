@@ -633,7 +633,7 @@ func (s *Solidity) GetReceipt(ctx *context.ReadContext) {
 		ctx.Json(http.StatusBadRequest, &ReceiptResponse{Err: err})
 		return
 	}
-	receipt, err := s.getReceipt(rq.Hash)
+	receipt, err := s.GetEthReceipt(rq.Hash)
 	if err != nil {
 		metrics.SolidityCounter.WithLabelValues(getReceiptLbl, statusErr).Inc()
 		ctx.Json(http.StatusInternalServerError, &ReceiptResponse{Err: err})
@@ -643,7 +643,7 @@ func (s *Solidity) GetReceipt(ctx *context.ReadContext) {
 	ctx.JsonOk(&ReceiptResponse{Receipt: receipt})
 }
 
-func (s *Solidity) getReceipt(hash common.Hash) (*types.Receipt, error) {
+func (s *Solidity) GetEthReceipt(hash common.Hash) (*types.Receipt, error) {
 	yuHash, err := ConvertHashToYuHash(hash)
 	if err != nil {
 		return nil, err
@@ -688,7 +688,7 @@ func (s *Solidity) GetReceipts(ctx *context.ReadContext) {
 
 	receipts := make([]*types.Receipt, 0, len(rq.Hashes))
 	for _, hash := range rq.Hashes {
-		receipt, err := s.getReceipt(hash)
+		receipt, err := s.GetEthReceipt(hash)
 		if err != nil {
 			metrics.SolidityCounter.WithLabelValues(getReceiptsLbl, statusErr).Inc()
 			ctx.Json(http.StatusInternalServerError, &ReceiptsResponse{Err: err})

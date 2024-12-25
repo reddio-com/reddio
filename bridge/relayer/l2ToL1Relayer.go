@@ -28,15 +28,25 @@ type L2ToL1Relayer struct {
 	l1Client        *ethclient.Client
 	Solidity        *evm.Solidity `tripod:"solidity"`
 	crossMessageOrm *orm.CrossMessage
+	sigPrivateKeys  []string
 }
 
 func NewL2ToL1Relayer(ctx context.Context, cfg *evm.GethConfig, l1Client *ethclient.Client, db *gorm.DB) (*L2ToL1Relayer, error) {
+
+	privateKey, err := LoadPrivateKey("bridge/relayer/.sepolia.env")
+	if err != nil {
+		log.Fatalf("Error loading private key: %v", err)
+	}
+	privateKeys := []string{
+		privateKey,
+	}
 
 	return &L2ToL1Relayer{
 		ctx:             ctx,
 		cfg:             cfg,
 		l1Client:        l1Client,
 		crossMessageOrm: orm.NewCrossMessage(db),
+		sigPrivateKeys:  privateKeys,
 	}, nil
 }
 func LoadPrivateKey(envFilePath string) (string, error) {
@@ -65,27 +75,7 @@ func (b *L2ToL1Relayer) HandleUpwardMessage(msgs []*orm.CrossMessage, blockTimes
 	// if err != nil {
 	// 	return err
 	// }
-	privateKey, err := LoadPrivateKey("bridge/relayer/.sepolia.env")
-	if err != nil {
-		log.Fatalf("Error loading private key: %v", err)
-	}
-	// testUserPK, err := crypto.HexToECDSA(privateKey)
-	// if err != nil {
-	// 	return err
-	// }
-	// l1ChainId, err := b.l1Client.ChainID(context.Background())
-	// if err != nil {
-	// 	return err
-	// }
 
-	// auth, err := bind.NewKeyedTransactorWithChainID(testUserPK, l1ChainId)
-	// if err != nil {
-	// 	log.Fatalf("Failed to create authorized transactor: %v", err)
-	// }
-
-	privateKeys := []string{
-		privateKey,
-	}
 	for _, msg := range msgs {
 		var upwardMessages []contract.UpwardMessage
 		payloadBytes, err := hex.DecodeString(msg.MessagePayload)
@@ -104,17 +94,11 @@ func (b *L2ToL1Relayer) HandleUpwardMessage(msgs []*orm.CrossMessage, blockTimes
 			Nonce:       nonce,
 		})
 
-		signaturesArray, err := generateUpwardMessageMultiSignatures(upwardMessages, privateKeys)
+		signaturesArray, err := generateUpwardMessageMultiSignatures(upwardMessages, b.sigPrivateKeys)
 		if err != nil {
 			log.Fatalf("Failed to generate multi-signatures: %v", err)
 		}
-		// messageHash, err := utils.ComputeMessageHash(upwardMessages[0].PayloadType, upwardMessages[0].Payload, upwardMessages[0].Nonce)
-		// if err != nil {
-		// 	log.Fatalf("Failed to compute message hash: %v", err)
-		// }
-		// msg.MessageHash = messageHash.Hex()
-		//fmt.Println("msg.MessageHash:", msg.MessageHash)
-		//msg.MessageNonce = upwardMessages[0].Nonce.String()
+
 		var multiSignProofs []string
 		for _, sig := range signaturesArray {
 			multiSignProofs = append(multiSignProofs, "0x"+hex.EncodeToString(sig))
@@ -122,12 +106,10 @@ func (b *L2ToL1Relayer) HandleUpwardMessage(msgs []*orm.CrossMessage, blockTimes
 
 		msg.MultiSignProof = strings.Join(multiSignProofs, ",")
 		msg.BlockTimestamp = blockTimestampsMap[msg.L2BlockNumber]
-		//fmt.Println("msg.MultiSignProof:", msg.MultiSignProof)
 	}
 
 	if msgs != nil {
-		//fmt.Println("msgs:", msgs)
-		err = b.crossMessageOrm.InsertOrUpdateL2Messages(context.Background(), msgs)
+		err := b.crossMessageOrm.InsertOrUpdateL2Messages(context.Background(), msgs)
 		if err != nil {
 			logrus.Errorf("Failed to insert or update L2 messages: %v", err)
 		}
