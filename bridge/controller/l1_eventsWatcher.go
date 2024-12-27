@@ -38,7 +38,7 @@ func NewL1EventsWatcher(ctx context.Context, cfg *evm.GethConfig, ethClient *eth
 }
 
 func (w *L1EventsWatcher) Run(ctx context.Context) error {
-	downwardMsgChan := make(chan *contract.ParentBridgeCoreFacetDownwardMessage)
+	downwardMsgChan := make(chan *contract.ParentBridgeCoreFacetQueueTransaction)
 	relayerMsgChan := make(chan *contract.UpwardMessageDispatcherFacetRelayedMessage)
 
 	if w.l1Client.Client().SupportsSubscriptions() {
@@ -97,9 +97,24 @@ func (w *L1EventsWatcher) Run(ctx context.Context) error {
 	return nil
 }
 
+// func (w *L1EventsWatcher) watchDownwardMessage(
+//
+//	ctx context.Context,
+//	sink chan<- *contract.ParentBridgeCoreFacetDownwardMessage,
+//
+//	) (event.Subscription, error) {
+//		if !common.IsHexAddress(w.cfg.ParentLayerContractAddress) {
+//			return nil, fmt.Errorf("invalid address: %s", w.cfg.ParentLayerContractAddress)
+//		}
+//		filterer, err := contract.NewParentBridgeCoreFacetFilterer(common.HexToAddress(w.cfg.ParentLayerContractAddress), w.l1Client)
+//		if err != nil {
+//			return nil, err
+//		}
+//		return filterer.WatchDownwardMessage(&bind.WatchOpts{Context: ctx}, sink)
+//	}
 func (w *L1EventsWatcher) watchDownwardMessage(
 	ctx context.Context,
-	sink chan<- *contract.ParentBridgeCoreFacetDownwardMessage,
+	sink chan<- *contract.ParentBridgeCoreFacetQueueTransaction,
 ) (event.Subscription, error) {
 	if !common.IsHexAddress(w.cfg.ParentLayerContractAddress) {
 		return nil, fmt.Errorf("invalid address: %s", w.cfg.ParentLayerContractAddress)
@@ -108,9 +123,8 @@ func (w *L1EventsWatcher) watchDownwardMessage(
 	if err != nil {
 		return nil, err
 	}
-	return filterer.WatchDownwardMessage(&bind.WatchOpts{Context: ctx}, sink)
+	return filterer.WatchQueueTransaction(&bind.WatchOpts{Context: ctx}, sink, nil, nil)
 }
-
 func (w *L1EventsWatcher) watchRelayerMessage(
 	ctx context.Context,
 	sink chan<- *contract.UpwardMessageDispatcherFacetRelayedMessage,
@@ -129,7 +143,7 @@ func (w *L1EventsWatcher) watchRelayerMessage(
  *    [Functions:Handler]    *
  *****************************/
 func (w *L1EventsWatcher) handleDownwardMessage(
-	msg *contract.ParentBridgeCoreFacetDownwardMessage,
+	msg *contract.ParentBridgeCoreFacetQueueTransaction,
 ) error {
 	err := w.l1toL2Relayer.HandleDownwardMessageWithSystemCall(msg)
 	if err != nil {
@@ -141,6 +155,7 @@ func (w *L1EventsWatcher) handleDownwardMessage(
 func (w *L1EventsWatcher) handleRelayerMessage(msg *contract.UpwardMessageDispatcherFacetRelayedMessage) error {
 	err := w.l1toL2Relayer.HandleRelayerMessage(msg)
 	if err != nil {
+		logrus.Errorf("Failed to handle RelayerMessage: %v", err)
 		return err
 	}
 	//fmt.Printf("Received RelayerMessage: %+v\n", msg)

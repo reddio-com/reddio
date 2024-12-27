@@ -12,6 +12,7 @@ var (
 
 	L1DownwardMessageEventSig common.Hash
 	L2UpwardMessageEventSig   common.Hash
+	L2SentMessageEventSig     common.Hash
 )
 
 func init() {
@@ -20,6 +21,7 @@ func init() {
 
 	IL2ChildBridgeCoreFacetABI, _ = IL2ChildBridgeCoreFacetMetaData.GetAbi()
 	L2UpwardMessageEventSig = IL2ChildBridgeCoreFacetABI.Events["UpwardMessage"].ID
+	L2SentMessageEventSig = IL2ChildBridgeCoreFacetABI.Events["SentMessage"].ID
 }
 
 var IL2ChildBridgeCoreFacetMetaData = &bind.MetaData{

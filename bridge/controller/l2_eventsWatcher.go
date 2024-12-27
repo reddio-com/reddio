@@ -51,11 +51,6 @@ func (w *L2EventsWatcher) WatchUpwardMessage(ctx context.Context, block *yutypes
 		//fmt.Println("No upward messages found")
 		return nil
 	}
-	// print for test
-	// jsonData, err := json.MarshalIndent(upwardMessage, "", "  ")
-	// if err != nil {
-	// 	return fmt.Errorf("failed to marshal upwardMessage to JSON: %v", err)
-	// }
 
 	// fmt.Println("WatchUpwardMessage: ", string(jsonData))
 	err = w.l2toL1Relayer.HandleUpwardMessage(upwardMessage, blockTimestampsMap)
