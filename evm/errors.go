@@ -11,7 +11,7 @@ import (
 
 // From geth/core/txpool/errors
 var (
-	// ErrAlreadyKnown is returned if the transactions is already contained
+	// ErrAlreadyKnown is returned if the transaction is already contained
 	// within the pool.
 	ErrAlreadyKnown = errors.New("already known")
 
