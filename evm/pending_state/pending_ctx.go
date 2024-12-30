@@ -29,8 +29,6 @@ func NewStateContext() *StateContext {
 }
 
 func (sctx *StateContext) IsConflict(tar *StateContext) bool {
-	sctx.Lock()
-	defer sctx.Unlock()
 	if len(sctx.GetWriteState()) < 1 && len(sctx.GetWriteAddress()) < 1 &&
 		len(sctx.GetReadState()) < 1 && len(sctx.GetReadAddress()) < 1 {
 		return false
