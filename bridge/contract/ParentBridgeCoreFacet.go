@@ -143,7 +143,7 @@ func bindParentBridgeCoreFacet(address common.Address, caller bind.ContractCalle
 }
 
 // Call invokes the (constant) contract method with params as input values and
-// sets the output to result. The result type might be a single field for simple
+// sets the output to the result. The result type might be a single field for simple
 // returns, a slice of interfaces for anonymous returns and a struct for named
 // returns.
 func (_ParentBridgeCoreFacet *ParentBridgeCoreFacetRaw) Call(opts *bind.CallOpts, result *[]interface{}, method string, params ...interface{}) error {
@@ -162,7 +162,7 @@ func (_ParentBridgeCoreFacet *ParentBridgeCoreFacetRaw) Transact(opts *bind.Tran
 }
 
 // Call invokes the (constant) contract method with params as input values and
-// sets the output to result. The result type might be a single field for simple
+// sets the output to the result. The result type might be a single field for simple
 // returns, a slice of interfaces for anonymous returns and a struct for named
 // returns.
 func (_ParentBridgeCoreFacet *ParentBridgeCoreFacetCallerRaw) Call(opts *bind.CallOpts, result *[]interface{}, method string, params ...interface{}) error {
@@ -405,11 +405,11 @@ type ParentBridgeCoreFacetDownwardMessageIterator struct {
 // are any more events found. In case of a retrieval or parsing error, false is
 // returned and Error() can be queried for the exact failure.
 func (it *ParentBridgeCoreFacetDownwardMessageIterator) Next() bool {
-	// If the iterator failed, stop iterating
+	// If the iterator fails, stop iterating
 	if it.fail != nil {
 		return false
 	}
-	// If the iterator completed, deliver directly whatever's available
+	// If the iterator is completed, deliver directly whatever's available
 	if it.done {
 		select {
 		case log := <-it.logs:
@@ -443,7 +443,7 @@ func (it *ParentBridgeCoreFacetDownwardMessageIterator) Next() bool {
 	}
 }
 
-// Error returns any retrieval or parsing error occurred during filtering.
+// Error returns any retrieval or parsing error that occurred during filtering.
 func (it *ParentBridgeCoreFacetDownwardMessageIterator) Error() error {
 	return it.fail
 }
@@ -540,11 +540,11 @@ type ParentBridgeCoreFacetQueueTransactionIterator struct {
 // are any more events found. In case of a retrieval or parsing error, false is
 // returned and Error() can be queried for the exact failure.
 func (it *ParentBridgeCoreFacetQueueTransactionIterator) Next() bool {
-	// If the iterator failed, stop iterating
+	// If the iterator fails, stop iterating
 	if it.fail != nil {
 		return false
 	}
-	// If the iterator completed, deliver directly whatever's available
+	// If the iterator is completed, deliver directly whatever's available
 	if it.done {
 		select {
 		case log := <-it.logs:
@@ -578,7 +578,7 @@ func (it *ParentBridgeCoreFacetQueueTransactionIterator) Next() bool {
 	}
 }
 
-// Error returns any retrieval or parsing error occurred during filtering.
+// Error returns any retrieval or parsing error that occurred during filtering.
 func (it *ParentBridgeCoreFacetQueueTransactionIterator) Error() error {
 	return it.fail
 }
@@ -734,7 +734,7 @@ func (it *ParentBridgeCoreFacetRelayedMessageIterator) Next() bool {
 	}
 }
 
-// Error returns any retrieval or parsing error occurred during filtering.
+// Error returns any retrieval or parsing error that occurred during filtering.
 func (it *ParentBridgeCoreFacetRelayedMessageIterator) Error() error {
 	return it.fail
 }
