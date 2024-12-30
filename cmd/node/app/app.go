@@ -29,6 +29,7 @@ import (
 	"github.com/reddio-com/reddio/evm"
 	"github.com/reddio-com/reddio/evm/ethrpc"
 	"github.com/reddio-com/reddio/parallel"
+	"github.com/reddio-com/reddio/utils"
 )
 
 func Start(evmPath, yuPath, poaPath, configPath string) {
@@ -36,6 +37,7 @@ func Start(evmPath, yuPath, poaPath, configPath string) {
 	poaCfg := poa.LoadCfgFromPath(poaPath)
 	evmCfg := evm.LoadEvmConfig(evmPath)
 	err := config.LoadConfig(configPath)
+	utils.IniLimiter()
 	if err != nil {
 		panic(err)
 	}

@@ -36,6 +36,7 @@ func main() {
 	evmConfig := evm.LoadEvmConfig(evmConfigPath)
 	config := config2.GlobalConfig
 	config.IsBenchmarkMode = true
+	config.RateLimitConfig.GetReceipt = 0
 	go func() {
 		yuCfg := startup.InitKernelConfigFromPath(yuConfigPath)
 		poaCfg := poa.LoadCfgFromPath(poaConfigPath)

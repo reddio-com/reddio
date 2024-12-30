@@ -101,24 +101,24 @@ func NewL1ToL2Relayer(ctx context.Context, cfg *evm.GethConfig, l1Client *ethcli
 
 	return relayer, nil
 }
-func (r *L1ToL2Relayer) startPolling() {
+func (b *L1ToL2Relayer) startPolling() {
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ticker.C:
-			r.pollUnconsumedMessages()
-		case <-r.ctx.Done():
+			b.pollUnconsumedMessages()
+		case <-b.ctx.Done():
 			return
 		}
 	}
 }
 
-func (r *L1ToL2Relayer) pollUnconsumedMessages() {
+func (b *L1ToL2Relayer) pollUnconsumedMessages() {
 	ctx := context.Background()
 	//messages, err := r.crossMessageOrm.QueryL1UnConsumedMessages(ctx, btypes.TxTypeDeposit)
-	messages, err := r.crossMessageOrm.QueryUnConsumedMessages(ctx, btypes.TxTypeDeposit)
+	messages, err := b.crossMessageOrm.QueryUnConsumedMessages(ctx, btypes.TxTypeDeposit)
 	if err != nil {
 		log.Printf("Failed to query unconsumed messages: %v", err)
 		return
@@ -127,20 +127,24 @@ func (r *L1ToL2Relayer) pollUnconsumedMessages() {
 	for _, message := range messages {
 		// syning deposit message status
 		if message.MessageType == int(btypes.MessageTypeL1SentMessage) && message.TxType == int(btypes.TxTypeDeposit) {
-			receipt, err := r.l2Client.TransactionReceipt(context.Background(), common.HexToHash(message.L2TxHash))
+			receipt, err := b.l2Client.TransactionReceipt(context.Background(), common.HexToHash(message.L2TxHash))
 			if err == nil {
 				if receipt != nil {
 					if receipt.Status == types.ReceiptStatusSuccessful {
-						err := r.crossMessageOrm.UpdateL1Message(ctx, message.MessageHash, int(btypes.TxStatusTypeConsumed), receipt.BlockNumber.Uint64())
+						err := b.crossMessageOrm.UpdateL1Message(ctx, message.MessageHash, int(btypes.TxStatusTypeConsumed), receipt.BlockNumber.Uint64())
 						if err != nil {
 							logrus.Errorf("Failed to update L1 to L2 message: %v", err)
 						}
 					} else if receipt.Status == types.ReceiptStatusFailed {
-						refundMessages, err := r.l1EventParser.ParseL1CrossChainPayloadToRefundMsg(r.ctx, message, receipt)
+						err := b.crossMessageOrm.UpdateL1Message(ctx, message.MessageHash, int(btypes.TxStatusTypeDropped), receipt.BlockNumber.Uint64())
+						if err != nil {
+							logrus.Errorf("Failed to update L1 to L2 message: %v", err)
+						}
+						refundMessages, err := b.l1EventParser.ParseL1CrossChainPayloadToRefundMsg(b.ctx, message, receipt)
 						if err != nil {
 							logrus.Errorf("ParseL1CrossChainPayloadToRefundMsg to parse L1 cross chain payload: %v", err)
 						}
-						r.createRefundMessage(refundMessages)
+						b.createRefundMessage(refundMessages)
 					} else {
 						logrus.Errorf("Unknown receipt status: %v", receipt.Status)
 					}
@@ -172,15 +176,15 @@ func (r *L1ToL2Relayer) pollUnconsumedMessages() {
 		// }
 	}
 }
-func (r *L1ToL2Relayer) isL2MessageExecuted(messageHash string) (bool, error) {
-	contractAddress := common.HexToAddress(r.cfg.ChildLayerContractAddress)
-	instance, err := contract.NewUpwardMessageDispatcherFacet(contractAddress, r.l1Client)
+func (b *L1ToL2Relayer) isL2MessageExecuted(messageHash string) (bool, error) {
+	contractAddress := common.HexToAddress(b.cfg.ChildLayerContractAddress)
+	instance, err := contract.NewUpwardMessageDispatcherFacet(contractAddress, b.l1Client)
 	if err != nil {
 		return false, err
 	}
 
 	hash := common.HexToHash(messageHash)
-	executed, err := instance.IsL2MessageExecuted(&bind.CallOpts{Context: r.ctx}, hash)
+	executed, err := instance.IsL2MessageExecuted(&bind.CallOpts{Context: b.ctx}, hash)
 	if err != nil {
 		return false, err
 	}
@@ -200,7 +204,7 @@ func (b *L1ToL2Relayer) HandleRelayerMessage(msg *contract.UpwardMessageDispatch
 }
 
 // HandleDownwardMessageWithSystemCall handles the downward message
-func (b *L1ToL2Relayer) HandleDownwardMessageWithSystemCall(msg *contract.ParentBridgeCoreFacetDownwardMessage) error {
+func (b *L1ToL2Relayer) HandleDownwardMessageWithSystemCall(msg *contract.ParentBridgeCoreFacetQueueTransaction) error {
 	// 1. parse downward message
 	// 2. setup auth
 	// 3. send downward message to child layer contract by calling downwardMessageDispatcher.ReceiveDownwardMessages
@@ -209,7 +213,7 @@ func (b *L1ToL2Relayer) HandleDownwardMessageWithSystemCall(msg *contract.Parent
 		{
 			PayloadType: msg.PayloadType,
 			Payload:     msg.Payload,
-			Nonce:       utils.GenerateNonce(),
+			Nonce:       new(big.Int).SetUint64(msg.QueueIndex),
 		},
 	}
 	metrics.DownwardMessageReceivedCounter.WithLabelValues(fmt.Sprintf("%d", msg.PayloadType)).Inc()
