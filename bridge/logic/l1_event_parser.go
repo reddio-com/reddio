@@ -10,7 +10,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/ethereum/go-ethereum/log"
+	"github.com/sirupsen/logrus"
+
 	"github.com/reddio-com/reddio/bridge/contract"
 	"github.com/reddio-com/reddio/bridge/orm"
 	btypes "github.com/reddio-com/reddio/bridge/types"
@@ -111,7 +112,7 @@ func (e *L1EventParser) ParseL1CrossChainPayloadToRefundMsg(ctx context.Context,
 
 		ethLocked, err := decodeETHLocked(payloadHex)
 		if err != nil {
-			log.Error("Failed to decode ETHLocked", "err", err)
+			logrus.Error("Failed to decode ETHLocked", "err", err)
 			return nil, err
 		}
 
@@ -139,7 +140,7 @@ func (e *L1EventParser) ParseL1CrossChainPayloadToRefundMsg(ctx context.Context,
 
 		erc20Locked, err := decodeERC20TokenLocked(payloadHex)
 		if err != nil {
-			log.Error("Failed to decode ParentERC20TokenLocked", "err", err)
+			logrus.Error("Failed to decode ParentERC20TokenLocked", "err", err)
 			return nil, err
 		}
 		refundMessages = append(refundMessages, &orm.CrossMessage{
@@ -169,7 +170,7 @@ func (e *L1EventParser) ParseL1CrossChainPayloadToRefundMsg(ctx context.Context,
 
 		redLocked, err := decodeREDTokenLocked(payloadHex)
 		if err != nil {
-			log.Error("Failed to decode ParentREDTokenLocked", "err", err)
+			logrus.Error("Failed to decode ParentREDTokenLocked", "err", err)
 			return nil, err
 		}
 		refundMessages = append(refundMessages, &orm.CrossMessage{
@@ -209,7 +210,7 @@ func (e *L1EventParser) ParseL1SingleCrossChainPayload(ctx context.Context, msg 
 
 		ethLocked, err := decodeETHLocked(payloadHex)
 		if err != nil {
-			log.Error("Failed to decode ETHLocked", "err", err)
+			logrus.Error("Failed to decode ETHLocked", "err", err)
 			return nil, err
 		}
 		l1DepositMessages = append(l1DepositMessages, &orm.CrossMessage{
@@ -238,7 +239,7 @@ func (e *L1EventParser) ParseL1SingleCrossChainPayload(ctx context.Context, msg 
 
 		erc20Locked, err := decodeERC20TokenLocked(payloadHex)
 		if err != nil {
-			log.Error("Failed to decode ParentERC20TokenLocked", "err", err)
+			logrus.Error("Failed to decode ParentERC20TokenLocked", "err", err)
 			return nil, err
 		}
 		l1DepositMessages = append(l1DepositMessages, &orm.CrossMessage{
@@ -267,7 +268,7 @@ func (e *L1EventParser) ParseL1SingleCrossChainPayload(ctx context.Context, msg 
 
 		redLocked, err := decodeREDTokenLocked(payloadHex)
 		if err != nil {
-			log.Error("Failed to decode ParentREDTokenLocked", "err", err)
+			logrus.Error("Failed to decode ParentREDTokenLocked", "err", err)
 			return nil, err
 		}
 		l1DepositMessages = append(l1DepositMessages, &orm.CrossMessage{

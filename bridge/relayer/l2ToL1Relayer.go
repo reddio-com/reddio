@@ -14,12 +14,13 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/joho/godotenv"
+	"github.com/sirupsen/logrus"
+	"gorm.io/gorm"
+
 	"github.com/reddio-com/reddio/bridge/contract"
 	"github.com/reddio-com/reddio/bridge/orm"
 	"github.com/reddio-com/reddio/evm"
 	"github.com/reddio-com/reddio/metrics"
-	"github.com/sirupsen/logrus"
-	"gorm.io/gorm"
 )
 
 type L2ToL1Relayer struct {
@@ -63,7 +64,7 @@ func LoadPrivateKey(envFilePath string) (string, error) {
 	return privateKey, nil
 }
 
-// handleL2UpwardMessage
+// HandleUpwardMessage handle L2 Upward Message
 func (b *L2ToL1Relayer) HandleUpwardMessage(msgs []*orm.CrossMessage, blockTimestampsMap map[uint64]uint64) error {
 	// 1. parse upward message
 	// 2. setup auth
@@ -75,12 +76,11 @@ func (b *L2ToL1Relayer) HandleUpwardMessage(msgs []*orm.CrossMessage, blockTimes
 	// if err != nil {
 	// 	return err
 	// }
-
 	for _, msg := range msgs {
 		var upwardMessages []contract.UpwardMessage
 		payloadBytes, err := hex.DecodeString(msg.MessagePayload)
 		if err != nil {
-			//fmt.Println("Failed to decode hex string:", err)
+			logrus.Errorf("Error decoding payload: %v", err)
 			return err
 		}
 		nonce := new(big.Int)
@@ -96,7 +96,7 @@ func (b *L2ToL1Relayer) HandleUpwardMessage(msgs []*orm.CrossMessage, blockTimes
 
 		signaturesArray, err := generateUpwardMessageMultiSignatures(upwardMessages, b.sigPrivateKeys)
 		if err != nil {
-			log.Fatalf("Failed to generate multi-signatures: %v", err)
+			logrus.Fatalf("Failed to generate multi-signatures: %v", err)
 		}
 
 		var multiSignProofs []string
@@ -114,7 +114,7 @@ func (b *L2ToL1Relayer) HandleUpwardMessage(msgs []*orm.CrossMessage, blockTimes
 			logrus.Errorf("Failed to insert or update L2 messages: %v", err)
 		}
 	}
-
+	
 	return nil
 }
 
@@ -141,7 +141,6 @@ func generateUpwardMessageMultiSignatures(upwardMessages []contract.UpwardMessag
 		return nil, err
 	}
 
-	//fmt.Println("newdataHash:", dataHash)
 	// Generate multiple signatures
 	var signaturesArray [][]byte
 	for _, pk := range privateKeys {
@@ -158,23 +157,6 @@ func generateUpwardMessageMultiSignatures(upwardMessages []contract.UpwardMessag
 		signaturesArray = append(signaturesArray, signature)
 	}
 
-	// for print
-	// Recover the public key
-	// sigPublicKey, err := crypto.Ecrecover(dataHash.Bytes(), signaturesArray[0])
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-
-	// // Convert public key to address
-	// publicKeyECDSA, err := crypto.UnmarshalPubkey(sigPublicKey)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// address := crypto.PubkeyToAddress(*publicKeyECDSA)
-
-	// fmt.Printf("Signed hash: %x\n", signaturesArray[0])
-	// fmt.Printf("Signer address: %s\n", address.Hex())
-
 	return signaturesArray, nil
 }
 
@@ -185,14 +167,14 @@ func generateUpwardMessageToHash(upwardMessages []contract.UpwardMessage) (commo
 		{Type: abi.Type{T: abi.UintTy, Size: 256}},
 	}.Pack(initialOffset)
 	if err != nil {
-		log.Fatalf("Failed to pack initial offset: %v", err)
+		logrus.Fatalf("Failed to pack initial offset: %v", err)
 	}
 
 	lengthData, err := abi.Arguments{
 		{Type: abi.Type{T: abi.UintTy, Size: 256}},
 	}.Pack(arrayLength)
 	if err != nil {
-		log.Fatalf("Failed to pack array length: %v", err)
+		logrus.Fatalf("Failed to pack array length: %v", err)
 	}
 
 	tupleOffset := big.NewInt(32)
@@ -200,7 +182,7 @@ func generateUpwardMessageToHash(upwardMessages []contract.UpwardMessage) (commo
 		{Type: abi.Type{T: abi.UintTy, Size: 256}},
 	}.Pack(tupleOffset)
 	if err != nil {
-		log.Fatalf("Failed to pack tuple offset: %v", err)
+		logrus.Fatalf("Failed to pack tuple offset: %v", err)
 	}
 
 	var data []byte
@@ -215,13 +197,10 @@ func generateUpwardMessageToHash(upwardMessages []contract.UpwardMessage) (commo
 			{Type: abi.Type{T: abi.UintTy, Size: 256}}, // Use UintTy with size 256 for *big.Int
 		}.Pack(msg.PayloadType, msg.Payload, msg.Nonce)
 		if err != nil {
-			//fmt.Printf("Failed to pack upwardMessages: %v\n", err)
 			return common.Hash{}, err
 		}
 		data = append(data, packedData...)
 	}
-
-	//fmt.Printf("Encoded Data (Hex): %s\n", hex.EncodeToString(data))
 
 	dataHash := crypto.Keccak256Hash(data)
 	return dataHash, nil

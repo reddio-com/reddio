@@ -3,10 +3,10 @@ package main
 import (
 	"context"
 	"flag"
-	"log"
 	"os"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/yu-org/yu/apps/poa"
 	"github.com/yu-org/yu/core/startup"
 
@@ -56,27 +56,27 @@ func main() {
 		}()
 	}
 	time.Sleep(time.Second)
-	log.Println("finish start reddio")
+	logrus.Info("finish start reddio")
 	switch action {
 	case "gen":
 		if err := assertStateRootGen(context.Background(), evmConfig); err != nil {
-			log.Println(err)
+			logrus.Info(err)
 			os.Exit(1)
 		}
-		log.Println("gen success")
+		logrus.Info("gen success")
 		os.Exit(0)
 	case "assert":
 		if err := assertStateRootAssert(context.Background(), evmConfig, content); err != nil {
-			log.Println(err)
+			logrus.Info(err)
 			os.Exit(1)
 		}
-		log.Println("assert success")
+		logrus.Info("assert success")
 		os.Exit(0)
 	}
 }
 
 func assertStateRootGen(ctx context.Context, evmCfg *evm.GethConfig) error {
-	log.Println("start asserting state root gen")
+	logrus.Info("start asserting state root gen")
 	ethManager := &transfer.EthManager{}
 	cfg := conf.Config.EthCaseConf
 	ethManager.Configure(cfg, evmCfg)
@@ -87,7 +87,7 @@ func assertStateRootGen(ctx context.Context, evmCfg *evm.GethConfig) error {
 }
 
 func assertStateRootAssert(ctx context.Context, evmCfg *evm.GethConfig, content []byte) error {
-	log.Println("start asserting state root assert")
+	logrus.Info("start asserting state root assert")
 	ethManager := &transfer.EthManager{}
 	cfg := conf.Config.EthCaseConf
 	ethManager.Configure(cfg, evmCfg)

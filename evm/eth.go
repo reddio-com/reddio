@@ -479,13 +479,10 @@ func (s *Solidity) executeContractCreation(ctx *context.WriteContext, txReq *TxR
 
 	code, address, leftOverGas, err := vmenv.Create(sender, txReq.Input, txReq.GasLimit, uint256.MustFromBig(txReq.Value))
 	if err != nil {
-		// byt, _ := json.Marshal(txReq)
-		// logrus.Printf("[Execute Txn] Create contract Failed. err = %v. Request = %v", err, string(byt))
 		_ = emitReceipt(ctx, vmenv, txReq, code, address, leftOverGas, err)
 		return 0, err
 	}
 
-	// logrus.Printf("[Execute Txn] Create contract success. Oringin code = %v, Hex Code = %v, Address = %v, Left Gas = %v", code, hex.EncodeToString(code), address.Hex(), leftOverGas)
 	return txReq.GasLimit - leftOverGas, emitReceipt(ctx, vmenv, txReq, code, address, leftOverGas, err)
 }
 

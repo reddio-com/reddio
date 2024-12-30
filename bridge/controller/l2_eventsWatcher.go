@@ -3,17 +3,17 @@ package controller
 import (
 	"context"
 	"fmt"
-	"log"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/reddio-com/reddio/bridge/logic"
-	"github.com/reddio-com/reddio/bridge/relayer"
-	"github.com/reddio-com/reddio/evm"
 	"github.com/sirupsen/logrus"
 	"github.com/yu-org/yu/core/tripod"
 	yutypes "github.com/yu-org/yu/core/types"
 	"gorm.io/gorm"
+
+	"github.com/reddio-com/reddio/bridge/logic"
+	"github.com/reddio-com/reddio/bridge/relayer"
+	"github.com/reddio-com/reddio/evm"
 )
 
 type L2EventsWatcher struct {
@@ -27,8 +27,7 @@ type L2EventsWatcher struct {
 	db       *gorm.DB
 }
 
-func NewL2EventsWatcher(cfg *evm.GethConfig, db *gorm.DB,
-) *L2EventsWatcher {
+func NewL2EventsWatcher(cfg *evm.GethConfig, db *gorm.DB) *L2EventsWatcher {
 	tri := tripod.NewTripod()
 	c := &L2EventsWatcher{
 		//ctx:            ctx,
@@ -40,37 +39,27 @@ func NewL2EventsWatcher(cfg *evm.GethConfig, db *gorm.DB,
 }
 
 func (w *L2EventsWatcher) WatchUpwardMessage(ctx context.Context, block *yutypes.Block, Solidity *evm.Solidity) error {
-
 	upwardMessage, blockTimestampsMap, err := w.l2WatcherLogic.L2FetcherUpwardMessageFromLogs(ctx, block, w.cfg.L2BlockCollectionDepth)
 	if err != nil {
-		//fmt.Println("Watcher L2FetcherUpwardMessageFromLogs error: ", err)
 		return fmt.Errorf("failed to fetch upward message from logs: %v", err)
 	}
 
 	if len(upwardMessage) == 0 {
-		//fmt.Println("No upward messages found")
 		return nil
 	}
 
-	// fmt.Println("WatchUpwardMessage: ", string(jsonData))
 	err = w.l2toL1Relayer.HandleUpwardMessage(upwardMessage, blockTimestampsMap)
 	if err != nil {
-		//fmt.Println("Watcher HandleUpwardMessage error: ", err)
 		return fmt.Errorf("failed to handle upward message: %v", err)
 	}
 	return nil
-
 }
 
 func (w *L2EventsWatcher) InitChain(block *yutypes.Block) {
 	if w.cfg.EnableBridge {
-		// db, err := pebble.Open("evm_bridge_db", &pebble.Options{})
-		// if err != nil {
-		// 	logrus.Fatal("open db failed: ", err)
-		// }
 		l1Client, err := ethclient.Dial(w.cfg.L1ClientAddress)
 		if err != nil {
-			log.Fatal("failed to connect to L1 geth", "endpoint", w.cfg.L1ClientAddress, "err", err)
+			logrus.Fatal("failed to connect to L1 geth", "endpoint", w.cfg.L1ClientAddress, "err", err)
 		}
 
 		l2toL1Relayer, err := relayer.NewL2ToL1Relayer(context.Background(), w.cfg, l1Client, w.db)
@@ -82,18 +71,9 @@ func (w *L2EventsWatcher) InitChain(block *yutypes.Block) {
 			logrus.Fatal("init l2WatcherLogic failed: ", err)
 		}
 
-		// l2Watcher, err := controller.NewL2EventsWatcher(context.Background(), w.cfg, l2toL1Relayer, w.Solidity)
-		// if err != nil {
-		// 	logrus.Fatal("init l2Watcher failed: ", err)
-		// }
-
 		w.l2toL1Relayer = l2toL1Relayer
 		w.l2WatcherLogic = l2WatcherLogic
-		// w.l2Watcher = l2Watcher
-		//w.evmBridgeDB = db
-
 	}
-	//logrus.Info("Watcher InitChain")
 }
 
 func (w *L2EventsWatcher) StartBlock(block *yutypes.Block) {

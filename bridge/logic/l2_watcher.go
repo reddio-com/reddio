@@ -8,13 +8,14 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/log"
-	backendabi "github.com/reddio-com/reddio/bridge/abi"
-	"github.com/reddio-com/reddio/bridge/orm"
-	"github.com/reddio-com/reddio/evm"
+	"github.com/sirupsen/logrus"
 	yucommon "github.com/yu-org/yu/common"
 	yucontext "github.com/yu-org/yu/core/context"
 	yutypes "github.com/yu-org/yu/core/types"
+
+	backendabi "github.com/reddio-com/reddio/bridge/abi"
+	"github.com/reddio-com/reddio/bridge/orm"
+	"github.com/reddio-com/reddio/evm"
 )
 
 type L2WatcherLogic struct {
@@ -70,16 +71,15 @@ func (f *L2WatcherLogic) L2FetcherUpwardMessageFromLogs(ctx context.Context, blo
 
 		eventLogs, err := f.FilterLogs(ctx, block, query)
 		if err != nil {
-			//fmt.Println("Watcher GetCompactBlock error: ", err)
+			logrus.Error("FilterLogs err:", err)
 			return nil, nil, err
 		}
 		if len(eventLogs) == 0 {
 			continue
 		}
-		//fmt.Println("Watcher eventLogs: ", eventLogs)
 		upwardMessages, err := f.parser.ParseL2EventLogs(ctx, eventLogs)
 		if err != nil {
-			log.Error("Failed to parse L2 event logs 3", "err", err)
+			logrus.Error("Failed to parse L2 event logs 3", "err", err)
 			return nil, nil, err
 		}
 		allL2CrossMessages = append(allL2CrossMessages, upwardMessages...)

@@ -7,10 +7,9 @@ import (
 	"net/http"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/sirupsen/logrus"
 	"github.com/yu-org/yu/common/yerror"
 	"github.com/yu-org/yu/core/types"
-
-	"github.com/ethereum/go-ethereum/log"
 )
 
 func GetDefaultBlockManager() *BlockManager {
@@ -26,7 +25,7 @@ type BlockManager struct {
 func (bm *BlockManager) StopBlockChain() {
 	_, err := http.Get(fmt.Sprintf("http://%s/api/admin/stop", bm.hostUrl))
 	if err != nil {
-		log.Warn(err.Error())
+		logrus.Error("Failed to stop blockchain", err)
 	}
 }
 
