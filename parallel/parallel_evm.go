@@ -168,7 +168,7 @@ func (e *ParallelEvmExecutor) CopyStateDb(list []*txnCtx) []*pending_state.Pendi
 			needCopy[*list[i].req.Address] = struct{}{}
 		}
 		needCopy[list[i].req.Origin] = struct{}{}
-		copiedStateDBList = append(copiedStateDBList, pending_state.NewPendingStateWrapper(pending_state.NewPendingState(e.cpdb.SimpleCopy(needCopy)), int64(i)))
+		copiedStateDBList = append(copiedStateDBList, pending_state.NewPendingStateWrapper(e.cpdb.SimpleCopy(needCopy), int64(i)))
 	}
 	return copiedStateDBList
 }
