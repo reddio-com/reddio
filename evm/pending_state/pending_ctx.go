@@ -1,6 +1,8 @@
 package pending_state
 
 import (
+	"sync"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/params"
@@ -9,6 +11,7 @@ import (
 type VisitTxnID map[int64]struct{}
 
 type StateContext struct {
+	sync.RWMutex
 	Read  *VisitedAddress
 	Write *VisitedAddress
 
@@ -26,6 +29,8 @@ func NewStateContext() *StateContext {
 }
 
 func (sctx *StateContext) IsConflict(tar *StateContext) bool {
+	sctx.Lock()
+	defer sctx.Unlock()
 	if len(sctx.GetWriteState()) < 1 && len(sctx.GetWriteAddress()) < 1 &&
 		len(sctx.GetReadState()) < 1 && len(sctx.GetReadAddress()) < 1 {
 		return false
@@ -59,34 +64,50 @@ func (sctx *StateContext) IsConflict(tar *StateContext) bool {
 }
 
 func (sctx *StateContext) GetReadState() map[common.Address]map[common.Hash]VisitTxnID {
+	sctx.RLock()
+	defer sctx.RUnlock()
 	return sctx.Read.State
 }
 
 func (sctx *StateContext) GetWriteState() map[common.Address]map[common.Hash]VisitTxnID {
+	sctx.RLock()
+	defer sctx.RUnlock()
 	return sctx.Write.State
 }
 
 func (sctx *StateContext) ReadAddress() map[common.Address]VisitTxnID {
+	sctx.RLock()
+	defer sctx.RUnlock()
 	return sctx.Read.Address
 }
 
 func (sctx *StateContext) GetWriteAddress() map[common.Address]VisitTxnID {
+	sctx.RLock()
+	defer sctx.RUnlock()
 	return sctx.Write.Address
 }
 
 func (sctx *StateContext) GetReadAddress() map[common.Address]VisitTxnID {
+	sctx.RLock()
+	defer sctx.RUnlock()
 	return sctx.Read.Address
 }
 
 func (sctx *StateContext) AddSlot2Address(slot slotToAddress) {
+	sctx.Lock()
+	defer sctx.Unlock()
 	sctx.addSlotToAddress = append(sctx.addSlotToAddress, slot)
 }
 
 func (sctx *StateContext) AddAddressToList(address common.Address) {
+	sctx.Lock()
+	defer sctx.Unlock()
 	sctx.addAddressToList = append(sctx.addAddressToList, address)
 }
 
 func (sctx *StateContext) SetPrepare(rules params.Rules, sender, coinbase common.Address, dest *common.Address, precompiles []common.Address, txAccesses types.AccessList) {
+	sctx.Lock()
+	defer sctx.Unlock()
 	sctx.prepareParams = &prepareParams{
 		rules:       rules,
 		sender:      sender,
@@ -98,34 +119,50 @@ func (sctx *StateContext) SetPrepare(rules params.Rules, sender, coinbase common
 }
 
 func (sctx *StateContext) SelfDestruct(addr common.Address, txnID int64) {
+	sctx.Lock()
+	defer sctx.Unlock()
 	sctx.Write.VisitDestruct(addr, txnID)
 }
 
 func (sctx *StateContext) WriteAccount(addr common.Address, txnID int64) {
+	sctx.Lock()
+	defer sctx.Unlock()
 	sctx.Write.VisitAccount(addr, txnID)
 }
 
 func (sctx *StateContext) WriteBalance(addr common.Address, txnID int64) {
+	sctx.Lock()
+	defer sctx.Unlock()
 	sctx.Write.VisitBalance(addr, txnID)
 }
 
 func (sctx *StateContext) ReadBalance(addr common.Address, txnID int64) {
+	sctx.Lock()
+	defer sctx.Unlock()
 	sctx.Read.VisitBalance(addr, txnID)
 }
 
 func (sctx *StateContext) WriteCode(addr common.Address, txnID int64) {
+	sctx.Lock()
+	defer sctx.Unlock()
 	sctx.Write.VisitCode(addr, txnID)
 }
 
 func (sctx *StateContext) ReadCode(addr common.Address, txnID int64) {
+	sctx.Lock()
+	defer sctx.Unlock()
 	sctx.Read.VisitCode(addr, txnID)
 }
 
 func (sctx *StateContext) WriteState(addr common.Address, key common.Hash, txnID int64) {
+	sctx.Lock()
+	defer sctx.Unlock()
 	sctx.Write.VisitState(addr, key, txnID)
 }
 
 func (sctx *StateContext) ReadState(addr common.Address, key common.Hash, txnID int64) {
+	sctx.Lock()
+	defer sctx.Unlock()
 	sctx.Read.VisitState(addr, key, txnID)
 }
 
@@ -151,17 +188,14 @@ func NewVisitedAddress() *VisitedAddress {
 }
 
 func (v *VisitedAddress) VisitAccount(addr common.Address, txnID int64) {
-	v.Address = txnVisitAddrMap(v.Address, addr, txnID)
 	v.Account = txnVisitAddrMap(v.Account, addr, txnID)
 }
 
 func (v *VisitedAddress) VisitBalance(addr common.Address, txnID int64) {
-	v.Address = txnVisitAddrMap(v.Address, addr, txnID)
 	v.Balance = txnVisitAddrMap(v.Balance, addr, txnID)
 }
 
 func (v *VisitedAddress) VisitCode(addr common.Address, txnID int64) {
-	v.Address = txnVisitAddrMap(v.Address, addr, txnID)
 	v.Code = txnVisitAddrMap(v.Code, addr, txnID)
 }
 
@@ -175,7 +209,6 @@ func (v *VisitedAddress) VisitState(addr common.Address, key common.Hash, txnID 
 }
 
 func (v *VisitedAddress) VisitDestruct(addr common.Address, txnID int64) {
-	v.Address = txnVisitAddrMap(v.Address, addr, txnID)
 	v.Destruct = txnVisitAddrMap(v.Destruct, addr, txnID)
 }
 
