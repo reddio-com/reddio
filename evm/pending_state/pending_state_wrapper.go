@@ -206,7 +206,7 @@ func (psw *PendingStateWrapper) SetTxContext(txHash common.Hash, txIndex int) {
 }
 
 func (psw *PendingStateWrapper) GetStateDB() *state.StateDB {
-	return psw.statedb
+	return psw.statedb.GetStateDB()
 }
 
 func (psw *PendingStateWrapper) GetCtx() *StateContext {
@@ -250,7 +250,7 @@ func (psw *PendingStateWrapper) MergeInto(stateDB *state.StateDB, sender common.
 	for _, log := range psw.AllLogs() {
 		stateDB.AddLog(log)
 	}
-	for hash, bs := range psw.statedb.Preimages() {
+	for hash, bs := range psw.statedb.AllPreimages() {
 		stateDB.AddPreimage(hash, bs)
 	}
 }
