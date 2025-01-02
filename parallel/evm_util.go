@@ -163,7 +163,7 @@ func (k *ParallelEVM) executeTxnCtxListInOrder(sdb *state.StateDB, list []*txnCt
 			list[index] = tctx
 			continue
 		}
-		tctx.ctx.ExtraInterface = pending_state.NewPendingStateWrapper(sdb, int64(index))
+		tctx.ctx.ExtraInterface = pending_state.NewPendingStateWrapper(pending_state.NewStateDBWrapper(sdb), pending_state.NewStateContext(false), int64(index))
 		err := tctx.writing(tctx.ctx)
 		if err != nil {
 			tctx.err = err

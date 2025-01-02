@@ -22,10 +22,11 @@ type StateContext struct {
 	prepareParams    *prepareParams
 }
 
-func NewStateContext() *StateContext {
+func NewStateContext(needCheck bool) *StateContext {
 	sctx := &StateContext{
-		Read:  NewVisitedAddress(),
-		Write: NewVisitedAddress(),
+		needCheck: needCheck,
+		Read:      NewVisitedAddress(),
+		Write:     NewVisitedAddress(),
 	}
 	return sctx
 }
