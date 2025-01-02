@@ -1,8 +1,6 @@
 package pending_state
 
 import (
-	"sync"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/tracing"
@@ -12,26 +10,23 @@ import (
 )
 
 type PendingStateWrapper struct {
-	sync.RWMutex
-	statedb *state.StateDB
+	statedb *StateDBWrapper
 	TxnID   int64
 	sCtx    *StateContext
 	logs    []*types.Log
 }
 
-func NewPendingStateWrapper(statedb *state.StateDB, TxnID int64) *PendingStateWrapper {
+func NewPendingStateWrapper(statedb *StateDBWrapper, sctx *StateContext, TxnID int64) *PendingStateWrapper {
 	psw := &PendingStateWrapper{
 		statedb: statedb,
 		TxnID:   TxnID,
-		sCtx:    NewStateContext(),
+		sCtx:    sctx,
 		logs:    make([]*types.Log, 0),
 	}
 	return psw
 }
 
 func (psw *PendingStateWrapper) CreateAccount(address common.Address) {
-	psw.Lock()
-	defer psw.Unlock()
 	if err := psw.sCtx.WriteAccount(address, psw.TxnID); err != nil {
 		panic(err)
 	}
@@ -39,8 +34,6 @@ func (psw *PendingStateWrapper) CreateAccount(address common.Address) {
 }
 
 func (psw *PendingStateWrapper) SubBalance(address common.Address, u *uint256.Int, reason tracing.BalanceChangeReason) {
-	psw.Lock()
-	defer psw.Unlock()
 	if err := psw.sCtx.WriteBalance(address, psw.TxnID); err != nil {
 		panic(err)
 	}
@@ -48,8 +41,6 @@ func (psw *PendingStateWrapper) SubBalance(address common.Address, u *uint256.In
 }
 
 func (psw *PendingStateWrapper) AddBalance(address common.Address, u *uint256.Int, reason tracing.BalanceChangeReason) {
-	psw.Lock()
-	defer psw.Unlock()
 	if err := psw.sCtx.WriteBalance(address, psw.TxnID); err != nil {
 		panic(err)
 	}
@@ -57,8 +48,6 @@ func (psw *PendingStateWrapper) AddBalance(address common.Address, u *uint256.In
 }
 
 func (psw *PendingStateWrapper) GetBalance(address common.Address) *uint256.Int {
-	psw.RLock()
-	defer psw.RUnlock()
 	if err := psw.sCtx.ReadBalance(address, psw.TxnID); err != nil {
 		panic(err)
 	}
@@ -66,20 +55,14 @@ func (psw *PendingStateWrapper) GetBalance(address common.Address) *uint256.Int 
 }
 
 func (psw *PendingStateWrapper) GetNonce(address common.Address) uint64 {
-	psw.RLock()
-	defer psw.RUnlock()
 	return psw.statedb.GetNonce(address)
 }
 
 func (psw *PendingStateWrapper) SetNonce(address common.Address, u uint64) {
-	psw.Lock()
-	defer psw.Unlock()
 	psw.statedb.SetNonce(address, u)
 }
 
 func (psw *PendingStateWrapper) GetCodeHash(address common.Address) common.Hash {
-	psw.RLock()
-	defer psw.RUnlock()
 	if err := psw.sCtx.ReadCode(address, psw.TxnID); err != nil {
 		panic(err)
 	}
@@ -87,8 +70,6 @@ func (psw *PendingStateWrapper) GetCodeHash(address common.Address) common.Hash 
 }
 
 func (psw *PendingStateWrapper) GetCode(address common.Address) []byte {
-	psw.RLock()
-	defer psw.RUnlock()
 	if err := psw.sCtx.ReadCode(address, psw.TxnID); err != nil {
 		panic(err)
 	}
@@ -96,8 +77,6 @@ func (psw *PendingStateWrapper) GetCode(address common.Address) []byte {
 }
 
 func (psw *PendingStateWrapper) SetCode(address common.Address, bytes []byte) {
-	psw.Lock()
-	defer psw.Unlock()
 	if err := psw.sCtx.WriteCode(address, psw.TxnID); err != nil {
 		panic(err)
 	}
@@ -105,8 +84,6 @@ func (psw *PendingStateWrapper) SetCode(address common.Address, bytes []byte) {
 }
 
 func (psw *PendingStateWrapper) GetCodeSize(address common.Address) int {
-	psw.RLock()
-	defer psw.RUnlock()
 	if err := psw.sCtx.ReadCode(address, psw.TxnID); err != nil {
 		panic(err)
 	}
@@ -114,32 +91,22 @@ func (psw *PendingStateWrapper) GetCodeSize(address common.Address) int {
 }
 
 func (psw *PendingStateWrapper) AddRefund(u uint64) {
-	psw.Lock()
-	defer psw.Unlock()
 	psw.statedb.AddRefund(u)
 }
 
 func (psw *PendingStateWrapper) SubRefund(u uint64) {
-	psw.Lock()
-	defer psw.Unlock()
 	psw.statedb.SubRefund(u)
 }
 
 func (psw *PendingStateWrapper) GetRefund() uint64 {
-	psw.RLock()
-	defer psw.RUnlock()
 	return psw.statedb.GetRefund()
 }
 
 func (psw *PendingStateWrapper) GetCommittedState(address common.Address, hash common.Hash) common.Hash {
-	psw.RLock()
-	defer psw.RUnlock()
 	return psw.statedb.GetCommittedState(address, hash)
 }
 
 func (psw *PendingStateWrapper) GetState(address common.Address, hash common.Hash) common.Hash {
-	psw.RLock()
-	defer psw.RUnlock()
 	if err := psw.sCtx.ReadState(address, hash, psw.TxnID); err != nil {
 		panic(err)
 	}
@@ -147,8 +114,6 @@ func (psw *PendingStateWrapper) GetState(address common.Address, hash common.Has
 }
 
 func (psw *PendingStateWrapper) SetState(address common.Address, hash common.Hash, hash2 common.Hash) {
-	psw.Lock()
-	defer psw.Unlock()
 	if err := psw.sCtx.WriteState(address, hash, psw.TxnID); err != nil {
 		panic(err)
 	}
@@ -156,26 +121,18 @@ func (psw *PendingStateWrapper) SetState(address common.Address, hash common.Has
 }
 
 func (psw *PendingStateWrapper) GetStorageRoot(addr common.Address) common.Hash {
-	psw.RLock()
-	defer psw.RUnlock()
 	return psw.statedb.GetStorageRoot(addr)
 }
 
 func (psw *PendingStateWrapper) GetTransientState(addr common.Address, key common.Hash) common.Hash {
-	psw.RLock()
-	defer psw.RUnlock()
 	return psw.statedb.GetTransientState(addr, key)
 }
 
 func (psw *PendingStateWrapper) SetTransientState(addr common.Address, key, value common.Hash) {
-	psw.Lock()
-	defer psw.Unlock()
 	psw.statedb.SetTransientState(addr, key, value)
 }
 
 func (psw *PendingStateWrapper) SelfDestruct(address common.Address) {
-	psw.Lock()
-	defer psw.Unlock()
 	if err := psw.sCtx.SelfDestruct(address, psw.TxnID); err != nil {
 		panic(err)
 	}
@@ -183,14 +140,10 @@ func (psw *PendingStateWrapper) SelfDestruct(address common.Address) {
 }
 
 func (psw *PendingStateWrapper) HasSelfDestructed(address common.Address) bool {
-	psw.RLock()
-	defer psw.RUnlock()
 	return psw.statedb.HasSelfDestructed(address)
 }
 
 func (psw *PendingStateWrapper) Selfdestruct6780(address common.Address) {
-	psw.Lock()
-	defer psw.Unlock()
 	if err := psw.sCtx.SelfDestruct(address, psw.TxnID); err != nil {
 		panic(err)
 	}
@@ -198,39 +151,27 @@ func (psw *PendingStateWrapper) Selfdestruct6780(address common.Address) {
 }
 
 func (psw *PendingStateWrapper) Exist(address common.Address) bool {
-	psw.RLock()
-	defer psw.RUnlock()
 	return psw.statedb.Exist(address)
 }
 
 func (psw *PendingStateWrapper) Empty(address common.Address) bool {
-	psw.RLock()
-	defer psw.RUnlock()
 	return psw.statedb.Empty(address)
 }
 
 func (psw *PendingStateWrapper) AddressInAccessList(addr common.Address) bool {
-	psw.RLock()
-	defer psw.RUnlock()
 	return psw.statedb.AddressInAccessList(addr)
 }
 
 func (psw *PendingStateWrapper) SlotInAccessList(addr common.Address, slot common.Hash) (addressOk bool, slotOk bool) {
-	psw.RLock()
-	defer psw.RUnlock()
 	return psw.statedb.SlotInAccessList(addr, slot)
 }
 
 func (psw *PendingStateWrapper) AddAddressToAccessList(addr common.Address) {
-	psw.Lock()
-	defer psw.Unlock()
 	psw.sCtx.AddAddressToList(addr)
 	psw.statedb.AddAddressToAccessList(addr)
 }
 
 func (psw *PendingStateWrapper) AddSlotToAccessList(addr common.Address, slot common.Hash) {
-	psw.Lock()
-	defer psw.Unlock()
 	psw.sCtx.AddSlot2Address(slotToAddress{
 		addr: addr,
 		slot: slot,
@@ -239,46 +180,32 @@ func (psw *PendingStateWrapper) AddSlotToAccessList(addr common.Address, slot co
 }
 
 func (psw *PendingStateWrapper) Prepare(rules params.Rules, sender, coinbase common.Address, dest *common.Address, precompiles []common.Address, txAccesses types.AccessList) {
-	psw.Lock()
-	defer psw.Unlock()
 	psw.sCtx.SetPrepare(rules, sender, coinbase, dest, precompiles, txAccesses)
 	psw.statedb.Prepare(rules, sender, coinbase, dest, precompiles, txAccesses)
 }
 
 func (psw *PendingStateWrapper) RevertToSnapshot(i int) {
-	psw.Lock()
-	defer psw.Unlock()
 	psw.statedb.RevertToSnapshot(i)
 }
 
 func (psw *PendingStateWrapper) Snapshot() int {
-	psw.Lock()
-	defer psw.Unlock()
 	return psw.statedb.Snapshot()
 }
 
 func (psw *PendingStateWrapper) AddLog(log *types.Log) {
-	psw.Lock()
-	defer psw.Unlock()
 	psw.logs = append(psw.logs, log)
 	psw.statedb.AddLog(log)
 }
 
 func (psw *PendingStateWrapper) AddPreimage(hash common.Hash, bytes []byte) {
-	psw.Lock()
-	defer psw.Unlock()
 	psw.statedb.AddPreimage(hash, bytes)
 }
 
 func (psw *PendingStateWrapper) SetTxContext(txHash common.Hash, txIndex int) {
-	psw.Lock()
-	defer psw.Unlock()
 	psw.statedb.SetTxContext(txHash, txIndex)
 }
 
 func (psw *PendingStateWrapper) GetStateDB() *state.StateDB {
-	psw.RLock()
-	defer psw.RUnlock()
 	return psw.statedb
 }
 

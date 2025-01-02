@@ -131,7 +131,7 @@ func (e *ParallelEvmExecutor) executeTxnCtxListInConcurrency(list []*txnCtx) []*
 		}(i, c, copiedStateDBList[i])
 	}
 	wg.Wait()
-	curtCtx := pending_state.NewStateContext()
+	curtCtx := pending_state.NewStateContext(false)
 	for _, tctx := range list {
 		if curtCtx.IsConflict(tctx.ps.GetCtx()) {
 			conflict = true
@@ -168,7 +168,7 @@ func (e *ParallelEvmExecutor) CopyStateDb(list []*txnCtx) []*pending_state.Pendi
 			needCopy[*list[i].req.Address] = struct{}{}
 		}
 		needCopy[list[i].req.Origin] = struct{}{}
-		copiedStateDBList = append(copiedStateDBList, pending_state.NewPendingStateWrapper(e.cpdb.SimpleCopy(needCopy), int64(i)))
+		copiedStateDBList = append(copiedStateDBList, pending_state.NewPendingStateWrapper(pending_state.NewStateDBWrapper(e.cpdb.SimpleCopy(needCopy)), pending_state.NewStateContext(false), int64(i)))
 	}
 	return copiedStateDBList
 }
