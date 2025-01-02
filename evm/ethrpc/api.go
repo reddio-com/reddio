@@ -545,7 +545,7 @@ func (s *BlockChainAPI) GetBlockReceipts(ctx context.Context, blockNrOrHash rpc.
 		// as per specification.
 		return nil, nil
 	}
-	receipts, err := s.b.GetReceipts(ctx, block.Hash())
+	receipts, err := s.b.GetReceipts(ctx, common.Hash(yuBlock.Hash))
 	if err != nil {
 		return nil, err
 	}
