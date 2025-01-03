@@ -476,6 +476,30 @@ func (e *EthAPIBackend) GetTransaction(ctx context.Context, txHash common.Hash) 
 // 	return receipts, nil
 // }
 
+func (e *EthAPIBackend) GetReceiptsForLog(ctx context.Context, blockHash common.Hash) (types.Receipts, error) {
+	compactBlock, err := e.chain.Chain.GetCompactBlock(yucommon.Hash(blockHash))
+	if err != nil {
+		return nil, err
+	}
+
+	var receipts []*types.Receipt
+
+	for _, txHash := range compactBlock.TxnsHashes {
+		rcptReq := &evm.ReceiptRequest{Hash: common.Hash(txHash)}
+		resp, err := e.adaptChainRead(rcptReq, "GetReceipt")
+		if err != nil {
+			continue
+		}
+		receiptResponse := resp.DataInterface.(*evm.ReceiptResponse)
+		if receiptResponse.Err != nil {
+			continue
+		}
+		receipts = append(receipts, receiptResponse.Receipt)
+	}
+
+	return receipts, nil
+}
+
 func (e *EthAPIBackend) GetReceipts(ctx context.Context, blockHash common.Hash) (types.Receipts, error) {
 	compactBlock, err := e.chain.Chain.GetCompactBlock(yucommon.Hash(blockHash))
 	if err != nil {
@@ -590,7 +614,7 @@ func (e *EthAPIBackend) GetLogs(ctx context.Context, blockHash common.Hash, numb
 		blockHash = common.Hash(yuHeader.Hash)
 	}
 
-	receipts, err := e.GetReceipts(ctx, blockHash)
+	receipts, err := e.GetReceiptsForLog(ctx, blockHash)
 	if err != nil {
 		return nil, err
 	}
