@@ -452,28 +452,57 @@ func (e *EthAPIBackend) GetTransaction(ctx context.Context, txHash common.Hash) 
 	return true, ethTxn, common.Hash(blockHash), uint64(blockNumber), index, nil
 }
 
+// func (e *EthAPIBackend) GetReceipts(ctx context.Context, blockHash common.Hash) (types.Receipts, error) {
+// 	compactBlock, err := e.chain.Chain.GetCompactBlock(yucommon.Hash(blockHash))
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	var receipts []*types.Receipt
+
+// 	for _, txHash := range compactBlock.TxnsHashes {
+// 		rcptReq := &evm.ReceiptRequest{Hash: common.Hash(txHash)}
+// 		resp, err := e.adaptChainRead(rcptReq, "GetReceipt")
+// 		if err != nil {
+// 			continue
+// 		}
+// 		receiptResponse := resp.DataInterface.(*evm.ReceiptResponse)
+// 		if receiptResponse.Err != nil {
+// 			continue
+// 		}
+// 		receipts = append(receipts, receiptResponse.Receipt)
+// 	}
+
+// 	return receipts, nil
+// }
+
 func (e *EthAPIBackend) GetReceipts(ctx context.Context, blockHash common.Hash) (types.Receipts, error) {
 	compactBlock, err := e.chain.Chain.GetCompactBlock(yucommon.Hash(blockHash))
 	if err != nil {
 		return nil, err
 	}
 
-	var receipts []*types.Receipt
-
-	for _, txHash := range compactBlock.TxnsHashes {
-		rcptReq := &evm.ReceiptRequest{Hash: common.Hash(txHash)}
-		resp, err := e.adaptChainRead(rcptReq, "GetReceipt")
-		if err != nil {
-			continue
-		}
-		receiptResponse := resp.DataInterface.(*evm.ReceiptResponse)
-		if receiptResponse.Err != nil {
-			continue
-		}
-		receipts = append(receipts, receiptResponse.Receipt)
+	yuTxHashes := compactBlock.TxnsHashes
+	//trans yuTxHashes to common.Hash
+	txHashes := make([]common.Hash, len(yuTxHashes))
+	for i, yuTxHash := range yuTxHashes {
+		txHashes[i] = common.Hash(yuTxHash)
+	}
+	if len(txHashes) == 0 {
+		return nil, nil
 	}
 
-	return receipts, nil
+	rcptReq := &evm.ReceiptsRequest{Hashes: txHashes}
+	resp, err := e.adaptChainRead(rcptReq, "GetReceipts")
+	if err != nil {
+		return nil, err
+	}
+	receiptsResponse := resp.DataInterface.(*evm.ReceiptsResponse)
+	if receiptsResponse.Err != nil {
+		return nil, errors.Errorf("StatusCode: %d, Error: %v", resp.StatusCode, receiptsResponse.Err)
+	}
+
+	return receiptsResponse.Receipts, nil
 }
 
 func (e *EthAPIBackend) GetPoolTransactions() (types.Transactions, error) {
