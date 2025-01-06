@@ -24,4 +24,5 @@ var (
 
 func init() {
 	prometheus.MustRegister(EthereumAPICounter)
+	prometheus.MustRegister(EthereumAPICounterHist)
 }
