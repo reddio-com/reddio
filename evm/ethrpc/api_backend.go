@@ -699,6 +699,7 @@ func (e *EthAPIBackend) compactBlock2EthBlock(yuBlock *yutypes.Block) (*types.Bl
 func (e *EthAPIBackend) adaptChainRead(req any, funcName string) (*yucontext.ResponseData, error) {
 	byt, err := json.Marshal(req)
 	if err != nil {
+		logrus.Error(fmt.Errorf("EthAPIBackend %v meet err: %v", funcName, err))
 		return nil, err
 	}
 	params := string(byt)
