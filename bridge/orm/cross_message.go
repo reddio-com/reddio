@@ -209,6 +209,7 @@ func (c *CrossMessage) QueryUnConsumedMessages(ctx context.Context, tx_type btyp
 	db = db.Model(&CrossMessage{})
 	db = db.Where("tx_status = ?", btypes.TxStatusTypeSent)
 	db = db.Where("tx_type = ?", tx_type)
+	db = db.Where("created_at >= DATE_SUB(NOW(), INTERVAL 1 DAY)")
 	db = db.Order("block_timestamp desc")
 	db = db.Limit(500)
 	if err := db.Find(&messages).Error; err != nil {
