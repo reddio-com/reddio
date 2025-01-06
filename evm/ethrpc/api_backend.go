@@ -3,6 +3,7 @@ package ethrpc
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"math/big"
 	"time"
 
@@ -467,30 +468,6 @@ func (e *EthAPIBackend) GetTransaction(ctx context.Context, txHash common.Hash) 
 	return true, ethTxn, common.Hash(blockHash), uint64(blockNumber), index, nil
 }
 
-// func (e *EthAPIBackend) GetReceipts(ctx context.Context, blockHash common.Hash) (types.Receipts, error) {
-// 	compactBlock, err := e.chain.Chain.GetCompactBlock(yucommon.Hash(blockHash))
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	var receipts []*types.Receipt
-
-// 	for _, txHash := range compactBlock.TxnsHashes {
-// 		rcptReq := &evm.ReceiptRequest{Hash: common.Hash(txHash)}
-// 		resp, err := e.adaptChainRead(rcptReq, "GetReceipt")
-// 		if err != nil {
-// 			continue
-// 		}
-// 		receiptResponse := resp.DataInterface.(*evm.ReceiptResponse)
-// 		if receiptResponse.Err != nil {
-// 			continue
-// 		}
-// 		receipts = append(receipts, receiptResponse.Receipt)
-// 	}
-
-// 	return receipts, nil
-// }
-
 func (e *EthAPIBackend) GetReceiptsForLog(ctx context.Context, blockHash common.Hash) (types.Receipts, error) {
 	EthApiBackendCounter.WithLabelValues("getReceiptsForLog").Inc()
 	compactBlock, err := e.chain.Chain.GetCompactBlock(yucommon.Hash(blockHash))
@@ -722,18 +699,21 @@ func (e *EthAPIBackend) compactBlock2EthBlock(yuBlock *yutypes.Block) (*types.Bl
 func (e *EthAPIBackend) adaptChainRead(req any, funcName string) (*yucontext.ResponseData, error) {
 	byt, err := json.Marshal(req)
 	if err != nil {
+		logrus.Error(fmt.Errorf("EthAPIBackend %v meet err: %v", funcName, err))
 		return nil, err
 	}
+	params := string(byt)
 
 	rdCall := &yucommon.RdCall{
 		TripodName: SolidityTripod,
 		FuncName:   funcName,
-		Params:     string(byt),
+		Params:     params,
 	}
 
 	resp, err := e.chain.HandleRead(rdCall)
 	if err != nil {
-		return nil, err
+		logrus.Error(fmt.Errorf("EthAPIBackend %v meet err: %v, param:%v", funcName, err, params))
+		return nil, fmt.Errorf("EthAPIBackend %v meet err: %v", funcName, err)
 	}
 	return resp, nil
 }

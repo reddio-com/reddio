@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math/big"
 	"net/http"
 	"sync"
@@ -657,7 +658,7 @@ func (s *Solidity) GetReceipt(ctx *context.ReadContext) {
 	err := ctx.BindJson(&rq)
 	if err != nil {
 		metrics.SolidityCounter.WithLabelValues(getReceiptLbl, statusErr).Inc()
-		ctx.Json(http.StatusBadRequest, &ReceiptResponse{Err: err})
+		ctx.Json(http.StatusBadRequest, &ReceiptResponse{Err: fmt.Errorf("Solidity.GetReceipt parse json error:%v", err)})
 		return
 	}
 	receipt, err := s.GetEthReceipt(rq.Hash)
@@ -679,7 +680,7 @@ func (s *Solidity) GetReceipts(ctx *context.ReadContext) {
 	err := ctx.BindJson(&rq)
 	if err != nil {
 		metrics.SolidityCounter.WithLabelValues(getReceiptsLbl, statusErr).Inc()
-		ctx.Json(http.StatusBadRequest, &ReceiptsResponse{Err: err})
+		ctx.Json(http.StatusBadRequest, &ReceiptsResponse{Err: fmt.Errorf("Solidity.GetReceipts parse json error:%v", err)})
 		return
 	}
 
