@@ -701,16 +701,17 @@ func (e *EthAPIBackend) adaptChainRead(req any, funcName string) (*yucontext.Res
 	if err != nil {
 		return nil, err
 	}
+	params := string(byt)
 
 	rdCall := &yucommon.RdCall{
 		TripodName: SolidityTripod,
 		FuncName:   funcName,
-		Params:     string(byt),
+		Params:     params,
 	}
 
 	resp, err := e.chain.HandleRead(rdCall)
 	if err != nil {
-		logrus.Error(fmt.Errorf("EthAPIBackend %v meet err: %v", funcName, err))
+		logrus.Error(fmt.Errorf("EthAPIBackend %v meet err: %v, param:%v", funcName, err, params))
 		return nil, fmt.Errorf("EthAPIBackend %v meet err: %v", funcName, err)
 	}
 	return resp, nil
