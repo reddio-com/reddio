@@ -431,6 +431,7 @@ func (e *EthAPIBackend) GetTransaction(ctx context.Context, txHash common.Hash) 
 	}
 	if stxn == nil {
 		logrus.Warningf("[GetTransaction] Transaction not found, txHash(%s), yuHash(%s)", txHash.Hex(), yucommon.Hash(txHash).Hex())
+		return false, nil, common.Hash{}, 0, 0, nil
 	}
 	ethTxn, err := YuTxn2EthTxn(stxn)
 	if err != nil {
