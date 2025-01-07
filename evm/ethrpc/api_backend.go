@@ -425,20 +425,28 @@ func (e *EthAPIBackend) GetTransaction(ctx context.Context, txHash common.Hash) 
 	EthApiBackendCounter.WithLabelValues("getTransaction").Inc()
 	// Used to get txn from either txdb & txpool:
 	stxn, err := e.chain.GetTxn(yucommon.Hash(txHash))
-	if err != nil || stxn == nil {
+	if err != nil {
+		logrus.Errorf("[GetTransaction] Failed to get transaction from txdb or txpool, txHash(%s), error: %v", txHash.Hex(), err)
 		return false, nil, common.Hash{}, 0, 0, err
+	}
+	if stxn == nil {
+		logrus.Warningf("[GetTransaction] Transaction not found, txHash(%s)", txHash.Hex())
+		return false, nil, common.Hash{}, 0, 0, nil
 	}
 	ethTxn, err := YuTxn2EthTxn(stxn)
 	if err != nil {
+		logrus.Errorf("[GetTransaction] Failed to convert transaction, txHash(%s), error: %v", txHash.Hex(), err)
 		return false, nil, common.Hash{}, 0, 0, err
 	}
 
 	// rcptReq := &evm.ReceiptRequest{Hash: txHash}
 	receipt, err := e.chain.TxDB.GetReceipt(yucommon.Hash(txHash))
 	if err != nil {
+		logrus.Errorf("[GetTransaction] Failed to get receipt from txdb, txHash(%s), error: %v", txHash.Hex(), err)
 		return false, nil, common.Hash{}, 0, 0, err
 	}
 	if receipt == nil {
+		logrus.Warningf("[GetTransaction] Receipt not found, txHash(%s)", txHash.Hex())
 		return false, nil, common.Hash{}, 0, 0, nil
 	}
 
