@@ -24,26 +24,23 @@ build_transfer_test_race:
 build_uniswap_test_race:
 	go build -race -v -o uniswap_test ./test/cmd/uniswap/main.go
 
+ci_parallel_sql_transfer_test: reset
+	./transfer_test --parallel=true --use-sql=true
+
 ci_parallel_transfer_test: reset
 	./transfer_test --parallel=true
 
 ci_serial_transfer_test: reset
 	./transfer_test --parallel=false
 
+ci_parallel_sql_uniswap_test: reset
+	./uniswap_test --parallel=true --use-sql=true
+
 ci_parallel_uniswap_test: reset
 	./uniswap_test --parallel=true
 
 ci_serial_uniswap_test: reset
 	./uniswap_test --parallel=false
-
-build_state_root_test:
-	go build -v -o state_root_test ./test/cmd/state_root/main.go
-
-state_root_test_gen: reset
-	./state_root_test --action=gen
-
-state_root_test_assert: reset
-	./state_root_test --action=assert
 
 ## for local benchmark
 

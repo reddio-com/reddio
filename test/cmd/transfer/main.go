@@ -9,9 +9,9 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/reddio-com/reddio/cmd/node/app"
-	config2 "github.com/reddio-com/reddio/config"
 	"github.com/reddio-com/reddio/evm"
 	"github.com/reddio-com/reddio/test/conf"
+	"github.com/reddio-com/reddio/test/testx"
 	"github.com/reddio-com/reddio/test/transfer"
 )
 
@@ -20,6 +20,7 @@ var (
 	yuConfigPath  string
 	poaConfigPath string
 	isParallel    bool
+	useSql        bool
 )
 
 func init() {
@@ -27,23 +28,19 @@ func init() {
 	flag.StringVar(&yuConfigPath, "yuConfigPath", "./conf/yu.toml", "")
 	flag.StringVar(&poaConfigPath, "poaConfigPath", "./conf/poa.toml", "")
 	flag.BoolVar(&isParallel, "parallel", true, "")
+	flag.BoolVar(&useSql, "use-sql", false, "")
 }
 
 func main() {
 	flag.Parse()
-	evmConfig := evm.LoadEvmConfig(evmConfigPath)
-	config := config2.GetGlobalConfig()
-	config.IsBenchmarkMode = true
-	config.IsParallel = isParallel
-	config.AsyncCommit = false
-	config.RateLimitConfig.GetReceipt = 0
+	yuCfg, poaCfg, evmConfig, config := testx.GenerateConfig(yuConfigPath, evmConfigPath, poaConfigPath, useSql, isParallel)
 	go func() {
 		if config.IsParallel {
 			logrus.Info("start transfer test in parallel")
 		} else {
 			logrus.Info("start transfer test in serial")
 		}
-		app.Start(evmConfigPath, yuConfigPath, poaConfigPath, "")
+		app.StartByConfig(yuCfg, poaCfg, evmConfig)
 	}()
 	time.Sleep(5 * time.Second)
 	logrus.Info("finish start reddio")
