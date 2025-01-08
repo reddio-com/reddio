@@ -32,17 +32,21 @@ import (
 	"github.com/reddio-com/reddio/utils"
 )
 
+func StartByConfig(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm.GethConfig) {
+	utils.IniLimiter()
+	go startPromServer()
+	StartUpChain(yuCfg, poaCfg, evmCfg)
+}
+
 func Start(evmPath, yuPath, poaPath, configPath string) {
 	yuCfg := startup.InitKernelConfigFromPath(yuPath)
 	poaCfg := poa.LoadCfgFromPath(poaPath)
 	evmCfg := evm.LoadEvmConfig(evmPath)
 	err := config.LoadConfig(configPath)
-	utils.IniLimiter()
 	if err != nil {
 		panic(err)
 	}
-	go startPromServer()
-	StartUpChain(yuCfg, poaCfg, evmCfg)
+	StartByConfig(yuCfg, poaCfg, evmCfg)
 }
 
 func StartUpChain(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm.GethConfig) {

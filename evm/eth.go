@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math/big"
 	"net/http"
 	"sync"
@@ -613,33 +614,6 @@ func checkGetReceipt() (checkResult bool) {
 	return true
 }
 
-func (s *Solidity) GetReceipt(ctx *context.ReadContext) {
-	if !checkGetReceipt() {
-		metrics.SolidityCounter.WithLabelValues(getReceiptLbl, statusExceed).Inc()
-		ctx.Json(http.StatusBadRequest, &ReceiptResponse{Err: errors.New("exceed the limit")})
-		return
-	}
-	start := time.Now()
-	defer func() {
-		metrics.SolidityHist.WithLabelValues(getReceiptLbl).Observe(time.Since(start).Seconds())
-	}()
-	var rq ReceiptRequest
-	err := ctx.BindJson(&rq)
-	if err != nil {
-		metrics.SolidityCounter.WithLabelValues(getReceiptLbl, statusErr).Inc()
-		ctx.Json(http.StatusBadRequest, &ReceiptResponse{Err: err})
-		return
-	}
-	receipt, err := s.GetEthReceipt(rq.Hash)
-	if err != nil {
-		metrics.SolidityCounter.WithLabelValues(getReceiptLbl, statusErr).Inc()
-		ctx.Json(http.StatusInternalServerError, &ReceiptResponse{Err: err})
-		return
-	}
-	metrics.SolidityCounter.WithLabelValues(getReceiptLbl, statusSuccess).Inc()
-	ctx.JsonOk(&ReceiptResponse{Receipt: receipt})
-}
-
 func (s *Solidity) GetEthReceipt(hash common.Hash) (*types.Receipt, error) {
 	yuHash, err := ConvertHashToYuHash(hash)
 	if err != nil {
@@ -670,6 +644,33 @@ func (s *Solidity) GetEthReceipt(hash common.Hash) (*types.Receipt, error) {
 	return receipt, err
 }
 
+func (s *Solidity) GetReceipt(ctx *context.ReadContext) {
+	if !checkGetReceipt() {
+		metrics.SolidityCounter.WithLabelValues(getReceiptLbl, statusExceed).Inc()
+		ctx.Json(http.StatusBadRequest, &ReceiptResponse{Err: errors.New("exceed the limit")})
+		return
+	}
+	start := time.Now()
+	defer func() {
+		metrics.SolidityHist.WithLabelValues(getReceiptLbl).Observe(time.Since(start).Seconds())
+	}()
+	var rq ReceiptRequest
+	err := ctx.BindJson(&rq)
+	if err != nil {
+		metrics.SolidityCounter.WithLabelValues(getReceiptLbl, statusErr).Inc()
+		ctx.Json(http.StatusBadRequest, &ReceiptResponse{Err: fmt.Errorf("Solidity.GetReceipt parse json error:%v", err)})
+		return
+	}
+	receipt, err := s.GetEthReceipt(rq.Hash)
+	if err != nil {
+		metrics.SolidityCounter.WithLabelValues(getReceiptLbl, statusErr).Inc()
+		ctx.Json(http.StatusInternalServerError, &ReceiptResponse{Err: err})
+		return
+	}
+	metrics.SolidityCounter.WithLabelValues(getReceiptLbl, statusSuccess).Inc()
+	ctx.JsonOk(&ReceiptResponse{Receipt: receipt})
+}
+
 func (s *Solidity) GetReceipts(ctx *context.ReadContext) {
 	start := time.Now()
 	defer func() {
@@ -679,7 +680,7 @@ func (s *Solidity) GetReceipts(ctx *context.ReadContext) {
 	err := ctx.BindJson(&rq)
 	if err != nil {
 		metrics.SolidityCounter.WithLabelValues(getReceiptsLbl, statusErr).Inc()
-		ctx.Json(http.StatusBadRequest, &ReceiptsResponse{Err: err})
+		ctx.Json(http.StatusBadRequest, &ReceiptsResponse{Err: fmt.Errorf("Solidity.GetReceipts parse json error:%v", err)})
 		return
 	}
 

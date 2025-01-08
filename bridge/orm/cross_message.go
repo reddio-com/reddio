@@ -177,8 +177,9 @@ func (c *CrossMessage) QueryL1UnConsumedMessages(ctx context.Context, tx_type bt
 	db = db.Where("message_type = ?", btypes.MessageTypeL1SentMessage)
 	db = db.Where("tx_status = ?", btypes.TxStatusTypeSent)
 	db = db.Where("tx_type = ?", tx_type)
+	db = db.Where("created_at >= DATE_SUB(NOW(), INTERVAL 1 DAY)")
 	db = db.Order("block_timestamp desc")
-	db = db.Limit(2000)
+	db = db.Limit(500)
 	if err := db.Find(&messages).Error; err != nil {
 		return nil, fmt.Errorf("failed to get L1 UnConsumed message, err: %v", err)
 	}
@@ -194,7 +195,7 @@ func (c *CrossMessage) QueryL2UnConsumedMessages(ctx context.Context, tx_type bt
 	db = db.Where("tx_status = ?", btypes.TxStatusTypeSent)
 	db = db.Where("tx_type = ?", tx_type)
 	db = db.Order("block_timestamp desc")
-	db = db.Limit(2000)
+	db = db.Limit(500)
 	if err := db.Find(&messages).Error; err != nil {
 		return nil, fmt.Errorf("failed to get L2 UnConsumed message, err: %v", err)
 	}
@@ -208,8 +209,9 @@ func (c *CrossMessage) QueryUnConsumedMessages(ctx context.Context, tx_type btyp
 	db = db.Model(&CrossMessage{})
 	db = db.Where("tx_status = ?", btypes.TxStatusTypeSent)
 	db = db.Where("tx_type = ?", tx_type)
+	db = db.Where("created_at >= DATE_SUB(NOW(), INTERVAL 1 DAY)")
 	db = db.Order("block_timestamp desc")
-	db = db.Limit(2000)
+	db = db.Limit(500)
 	if err := db.Find(&messages).Error; err != nil {
 		return nil, fmt.Errorf("failed to get L2 UnConsumed message, err: %v", err)
 	}
