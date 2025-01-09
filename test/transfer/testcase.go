@@ -3,10 +3,10 @@ package transfer
 import (
 	"context"
 	"errors"
-	"fmt"
-	"log"
 	"time"
 
+	"github.com/sirupsen/logrus"
+	
 	"github.com/reddio-com/reddio/test/pkg"
 )
 
@@ -47,7 +47,7 @@ func (tc *RandomTransferTestCase) Run(ctx context.Context, m *pkg.WalletManager)
 	if err != nil {
 		return err
 	}
-	log.Println(fmt.Sprintf("%s create wallets finish", tc.CaseName))
+	logrus.Infof("%s create wallets finish", tc.CaseName)
 	tc.wallets = pkg.GenerateCaseWallets(tc.initialCount, wallets)
 	tc.transCase = tc.tm.GenerateRandomTransferSteps(tc.steps, tc.wallets)
 	return runAndAssert(tc.transCase, m, wallets)
@@ -57,7 +57,7 @@ func runAndAssert(transferCase *pkg.TransferCase, m *pkg.WalletManager, wallets 
 	if err := transferCase.Run(m); err != nil {
 		return err
 	}
-	log.Println("wait transfer transaction done")
+	logrus.Info("wait transfer transaction done")
 	time.Sleep(5 * time.Second)
 	success, err := assert(transferCase, m, wallets)
 	if err != nil {
@@ -72,7 +72,7 @@ func runAndAssert(transferCase *pkg.TransferCase, m *pkg.WalletManager, wallets 
 	if err != nil {
 		return err
 	}
-	log.Printf("Block(%d) StateRoot: %s", block.Height, block.StateRoot.String())
+	logrus.Infof("Block(%d) StateRoot: %s", block.Height, block.StateRoot.String())
 	return nil
 }
 
@@ -100,13 +100,13 @@ func assert(transferCase *pkg.TransferCase, walletsManager *pkg.WalletManager, w
 
 func printChange(got, expect map[string]*pkg.CaseEthWallet, transferCase *pkg.TransferCase) {
 	for _, step := range transferCase.Steps {
-		log.Println(fmt.Sprintf("%v transfer %v eth to %v", step.From.Address, step.Count, step.To.Address))
+		logrus.Infof("%v transfer %v eth to %v", step.From.Address, step.Count, step.To.Address)
 	}
 	for k, v := range got {
 		ev, ok := expect[k]
 		if ok {
 			if v.EthCount != ev.EthCount {
-				log.Println(fmt.Sprintf("%v got:%v expect:%v", k, v.EthCount, ev.EthCount))
+				logrus.Infof("%v got:%v expect:%v", k, v.EthCount, ev.EthCount)
 			}
 		}
 	}

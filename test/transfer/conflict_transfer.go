@@ -2,8 +2,8 @@ package transfer
 
 import (
 	"context"
-	"fmt"
-	"log"
+	
+	"github.com/sirupsen/logrus"
 
 	"github.com/reddio-com/reddio/test/pkg"
 )
@@ -21,7 +21,9 @@ func (c *ConflictTransfer) Run(ctx context.Context, m *pkg.WalletManager) error 
 	if err != nil {
 		return err
 	}
-	log.Println(fmt.Sprintf("%s create wallets finish", c.CaseName))
+
+	logrus.Info("%s create wallets finish", c.CaseName)
+
 	cwallets := pkg.GenerateCaseWallets(c.initialCount, wallets)
 	transferCase := c.tm.GenerateSameTargetTransferSteps(c.steps, cwallets, cwallets[0])
 	return runAndAssert(transferCase, m, wallets)

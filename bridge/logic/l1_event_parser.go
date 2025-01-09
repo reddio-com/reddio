@@ -10,7 +10,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/ethereum/go-ethereum/log"
+	"github.com/sirupsen/logrus"
+
 	"github.com/reddio-com/reddio/bridge/contract"
 	"github.com/reddio-com/reddio/bridge/orm"
 	btypes "github.com/reddio-com/reddio/bridge/types"
@@ -87,15 +88,14 @@ func (e *L1EventParser) ParseL1RelayMessagePayload(ctx context.Context, msg *con
 		L1BlockNumber: msg.Raw.BlockNumber,
 		L1TxHash:      msg.Raw.TxHash.String(),
 		TxStatus:      int(btypes.TxStatusTypeConsumed),
-		MessageType:   int(btypes.MessageTypeL2SentMessage),
 	})
 
 	return l1RelayedMessages, nil
 }
 
 // ParseL1CrossChainEventLogs parse l1 cross chain event logs
-func (e *L1EventParser) ParseL1CrossChainPayload(ctx context.Context, msg *contract.ParentBridgeCoreFacetDownwardMessage, tx *types.Transaction, receipt *types.Receipt) ([]*orm.CrossMessage, error) {
-	l1CrossChainDepositMessages, err := e.ParseL1SingleCrossChainPayload(ctx, msg, tx, receipt)
+func (e *L1EventParser) ParseL1CrossChainPayload(ctx context.Context, msg *contract.ParentBridgeCoreFacetQueueTransaction, tx *types.Transaction) ([]*orm.CrossMessage, error) {
+	l1CrossChainDepositMessages, err := e.ParseL1SingleCrossChainPayload(ctx, msg, tx)
 	if err != nil {
 		return nil, err
 	}
@@ -103,16 +103,16 @@ func (e *L1EventParser) ParseL1CrossChainPayload(ctx context.Context, msg *contr
 	return l1CrossChainDepositMessages, nil
 }
 
-func (e *L1EventParser) ParseL1CrossChainPayloadToRefundMsg(ctx context.Context, msg *contract.ParentBridgeCoreFacetDownwardMessage, tx *types.Transaction, receipt *types.Receipt) ([]*orm.CrossMessage, error) {
+func (e *L1EventParser) ParseL1CrossChainPayloadToRefundMsg(ctx context.Context, msg *orm.CrossMessage, receipt *types.Receipt) ([]*orm.CrossMessage, error) {
 	var refundMessages []*orm.CrossMessage
 
-	switch utils.MessagePayloadType(msg.PayloadType) {
+	switch utils.MessagePayloadType(msg.MessagePayloadType) {
 	case utils.ETH:
-		payloadHex := hex.EncodeToString(msg.Payload)
+		payloadHex := msg.MessagePayload
 
 		ethLocked, err := decodeETHLocked(payloadHex)
 		if err != nil {
-			log.Error("Failed to decode ETHLocked", "err", err)
+			logrus.Error("Failed to decode ETHLocked", "err", err)
 			return nil, err
 		}
 
@@ -131,18 +131,16 @@ func (e *L1EventParser) ParseL1CrossChainPayloadToRefundMsg(ctx context.Context,
 			TokenAmounts:       ethLocked.Amount.String(),
 			CreatedAt:          time.Now().UTC(),
 			UpdatedAt:          time.Now().UTC(),
-			BlockTimestamp:     uint64(tx.Time().Unix()),
-			L1BlockNumber:      msg.Raw.BlockNumber,
-			L1TxHash:           msg.Raw.TxHash.String(),
-			L2TxHash:           receipt.TxHash.String(),
-			L2BlockNumber:      receipt.BlockNumber.Uint64(),
+			BlockTimestamp:     uint64(time.Now().Unix()),
+			RefundTxHash:       receipt.TxHash.String(),
+			//L2TxHash:           receipt.TxHash.String(),
 		})
 	case utils.ERC20:
-		payloadHex := hex.EncodeToString(msg.Payload)
+		payloadHex := msg.MessagePayload
 
 		erc20Locked, err := decodeERC20TokenLocked(payloadHex)
 		if err != nil {
-			log.Error("Failed to decode ParentERC20TokenLocked", "err", err)
+			logrus.Error("Failed to decode ParentERC20TokenLocked", "err", err)
 			return nil, err
 		}
 		refundMessages = append(refundMessages, &orm.CrossMessage{
@@ -161,19 +159,18 @@ func (e *L1EventParser) ParseL1CrossChainPayloadToRefundMsg(ctx context.Context,
 			TokenAmounts:       erc20Locked.Amount.String(),
 			CreatedAt:          time.Now().UTC(),
 			UpdatedAt:          time.Now().UTC(),
-			BlockTimestamp:     uint64(tx.Time().Unix()),
-			L2TxHash:           receipt.TxHash.String(),
-			L1BlockNumber:      msg.Raw.BlockNumber,
-			L1TxHash:           msg.Raw.TxHash.String(),
-			L2BlockNumber:      receipt.BlockNumber.Uint64(),
+			BlockTimestamp:     uint64(time.Now().Unix()),
+			RefundTxHash:       receipt.TxHash.String(),
+			//L2TxHash:           receipt.TxHash.String(),
+			//L1TxHash:           msg.Raw.TxHash.String(),
 		})
 
 	case utils.RED:
-		payloadHex := hex.EncodeToString(msg.Payload)
+		payloadHex := msg.MessagePayload
 
 		redLocked, err := decodeREDTokenLocked(payloadHex)
 		if err != nil {
-			log.Error("Failed to decode ParentREDTokenLocked", "err", err)
+			logrus.Error("Failed to decode ParentREDTokenLocked", "err", err)
 			return nil, err
 		}
 		refundMessages = append(refundMessages, &orm.CrossMessage{
@@ -192,11 +189,10 @@ func (e *L1EventParser) ParseL1CrossChainPayloadToRefundMsg(ctx context.Context,
 			TokenAmounts:       redLocked.Amount.String(),
 			CreatedAt:          time.Now().UTC(),
 			UpdatedAt:          time.Now().UTC(),
-			BlockTimestamp:     uint64(tx.Time().Unix()),
-			L2TxHash:           receipt.TxHash.String(),
-			L1BlockNumber:      msg.Raw.BlockNumber,
-			L1TxHash:           msg.Raw.TxHash.String(),
-			L2BlockNumber:      receipt.BlockNumber.Uint64(),
+			BlockTimestamp:     uint64(time.Now().Unix()),
+			RefundTxHash:       receipt.TxHash.String(),
+			//L1TxHash:           msg.Raw.TxHash.String(),
+			//L2TxHash:           receipt.TxHash.String(),
 		})
 
 	}
@@ -205,7 +201,7 @@ func (e *L1EventParser) ParseL1CrossChainPayloadToRefundMsg(ctx context.Context,
 }
 
 // ParseL1SingleCrossChainEventLogs parses L1 watched single cross chain events.
-func (e *L1EventParser) ParseL1SingleCrossChainPayload(ctx context.Context, msg *contract.ParentBridgeCoreFacetDownwardMessage, tx *types.Transaction, receipt *types.Receipt) ([]*orm.CrossMessage, error) {
+func (e *L1EventParser) ParseL1SingleCrossChainPayload(ctx context.Context, msg *contract.ParentBridgeCoreFacetQueueTransaction, tx *types.Transaction) ([]*orm.CrossMessage, error) {
 	var l1DepositMessages []*orm.CrossMessage
 
 	switch utils.MessagePayloadType(msg.PayloadType) {
@@ -214,13 +210,13 @@ func (e *L1EventParser) ParseL1SingleCrossChainPayload(ctx context.Context, msg 
 
 		ethLocked, err := decodeETHLocked(payloadHex)
 		if err != nil {
-			log.Error("Failed to decode ETHLocked", "err", err)
+			logrus.Error("Failed to decode ETHLocked", "err", err)
 			return nil, err
 		}
 		l1DepositMessages = append(l1DepositMessages, &orm.CrossMessage{
 
 			MessageType:        int(btypes.MessageTypeL1SentMessage),
-			TxStatus:           int(btypes.TxStatusTypeConsumed),
+			TxStatus:           int(btypes.TxStatusTypeSent),
 			TokenType:          int(btypes.ETH),
 			TxType:             int(btypes.TxTypeDeposit),
 			Sender:             ethLocked.ParentSender.String(),
@@ -232,24 +228,23 @@ func (e *L1EventParser) ParseL1SingleCrossChainPayload(ctx context.Context, msg 
 			MessageValue:       ethLocked.Amount.String(),
 			TokenAmounts:       ethLocked.Amount.String(),
 			L1TxHash:           msg.Raw.TxHash.String(),
+			L2TxHash:           tx.Hash().String(),
 			L1BlockNumber:      msg.Raw.BlockNumber,
 			CreatedAt:          time.Now().UTC(),
 			UpdatedAt:          time.Now().UTC(),
 			BlockTimestamp:     uint64(tx.Time().Unix()),
-			L2TxHash:           receipt.TxHash.String(),
-			L2BlockNumber:      receipt.BlockNumber.Uint64(),
 		})
 	case utils.ERC20:
 		payloadHex := hex.EncodeToString(msg.Payload)
 
 		erc20Locked, err := decodeERC20TokenLocked(payloadHex)
 		if err != nil {
-			log.Error("Failed to decode ParentERC20TokenLocked", "err", err)
+			logrus.Error("Failed to decode ParentERC20TokenLocked", "err", err)
 			return nil, err
 		}
 		l1DepositMessages = append(l1DepositMessages, &orm.CrossMessage{
 			MessageType:        int(btypes.MessageTypeL1SentMessage),
-			TxStatus:           int(btypes.TxStatusTypeConsumed),
+			TxStatus:           int(btypes.TxStatusTypeSent),
 			TokenType:          int(btypes.ERC20),
 			TxType:             int(btypes.TxTypeDeposit),
 			Sender:             erc20Locked.ParentSender.String(),
@@ -263,23 +258,22 @@ func (e *L1EventParser) ParseL1SingleCrossChainPayload(ctx context.Context, msg 
 			TokenAmounts:       erc20Locked.Amount.String(),
 			L1BlockNumber:      msg.Raw.BlockNumber,
 			L1TxHash:           msg.Raw.TxHash.String(),
+			L2TxHash:           tx.Hash().String(),
 			CreatedAt:          time.Now().UTC(),
 			UpdatedAt:          time.Now().UTC(),
 			BlockTimestamp:     uint64(tx.Time().Unix()),
-			L2TxHash:           receipt.TxHash.String(),
-			L2BlockNumber:      receipt.BlockNumber.Uint64(),
 		})
 	case utils.RED:
 		payloadHex := hex.EncodeToString(msg.Payload)
 
 		redLocked, err := decodeREDTokenLocked(payloadHex)
 		if err != nil {
-			log.Error("Failed to decode ParentREDTokenLocked", "err", err)
+			logrus.Error("Failed to decode ParentREDTokenLocked", "err", err)
 			return nil, err
 		}
 		l1DepositMessages = append(l1DepositMessages, &orm.CrossMessage{
 			MessageType:        int(btypes.MessageTypeL1SentMessage),
-			TxStatus:           int(btypes.TxStatusTypeConsumed),
+			TxStatus:           int(btypes.TxStatusTypeSent),
 			TokenType:          int(btypes.RED),
 			TxType:             int(btypes.TxTypeDeposit),
 			Sender:             redLocked.ParentSender.String(),
@@ -294,10 +288,9 @@ func (e *L1EventParser) ParseL1SingleCrossChainPayload(ctx context.Context, msg 
 			CreatedAt:          time.Now().UTC(),
 			UpdatedAt:          time.Now().UTC(),
 			BlockTimestamp:     uint64(tx.Time().Unix()),
-			L2TxHash:           receipt.TxHash.String(),
-			L2BlockNumber:      receipt.BlockNumber.Uint64(),
 			L1BlockNumber:      msg.Raw.BlockNumber,
 			L1TxHash:           msg.Raw.TxHash.String(),
+			L2TxHash:           tx.Hash().String(),
 		})
 
 	}

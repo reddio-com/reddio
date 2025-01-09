@@ -4,17 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"math/big"
 	"math/rand"
 	"time"
-
-	"golang.org/x/time/rate"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/sirupsen/logrus"
+	"golang.org/x/time/rate"
 
 	"github.com/reddio-com/reddio/test/contracts"
 	"github.com/reddio-com/reddio/test/pkg"
@@ -67,7 +66,7 @@ func NewUniswapV2TPSStatisticsTestCase(name string, t, d, maxUser int, rm *rate.
 	if needLoad {
 		loadedTestData, err := loadTestDataFromFile("test/tmp/prepared_test_data.json")
 		if err != nil {
-			log.Fatalf("Failed to load test data: %v", err)
+			logrus.Fatalf("Failed to load test data: %v", err)
 			return nil
 		}
 		tc.loadTestData = loadedTestData
@@ -75,7 +74,7 @@ func NewUniswapV2TPSStatisticsTestCase(name string, t, d, maxUser int, rm *rate.
 	return tc
 }
 
-// TestUniswapTPS is a test case to measure the transactions per second (TPS) of Uniswap.
+// Run TestUniswapTPS is a test case to measure the transactions per second (TPS) of Uniswap.
 // The test case follows these steps:
 // 1. Arrange
 //   - Create a deployer user with sufficient balance
@@ -96,7 +95,7 @@ func NewUniswapV2TPSStatisticsTestCase(name string, t, d, maxUser int, rm *rate.
 func (cd *UniswapV2TPSStatisticsTestCase) Run(ctx context.Context, m *pkg.WalletManager) error {
 	err := cd.executeTest(nodeUrl, chainID, gasLimit, stepCount)
 	if err != nil {
-		log.Fatalf("Failed to execute test and calculate TPS: %v", err)
+		logrus.Fatalf("Failed to execute test and calculate TPS: %v", err)
 	}
 	return err
 }
@@ -135,7 +134,7 @@ func (cd *UniswapV2TPSStatisticsTestCase) prepareDeployerContract(deployerUser *
 	if !isConfirmed {
 		return [20]byte{}, nil, fmt.Errorf("transaction was not confirmed")
 	}
-	log.Println("deploy contracts done")
+	logrus.Info("deploy contracts done")
 	err = dispatchTestToken(client, depolyerAuth, ERC20DeployedContracts, testUsers, big.NewInt(accountInitialERC20Token))
 	if err != nil {
 		return [20]byte{}, nil, fmt.Errorf("failed to dispatch test tokens: %v", err)
@@ -158,7 +157,7 @@ func (cd *UniswapV2TPSStatisticsTestCase) prepareDeployerContract(deployerUser *
 				return [20]byte{}, nil, fmt.Errorf("failed to create approve transaction for user %s: %v", user.Address, err)
 			}
 			lastTxHash = tx.Hash()
-			// log.Printf("Approve transaction hash for user %s: %s", user.Address, tx.Hash().Hex())
+			// logrus.Infof("Approve transaction hash for user %s: %s", user.Address, tx.Hash().Hex())
 			testAuth.Nonce = testAuth.Nonce.Add(testAuth.Nonce, big.NewInt(1))
 		}
 	}
@@ -169,7 +168,7 @@ func (cd *UniswapV2TPSStatisticsTestCase) prepareDeployerContract(deployerUser *
 	if !isConfirmed {
 		return [20]byte{}, nil, fmt.Errorf("transaction %s was not confirmed", lastTxHash.Hex())
 	}
-	log.Println("dispatchTestToken done")
+	logrus.Info("dispatchTestToken done")
 	tokenPairs := generateTokenPairs(ERC20DeployedContracts)
 	// add liquidity
 	for _, pair := range tokenPairs {
@@ -197,7 +196,7 @@ func (cd *UniswapV2TPSStatisticsTestCase) prepareDeployerContract(deployerUser *
 	if !isConfirmed {
 		return [20]byte{}, nil, errors.New("add liquidity transaction was not confirmed")
 	}
-	log.Println("generateTokenPairs done")
+	logrus.Info("generateTokenPairs done")
 	return uniswapV2Contract.uniswapV2Router01Address, tokenPairs, nil
 }
 
@@ -224,13 +223,13 @@ func (cd *UniswapV2TPSStatisticsTestCase) Prepare(ctx context.Context, m *pkg.Wa
 		TestContracts: make([]TestContract, 0),
 	}
 	for index, deployerUser := range deployerUsers {
-		log.Println(fmt.Sprintf("start to deploy %v contract", index))
+		logrus.Infof("start to deploy %v contract", index)
 		router, tokenPairs, err := cd.prepareDeployerContract(deployerUser, testUsers, gasPrice, client)
 		if err != nil {
 			return fmt.Errorf("prepare contract failed, err:%v", err)
 		}
 		preparedTestData.TestContracts = append(preparedTestData.TestContracts, TestContract{router, tokenPairs})
-		log.Println(fmt.Sprintf("create %v deploy contract done", index+1))
+		logrus.Infof("create %v deploy contract done", index+1)
 	}
 	saveTestDataToFile("test/tmp/prepared_test_data.json", preparedTestData)
 	return err
@@ -245,13 +244,13 @@ func (cd *UniswapV2TPSStatisticsTestCase) executeTest(nodeUrl string, chainID in
 	}
 	client, err := ethclient.Dial(nodeUrl)
 	if err != nil {
-		log.Printf("Failed to connect to the Ethereum client: %v", err)
+		logrus.Infof("Failed to connect to the Ethereum client: %v", err)
 		return err
 	}
 	gasPrice := new(big.Int).SetUint64(1)
 	err = cd.executeSwapSteps(client, steps, chainID, gasPrice, gasLimit)
 	if err != nil {
-		log.Printf("Failed to perform swap steps: %v", err)
+		logrus.Infof("Failed to perform swap steps: %v", err)
 		return err
 	}
 
@@ -336,7 +335,7 @@ func (cd *UniswapV2TPSStatisticsTestCase) executeSwapSteps(client *ethclient.Cli
 	for _, step := range steps {
 		if err := cd.rm.Wait(context.Background()); err == nil {
 			if err := executeSwapStep(client, step, chainID, gasPrice, gasLimit); err != nil {
-				log.Println(fmt.Sprintf("execute swap step err:%v", err.Error()))
+				logrus.Infof("execute swap step err:%v", err.Error())
 			}
 		}
 	}

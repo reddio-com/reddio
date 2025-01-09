@@ -3,7 +3,8 @@ package uniswap
 import (
 	"context"
 	"fmt"
-	"log"
+
+	"github.com/sirupsen/logrus"
 
 	"github.com/reddio-com/reddio/evm"
 	"github.com/reddio-com/reddio/test/conf"
@@ -39,22 +40,22 @@ func (m *EthManager) AddTestCase(tc ...TestCase) {
 
 func (m *EthManager) Run(ctx context.Context) error {
 	for _, tc := range m.testcases {
-		log.Println(fmt.Sprintf("start to test %v", tc.Name()))
+		logrus.Infof("start to test %v", tc.Name())
 		if err := tc.Run(ctx, m.wm); err != nil {
 			return fmt.Errorf("%s failed, err:%v", tc.Name(), err)
 		}
-		log.Println(fmt.Sprintf("test %v success", tc.Name()))
+		logrus.Infof("test %v success", tc.Name())
 	}
 	return nil
 }
 
 func (m *EthManager) Prepare(ctx context.Context) error {
 	for _, tc := range m.testcases {
-		log.Println(fmt.Sprintf("start to prepare %v", tc.Name()))
+		logrus.Infof("start to prepare %v", tc.Name())
 		if err := tc.Prepare(ctx, m.wm); err != nil {
 			return fmt.Errorf("%s failed, err:%v", tc.Name(), err)
 		}
-		log.Println(fmt.Sprintf("prepare %v success", tc.Name()))
+		logrus.Infof("prepare %v success", tc.Name())
 	}
 	return nil
 }

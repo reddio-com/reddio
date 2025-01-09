@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/rpc"
@@ -100,14 +101,17 @@ func (s *EthRPC) Serve(ctx context.Context) error {
 
 func logRequestResponse(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ip := getIP(r)
 		bodyBytes, err := io.ReadAll(r.Body)
 		if err == nil {
 			r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 		}
+		logrus.Infof("[API] IP,request: %s, %s", ip, string(bodyBytes))
 
 		rec := &responseRecorder{ResponseWriter: w, body: &bytes.Buffer{}}
 		next.ServeHTTP(rec, r)
 		logrus.Debugf("[API] Request:  %s", string(bodyBytes))
+		//logrus.Debugf("[API] IP: %s", ip)
 		logrus.Debugf("[API] Response: %s", rec.body.String())
 	})
 }
@@ -126,4 +130,30 @@ func (r *responseRecorder) WriteHeader(status int) {
 func (r *responseRecorder) Write(b []byte) (int, error) {
 	r.body.Write(b)
 	return r.ResponseWriter.Write(b)
+}
+
+func getIP(r *http.Request) string {
+	cfConnectingIP := r.Header.Get("CF-Connecting-IP")
+	if cfConnectingIP != "" {
+		return cfConnectingIP
+	}
+
+	xff := r.Header.Get("X-Forwarded-For")
+	if xff != "" {
+		ips := strings.Split(xff, ",")
+		if len(ips) > 0 {
+			return strings.TrimSpace(ips[0])
+		}
+	}
+
+	xri := r.Header.Get("X-Real-Ip")
+	if xri != "" {
+		return xri
+	}
+
+	ip := r.RemoteAddr
+	if colon := strings.LastIndex(ip, ":"); colon != -1 {
+		ip = ip[:colon]
+	}
+	return ip
 }

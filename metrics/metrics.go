@@ -3,8 +3,9 @@ package metrics
 import "github.com/prometheus/client_golang/prometheus"
 
 const (
-	TypeLbl      = "type"
-	TypeCountLbl = "count"
+	TypeLbl       = "type"
+	TypeCountLbl  = "count"
+	TypeStatusLbl = "status"
 )
 
 var (
@@ -16,17 +17,6 @@ var (
 			Help:      "Total number of count for txn",
 		},
 		[]string{TypeLbl},
-	)
-
-	TxnDuration = prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Namespace: "reddio",
-			Subsystem: "txn",
-			Name:      "execute_duration_seconds",
-			Help:      "txn execute duration distribution.",
-			Buckets:   TxnBuckets,
-		},
-		[]string{},
 	)
 
 	BatchTxnCounter = prometheus.NewCounterVec(
@@ -187,7 +177,6 @@ var (
 
 func init() {
 	prometheus.MustRegister(TxnCounter)
-	prometheus.MustRegister(TxnDuration)
 
 	prometheus.MustRegister(BlockExecuteTxnCountGauge)
 	prometheus.MustRegister(BlockTxnPrepareDurationGauge)

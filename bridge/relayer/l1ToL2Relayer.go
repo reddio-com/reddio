@@ -12,34 +12,41 @@ import (
 
 	"github.com/HyperService-Consortium/go-hexutil"
 	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto/kzg4844"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/reddio-com/reddio/bridge/contract"
-	"github.com/reddio-com/reddio/bridge/logic"
-	"github.com/reddio-com/reddio/bridge/orm"
-	"github.com/reddio-com/reddio/bridge/utils"
-	"github.com/reddio-com/reddio/evm"
-	"github.com/reddio-com/reddio/metrics"
+	"github.com/sirupsen/logrus"
 	yucommon "github.com/yu-org/yu/common"
 	"github.com/yu-org/yu/core/kernel"
 	"github.com/yu-org/yu/core/protocol"
 	"gorm.io/gorm"
+
+	"github.com/reddio-com/reddio/bridge/contract"
+	"github.com/reddio-com/reddio/bridge/logic"
+	"github.com/reddio-com/reddio/bridge/orm"
+	btypes "github.com/reddio-com/reddio/bridge/types"
+	"github.com/reddio-com/reddio/bridge/utils"
+	"github.com/reddio-com/reddio/evm"
+	"github.com/reddio-com/reddio/metrics"
 )
 
 type L1ToL2Relayer struct {
 	ctx             context.Context
 	cfg             *evm.GethConfig
 	l2Client        *ethclient.Client
+	l1Client        *ethclient.Client
 	chain           *kernel.Kernel
 	l1EventParser   *logic.L1EventParser
 	crossMessageOrm *orm.CrossMessage
 }
 
 const (
-	maxRetries              = 10
-	waitForConfirmationTime = 5 * time.Second
+	MAX_RETRIES                = 10
+	WAIT_FOR_CONFIRMATION_TIME = 5 * time.Second
+	ZERO_ADDRESS               = "0x0000000000000000000000000000000000000000"
+	ZERO_HASH                  = "0x0000000000000000000000000000000000000000000000000000000000000000"
 )
 
 // TransactionArgs represents the arguments to construct a new transaction
@@ -79,26 +86,125 @@ type TransactionArgs struct {
 
 func NewL1ToL2Relayer(ctx context.Context, cfg *evm.GethConfig, l1Client *ethclient.Client, l2Client *ethclient.Client, chain *kernel.Kernel, db *gorm.DB) (*L1ToL2Relayer, error) {
 	l1EventParser := logic.NewL1EventParser(cfg, l2Client)
-	return &L1ToL2Relayer{
+
+	relayer := &L1ToL2Relayer{
 		ctx:             ctx,
 		cfg:             cfg,
 		l2Client:        l2Client,
+		l1Client:        l1Client,
 		chain:           chain,
 		l1EventParser:   l1EventParser,
 		crossMessageOrm: orm.NewCrossMessage(db),
-	}, nil
+	}
+
+	go relayer.startPolling()
+
+	return relayer, nil
 }
+func (b *L1ToL2Relayer) startPolling() {
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			b.pollUnconsumedMessages()
+		case <-b.ctx.Done():
+			return
+		}
+	}
+}
+
+func (b *L1ToL2Relayer) pollUnconsumedMessages() {
+	ctx := context.Background()
+	//messages, err := r.crossMessageOrm.QueryL1UnConsumedMessages(ctx, btypes.TxTypeDeposit)
+	messages, err := b.crossMessageOrm.QueryUnConsumedMessages(ctx, btypes.TxTypeDeposit)
+	if err != nil {
+		log.Printf("Failed to query unconsumed messages: %v", err)
+		return
+	}
+
+	for _, message := range messages {
+		// syning deposit message status
+		if message.MessageType == int(btypes.MessageTypeL1SentMessage) && message.TxType == int(btypes.TxTypeDeposit) {
+			receipt, err := b.l2Client.TransactionReceipt(context.Background(), common.HexToHash(message.L2TxHash))
+			if err == nil {
+				if receipt != nil {
+					if receipt.Status == types.ReceiptStatusSuccessful {
+						err := b.crossMessageOrm.UpdateL1Message(ctx, message.MessageHash, int(btypes.TxStatusTypeConsumed), receipt.BlockNumber.Uint64())
+						if err != nil {
+							logrus.Errorf("Failed to update L1 to L2 message: %v", err)
+						}
+					} else if receipt.Status == types.ReceiptStatusFailed {
+						err := b.crossMessageOrm.UpdateL1Message(ctx, message.MessageHash, int(btypes.TxStatusTypeDropped), receipt.BlockNumber.Uint64())
+						if err != nil {
+							logrus.Errorf("Failed to update L1 to L2 message: %v", err)
+						}
+						refundMessages, err := b.l1EventParser.ParseL1CrossChainPayloadToRefundMsg(b.ctx, message, receipt)
+						if err != nil {
+							logrus.Errorf("ParseL1CrossChainPayloadToRefundMsg to parse L1 cross chain payload: %v", err)
+						}
+						b.createRefundMessage(refundMessages)
+					} else {
+						logrus.Errorf("Unknown receipt status: %v", receipt.Status)
+					}
+				}
+			}
+		}
+		//syncing withdraw and refund message status
+		// if message.MessageType == int(btypes.MessageTypeL2SentMessage) && (message.TxType == int(btypes.TxTypeWithdraw) || message.TxType == int(btypes.TxTypeRefund)) {
+		// 	receipt, err := r.l2Client.TransactionReceipt(context.Background(), common.HexToHash(message.L2TxHash))
+
+		// 	if err == nil {
+		// 		if receipt != nil {
+		// 			if receipt.Status == types.ReceiptStatusSuccessful {
+		// 				err := r.crossMessageOrm.UpdateL2Message(ctx, message.MessageHash, int(btypes.TxStatusTypeConsumed), receipt.BlockNumber.Uint64())
+		// 				if err != nil {
+		// 					logrus.Errorf("Failed to update L2 message: %v", err)
+		// 				}
+		// 			} else if receipt.Status == types.ReceiptStatusFailed {
+		// 				refundMessages, err := r.l1EventParser.ParseL1CrossChainPayloadToRefundMsg(r.ctx, message, receipt)
+		// 				if err != nil {
+		// 					logrus.Errorf("ParseL1CrossChainPayloadToRefundMsg to parse L1 cross chain payload: %v", err)
+		// 				}
+		// 				r.createRefundMessage(refundMessages)
+		// 			} else {
+		// 				logrus.Errorf("Unknown receipt status: %v", receipt.Status)
+		// 			}
+		// 		}
+		// 	}
+		// }
+	}
+}
+func (b *L1ToL2Relayer) isL2MessageExecuted(messageHash string) (bool, error) {
+	contractAddress := common.HexToAddress(b.cfg.ChildLayerContractAddress)
+	instance, err := contract.NewUpwardMessageDispatcherFacet(contractAddress, b.l1Client)
+	if err != nil {
+		return false, err
+	}
+
+	hash := common.HexToHash(messageHash)
+	executed, err := instance.IsL2MessageExecuted(&bind.CallOpts{Context: b.ctx}, hash)
+	if err != nil {
+		return false, err
+	}
+	return executed, nil
+}
+
 func (b *L1ToL2Relayer) HandleRelayerMessage(msg *contract.UpwardMessageDispatcherFacetRelayedMessage) error {
 	relayedMessages, err := b.l1EventParser.ParseL1RelayMessagePayload(b.ctx, msg)
 	if err != nil {
-		log.Printf("Failed to parse L1 cross chain payload: %v", err)
+		logrus.Infof("Failed to parse L1 cross chain payload: %v", err)
 	}
-	b.crossMessageOrm.InsertOrUpdateL1RelayedMessagesOfL2Withdrawals(b.ctx, relayedMessages)
+	err = b.crossMessageOrm.UpdateL2Message(b.ctx, relayedMessages)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
-// handleDownwardMessage
-func (b *L1ToL2Relayer) HandleDownwardMessageWithSystemCall(msg *contract.ParentBridgeCoreFacetDownwardMessage) error {
+// HandleDownwardMessageWithSystemCall handles the downward message
+func (b *L1ToL2Relayer) HandleDownwardMessageWithSystemCall(msg *contract.ParentBridgeCoreFacetQueueTransaction) error {
 	// 1. parse downward message
 	// 2. setup auth
 	// 3. send downward message to child layer contract by calling downwardMessageDispatcher.ReceiveDownwardMessages
@@ -107,71 +213,114 @@ func (b *L1ToL2Relayer) HandleDownwardMessageWithSystemCall(msg *contract.Parent
 		{
 			PayloadType: msg.PayloadType,
 			Payload:     msg.Payload,
-			Nonce:       utils.GenerateNonce(),
+			Nonce:       new(big.Int).SetUint64(msg.QueueIndex),
 		},
 	}
 	metrics.DownwardMessageReceivedCounter.WithLabelValues(fmt.Sprintf("%d", msg.PayloadType)).Inc()
-	// log.Printf("Sending downward messages: %v", downwardMessages)
-	// jsonData, err := json.MarshalIndent(downwardMessages, "", "  ")
-	// if err != nil {
-	// 	log.Fatalf("Failed to marshal downward messages: %v", err)
-	// }
 
-	// fmt.Printf("Downward messages in JSON format:\n%s\n", string(jsonData))
 	txNonce := uint64(0)
 	value := big.NewInt(0)
 	gasLimit := uint64(6e6)
 	gasPrice, err := b.l2Client.SuggestGasPrice(context.Background())
 	if err != nil {
-		log.Fatalf("Failed to suggest gas price: %v", err)
+		metrics.DownwardMessageFailureCounter.WithLabelValues(fmt.Sprintf("%d", msg.PayloadType)).Inc()
+		logrus.Errorf("Failed to suggest gas price: %v", err)
+		return err
 	}
 
 	contractABI, err := abi.JSON(strings.NewReader(contract.DownwardMessageDispatcherFacetABI))
 	if err != nil {
-		log.Fatalf("Failed to parse contract ABI: %v", err)
+		metrics.DownwardMessageFailureCounter.WithLabelValues(fmt.Sprintf("%d", msg.PayloadType)).Inc()
+		logrus.Errorf("Failed to parse contract ABI: %v", err)
+		return err
 	}
 
 	data, err := contractABI.Pack("receiveDownwardMessages", downwardMessages)
 	if err != nil {
-		log.Fatalf("Failed to pack data: %v", err)
+		metrics.DownwardMessageFailureCounter.WithLabelValues(fmt.Sprintf("%d", msg.PayloadType)).Inc()
+		logrus.Errorf("Failed to pack data: %v", err)
+		return err
 	}
-	// fmt.Printf("Packed data: %s\n", hex.EncodeToString(data))
 
 	tx := types.NewTransaction(txNonce, common.HexToAddress(b.cfg.ChildLayerContractAddress), value, gasLimit, gasPrice, data)
-	err = b.systemCall(context.Background(), tx)
+	// fmt.Printf("tx: %v\n", tx.Hash().Hex())
+	// fmt.Printf("tx Time: %v\n", tx.Time().Unix())
+	crossMessages, err := b.l1EventParser.ParseL1CrossChainPayload(b.ctx, msg, tx)
 	if err != nil {
+		logrus.Errorf("Failed to parse L1 cross chain payload, err: %v, tx: %v", err, tx.Hash())
 		metrics.DownwardMessageFailureCounter.WithLabelValues(fmt.Sprintf("%d", msg.PayloadType)).Inc()
 		return err
 	}
-	success, receipt, err := waitForConfirmation(b.l2Client, tx.Hash())
+
+	err = b.insertDepositMessage(crossMessages, downwardMessages[0].Nonce)
 	if err != nil {
-		if receipt != nil {
-			crossMessages, err := b.l1EventParser.ParseL1CrossChainPayloadToRefundMsg(b.ctx, msg, tx, receipt)
-			if err != nil {
-				log.Printf("Failed to parse L1 cross chain payload: %v", err)
-			}
-			b.refund(crossMessages)
-		}
+		logrus.Errorf("Failed to insert deposit: %v, tx: %v", err, tx.Hash())
 		metrics.DownwardMessageFailureCounter.WithLabelValues(fmt.Sprintf("%d", msg.PayloadType)).Inc()
-	} else if !success {
-		if receipt != nil {
-			crossMessages, err := b.l1EventParser.ParseL1CrossChainPayloadToRefundMsg(b.ctx, msg, tx, receipt)
-			if err != nil {
-				log.Printf("Failed to parse L1 cross chain payload: %v", err)
-			}
-			b.refund(crossMessages)
-		}
-		metrics.DownwardMessageFailureCounter.WithLabelValues(fmt.Sprintf("%d", msg.PayloadType)).Inc()
-	} else if success {
-		if receipt != nil {
-			crossMessages, err := b.l1EventParser.ParseL1CrossChainPayload(b.ctx, msg, tx, receipt)
-			if err != nil {
-				log.Printf("Failed to parse L1 cross chain payload: %v", err)
-			}
-			metrics.DownwardMessageSuccessCounter.WithLabelValues(fmt.Sprintf("%d", msg.PayloadType)).Inc()
-			b.insertDeposit(crossMessages, downwardMessages[0].Nonce)
-		}
+		return err
 	}
+
+	err = b.systemCall(context.Background(), tx)
+	if err != nil {
+		logrus.Errorf("Failed to send downward messages: %v, tx: %v", err, tx.Hash())
+		metrics.DownwardMessageFailureCounter.WithLabelValues(fmt.Sprintf("%d", msg.PayloadType)).Inc()
+		return err
+	}
+
+	// success, receipt, err := waitForConfirmation(b.l2Client, tx.Hash())
+	// if err != nil {
+	// 	if receipt != nil {
+	// 		logrus.Errorf("systemcall process err, and Receipt is not nil: %v, tx: %v", err, tx.Hash())
+	// 		crossMessages, err := b.l1EventParser.ParseL1CrossChainPayloadToRefundMsg(b.ctx, msg, tx, receipt)
+	// 		if err != nil {
+	// 			log.Printf("Failed to parse L1 cross chain payload: %v", err)
+	// 		}
+	// 		b.refund(crossMessages)
+	// 	} else {
+	// 		logrus.Errorf("systemcall process err, and Receipt is nil: %v, tx: %v", err, tx.Hash())
+	// 		receipt = &types.Receipt{
+	// 			TxHash:      common.HexToHash(ZERO_HASH),
+	// 			BlockNumber: big.NewInt(0),
+	// 		}
+	// 		crossMessages, err := b.l1EventParser.ParseL1CrossChainPayloadToRefundMsg(b.ctx, msg, tx, receipt)
+	// 		if err != nil {
+	// 			log.Printf("ParseL1CrossChainPayloadToRefundMsg to parse L1 cross chain payload: %v", err)
+	// 		}
+	// 		b.refund(crossMessages)
+	// 	}
+	// 	metrics.DownwardMessageFailureCounter.WithLabelValues(fmt.Sprintf("%d", msg.PayloadType)).Inc()
+	// } else if !success {
+	// 	if receipt != nil {
+	// 		logrus.Errorf("tx process failed, and Receipt is not nil: %v, tx: %v", err, tx.Hash())
+	// 		crossMessages, err := b.l1EventParser.ParseL1CrossChainPayloadToRefundMsg(b.ctx, msg, tx, receipt)
+	// 		if err != nil {
+	// 			logrus.Errorf("Failed to parse L1 cross chain payload: %v", err)
+	// 		}
+	// 		b.refund(crossMessages)
+	// 	} else {
+	// 		logrus.Infof("tx process failed, and Receipt is nil: %v, tx: %v", err, tx.Hash())
+	// 		receipt = &types.Receipt{
+	// 			TxHash:      common.HexToHash(ZERO_HASH),
+	// 			BlockNumber: big.NewInt(0),
+	// 		}
+	// 		crossMessages, err := b.l1EventParser.ParseL1CrossChainPayloadToRefundMsg(b.ctx, msg, tx, receipt)
+	// 		if err != nil {
+	// 			logrus.Errorf("ParseL1CrossChainPayloadToRefundMsg to parse L1 cross chain payload: %v", err)
+	// 		}
+	// 		b.refund(crossMessages)
+	// 	}
+	// 	metrics.DownwardMessageFailureCounter.WithLabelValues(fmt.Sprintf("%d", msg.PayloadType)).Inc()
+
+	// } else if success {
+	// 	if receipt != nil {
+	// 		crossMessages, err := b.l1EventParser.ParseL1CrossChainPayload(b.ctx, msg, tx)
+	// 		if err != nil {
+	// 			logrus.Errorf("tx success, Failed to parse L1 cross chain payload: %v", err)
+	// 		}
+	// 		b.insertDeposit(crossMessages, downwardMessages[0].Nonce)
+	// 		metrics.DownwardMessageSuccessCounter.WithLabelValues(fmt.Sprintf("%d", msg.PayloadType)).Inc()
+	// 	}
+
+	// }
 
 	return nil
 }
@@ -242,18 +391,12 @@ func newTxArgsFromTx(tx *types.Transaction) *TransactionArgs {
 }
 func (b *L1ToL2Relayer) systemCall(ctx context.Context, signedTx *types.Transaction) error {
 	// Check if this tx has been created
-	// Create Tx
-	//v, r, s := signedTx.RawSignatureValues()
-	// fmt.Printf("v: %s\n", v.String())
-	// fmt.Printf("r: %s\n", r.String())
-	// fmt.Printf("s: %s\n", s.String())
-
 	v, r, s := signedTx.RawSignatureValues()
 	txArg := newTxArgsFromTx(signedTx)
 	txArgByte, _ := json.Marshal(txArg)
 	txReq := &evm.TxRequest{
 		Input:          signedTx.Data(),
-		Origin:         common.HexToAddress("0x0000000000000000000000000000000000000000"),
+		Origin:         common.HexToAddress(ZERO_ADDRESS),
 		Address:        signedTx.To(),
 		GasLimit:       signedTx.Gas(),
 		GasPrice:       signedTx.GasPrice(),
@@ -268,18 +411,12 @@ func (b *L1ToL2Relayer) systemCall(ctx context.Context, signedTx *types.Transact
 	}
 	txNonce, err := b.l2Client.PendingNonceAt(context.Background(), txReq.Origin)
 	if err != nil {
-		log.Printf("Failed to get nonce: %v", err)
+		logrus.Infof("Failed to get nonce: %v", err)
 	}
 	txReq.Nonce = txNonce
-	//jsonData, err := json.MarshalIndent(txReq, "", "    ")
-	// if err != nil {
-	// 	log.Printf("Failed to marshal txReq to JSON: %v", err)
-	// }
-
-	//fmt.Println("systemCall jsonData:", string(jsonData))
 	byt, err := json.Marshal(txReq)
 	if err != nil {
-		log.Printf("json.Marshal(txReq) failed: %v", err)
+		logrus.Infof("json.Marshal(txReq) failed: %v", err)
 		return err
 	}
 	signedWrCall := &protocol.SignedWrCall{
@@ -289,36 +426,19 @@ func (b *L1ToL2Relayer) systemCall(ctx context.Context, signedTx *types.Transact
 			Params:     string(byt),
 		},
 	}
-	// fmt.Println("signedWrCall", signedWrCall)
-	// fmt.Println("signedWrCall", signedWrCall.Call.Params)
 
 	err = b.chain.HandleTxn(signedWrCall)
 	if err != nil {
-		log.Printf("json.Marshal(txReq) failed: %v", err)
+		logrus.Infof("json.Marshal(txReq) failed: %v", err)
 		return err
 	}
 	return nil
-
 }
 
-func waitForConfirmation(client *ethclient.Client, txHash common.Hash) (bool, *types.Receipt, error) {
-	for i := 0; i < maxRetries; i++ {
-		receipt, err := client.TransactionReceipt(context.Background(), txHash)
-		if err == nil {
-			if receipt.Status == types.ReceiptStatusSuccessful {
-				return true, receipt, nil
-			}
-			return false, receipt, fmt.Errorf("transaction failed with status: %v", receipt.Status)
-		}
-		time.Sleep(waitForConfirmationTime)
-	}
-	return false, nil, fmt.Errorf("transaction was not confirmed after %d retries", maxRetries)
-}
-
-func (b *L1ToL2Relayer) refund(msgs []*orm.CrossMessage) error {
+func (b *L1ToL2Relayer) createRefundMessage(msgs []*orm.CrossMessage) error {
 	privateKey, err := LoadPrivateKey("bridge/relayer/.sepolia.env")
 	if err != nil {
-		log.Fatalf("Error loading private key: %v", err)
+		logrus.Fatalf("Error loading private key: %v", err)
 	}
 
 	privateKeys := []string{
@@ -328,7 +448,6 @@ func (b *L1ToL2Relayer) refund(msgs []*orm.CrossMessage) error {
 		var upwardMessages []contract.UpwardMessage
 		payloadBytes, err := hex.DecodeString(msg.MessagePayload)
 		if err != nil {
-			//fmt.Println("Failed to decode hex string:", err)
 			return err
 		}
 		upwardMessages = append(upwardMessages, contract.UpwardMessage{
@@ -338,15 +457,16 @@ func (b *L1ToL2Relayer) refund(msgs []*orm.CrossMessage) error {
 		})
 		signaturesArray, err := generateUpwardMessageMultiSignatures(upwardMessages, privateKeys)
 		if err != nil {
-			log.Fatalf("Failed to generate multi-signatures: %v", err)
+			logrus.Fatalf("Failed to generate multi-signatures: %v", err)
+			return err
 		}
 
 		messageHash, err := utils.ComputeMessageHash(upwardMessages[0].PayloadType, upwardMessages[0].Payload, upwardMessages[0].Nonce)
 		if err != nil {
-			log.Fatalf("Failed to compute message hash: %v", err)
+			logrus.Fatalf("Failed to compute message hash: %v", err)
+			return err
 		}
 		msg.MessageHash = messageHash.Hex()
-		//fmt.Println("msg.MessageHash:", msg.MessageHash)
 		msg.MessageNonce = upwardMessages[0].Nonce.String()
 		var multiSignProofs []string
 		for _, sig := range signaturesArray {
@@ -354,27 +474,25 @@ func (b *L1ToL2Relayer) refund(msgs []*orm.CrossMessage) error {
 		}
 
 		msg.MultiSignProof = strings.Join(multiSignProofs, ",")
-		//msg.BlockTimestamp = blockTimestampsMap[msg.L2BlockNumber]
-		//fmt.Println("msg.MultiSignProof:", msg.MultiSignProof)
 	}
 
 	if msgs != nil {
-		//fmt.Println("msgs:", msgs)
 		err = b.crossMessageOrm.InsertOrUpdateL2Messages(context.Background(), msgs)
 		if err != nil {
-			fmt.Println("Failed to insert or update L2 messages:", err)
+			logrus.Info("Failed to insert or update L2 messages:", err)
+			return err
 		}
 	}
 	return nil
 }
 
-func (b *L1ToL2Relayer) insertDeposit(msgs []*orm.CrossMessage, messageNonce *big.Int) error {
+func (b *L1ToL2Relayer) insertDepositMessage(msgs []*orm.CrossMessage, messageNonce *big.Int) error {
 
 	for _, msg := range msgs {
 		var downwardMessages []contract.UpwardMessage
 		payloadBytes, err := hex.DecodeString(msg.MessagePayload)
 		if err != nil {
-			//fmt.Println("Failed to decode hex string:", err)
+			logrus.Error("Failed to decode payload: %v", err)
 			return err
 		}
 		downwardMessages = append(downwardMessages, contract.UpwardMessage{
@@ -384,21 +502,16 @@ func (b *L1ToL2Relayer) insertDeposit(msgs []*orm.CrossMessage, messageNonce *bi
 
 		messageHash, err := utils.ComputeMessageHash(downwardMessages[0].PayloadType, downwardMessages[0].Payload, messageNonce)
 		if err != nil {
-			log.Fatalf("Failed to compute message hash: %v", err)
+			logrus.Fatalf("Failed to compute message hash: %v", err)
 		}
 		msg.MessageHash = messageHash.Hex()
-		//fmt.Println("msg.MessageHash:", msg.MessageHash)
 		msg.MessageNonce = messageNonce.String()
-
-		//msg.BlockTimestamp = blockTimestampsMap[msg.L2BlockNumber]
-		//fmt.Println("msg.MultiSignProof:", msg.MultiSignProof)
 	}
 
 	if msgs != nil {
-		//fmt.Println("msgs:", msgs)
 		err := b.crossMessageOrm.InsertOrUpdateL2Messages(context.Background(), msgs)
 		if err != nil {
-			fmt.Println("Failed to insert or update L2 messages:", err)
+			logrus.Info("Failed to insert or update L2 messages:", err)
 		}
 	}
 	return nil

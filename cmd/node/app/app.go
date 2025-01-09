@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -24,14 +23,20 @@ import (
 	watcher "github.com/reddio-com/reddio/bridge/controller"
 	"github.com/reddio-com/reddio/bridge/controller/api"
 	"github.com/reddio-com/reddio/bridge/controller/route"
+	"github.com/reddio-com/reddio/bridge/relayer"
 	"github.com/reddio-com/reddio/bridge/utils/database"
 	"github.com/reddio-com/reddio/config"
 	"github.com/reddio-com/reddio/evm"
 	"github.com/reddio-com/reddio/evm/ethrpc"
 	"github.com/reddio-com/reddio/parallel"
-
-	"github.com/reddio-com/reddio/bridge/relayer"
+	"github.com/reddio-com/reddio/utils"
 )
+
+func StartByConfig(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm.GethConfig) {
+	utils.IniLimiter()
+	go startPromServer()
+	StartUpChain(yuCfg, poaCfg, evmCfg)
+}
 
 func Start(evmPath, yuPath, poaPath, configPath string) {
 	yuCfg := startup.InitKernelConfigFromPath(yuPath)
@@ -41,19 +46,18 @@ func Start(evmPath, yuPath, poaPath, configPath string) {
 	if err != nil {
 		panic(err)
 	}
-	go startPromServer()
-	StartUpChain(yuCfg, poaCfg, evmCfg)
+	StartByConfig(yuCfg, poaCfg, evmCfg)
 }
 
 func StartUpChain(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm.GethConfig) {
 	figure.NewColorFigure("Reddio", "big", "green", false).Print()
-	fmt.Println("--- Start the Reddio Chain ---")
+	logrus.Info("--- Start the Reddio Chain ---")
 	var db *gorm.DB
 	var err error
 	if evmCfg.EnableBridge {
 		db, err = database.InitDB(evmCfg.BridgeDBConfig)
 		if err != nil {
-			log.Fatal("failed to init db", "err", err)
+			logrus.Fatal("failed to init db", "err", err)
 		}
 	}
 	chain := InitReddio(yuCfg, poaCfg, evmCfg, db)
@@ -70,7 +74,7 @@ func StartUpChain(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm
 		<-sigCh
 		if evmCfg.EnableBridge {
 			if err := database.CloseDB(db); err != nil {
-				log.Fatal("Failed to close database:", err)
+				logrus.Fatal("Failed to close database:", "error", err)
 			}
 		}
 		wg.Wait()
@@ -97,7 +101,9 @@ func InitReddio(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm.G
 func startPromServer() {
 	// Export Prometheus metrics
 	http.Handle("/metrics", promhttp.Handler())
-	http.ListenAndServe(":8080", nil)
+	if err := http.ListenAndServe(":8080", nil); err != nil {
+		logrus.Fatal("start prometheus server failed", "error", err)
+	}
 }
 
 func StartupL1Watcher(chain *kernel.Kernel, cfg *evm.GethConfig, db *gorm.DB) {
@@ -109,12 +115,12 @@ func StartupL1Watcher(chain *kernel.Kernel, cfg *evm.GethConfig, db *gorm.DB) {
 
 	l1Client, err := ethclient.Dial(cfg.L1ClientAddress)
 	if err != nil {
-		log.Fatal("failed to connect to L1 geth", "endpoint", cfg.L1ClientAddress, "err", err)
+		logrus.Fatal("failed to connect to L1 geth", "endpoint", cfg.L1ClientAddress, "err", err)
 	}
 
 	l2Client, err := ethclient.Dial(cfg.L2ClientAddress)
 	if err != nil {
-		log.Fatal("failed to connect to L2 geth", "endpoint", cfg.L2ClientAddress, "err", err)
+		logrus.Fatal("failed to connect to L2 geth", "endpoint", cfg.L2ClientAddress, "err", err)
 	}
 	l1ToL2Relayer, err := relayer.NewL1ToL2Relayer(ctx, cfg, l1Client, l2Client, chain, db)
 	if err != nil {
@@ -138,8 +144,7 @@ func StartupL1Watcher(chain *kernel.Kernel, cfg *evm.GethConfig, db *gorm.DB) {
 	go func() {
 		port := cfg.BridgePort
 		if runServerErr := router.Run(fmt.Sprintf(":%s", port)); runServerErr != nil {
-			log.Fatal("run http server failure", "error", runServerErr)
+			logrus.Fatal("run http server failure", "error", runServerErr)
 		}
 	}()
-
 }

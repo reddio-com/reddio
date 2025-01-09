@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -16,6 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/sirupsen/logrus"
 
 	"github.com/reddio-com/reddio/test/contracts"
 	"github.com/reddio-com/reddio/test/pkg"
@@ -148,23 +148,25 @@ func generateTestAuth(client *ethclient.Client, user *pkg.EthWallet, chainID int
 func saveTestDataToFile(filename string, data TestData) {
 	dir := filepath.Dir(filename)
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
-		log.Fatalf("Failed to create directory: %v", err)
+		logrus.Fatalf("Failed to create directory: %v", err)
 	}
 	file, err := os.Create(filename)
 	if err != nil {
-		log.Fatalf("Error creating file: %v", err)
+		logrus.Fatalf("Error creating file: %v", err)
 	}
-	defer file.Close()
+	defer func() {
+		_ = file.Close()
+	}()
 
 	writer := bufio.NewWriter(file)
 
 	encoder := json.NewEncoder(writer)
 	if err := encoder.Encode(&data); err != nil {
-		log.Fatalf("Failed to encode data to JSON: %v", err)
+		logrus.Fatalf("Failed to encode data to JSON: %v", err)
 	}
 
 	if err := writer.Flush(); err != nil {
-		log.Fatalf("Failed to flush writer: %v", err)
+		logrus.Fatalf("Failed to flush writer: %v", err)
 	}
 
 	fmt.Println("Data successfully written to", filename)
@@ -177,7 +179,9 @@ func loadTestDataFromFile(filename string) (TestData, error) {
 	if err != nil {
 		return data, fmt.Errorf("error opening file: %v", err)
 	}
-	defer file.Close()
+	defer func() {
+		_ = file.Close()
+	}()
 
 	reader := bufio.NewReader(file)
 

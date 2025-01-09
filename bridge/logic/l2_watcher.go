@@ -2,20 +2,20 @@ package logic
 
 import (
 	"context"
-	"encoding/json"
 	"math/big"
 	"slices"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/log"
-	backendabi "github.com/reddio-com/reddio/bridge/abi"
-	"github.com/reddio-com/reddio/bridge/orm"
-	"github.com/reddio-com/reddio/evm"
+	"github.com/sirupsen/logrus"
 	yucommon "github.com/yu-org/yu/common"
 	yucontext "github.com/yu-org/yu/core/context"
 	yutypes "github.com/yu-org/yu/core/types"
+
+	backendabi "github.com/reddio-com/reddio/bridge/abi"
+	"github.com/reddio-com/reddio/bridge/orm"
+	"github.com/reddio-com/reddio/evm"
 )
 
 type L2WatcherLogic struct {
@@ -47,16 +47,19 @@ func (f *L2WatcherLogic) L2FetcherUpwardMessageFromLogs(ctx context.Context, blo
 	depth := int(l2BlockCollectionDepth.Int64())
 	blockHeight := block.Height
 	blockTimestampsMap := make(map[uint64]uint64)
+
 	var err error
-	for i := 0; i < depth; i++ {
-		if i > 0 {
-			block, err = f.solidity.Chain.GetBlockByHeight(blockHeight)
-			if err != nil {
-				//fmt.Println("Watcher GetCompactBlock error: ", err)
-				return nil, nil, err
-			}
+	startBlockHeight := int(blockHeight) - depth
+	endBlockHeight := int(blockHeight) - 2*depth
+
+	for height := startBlockHeight; height > endBlockHeight; height-- {
+
+		block, err = f.solidity.Chain.GetBlockByHeight(yucommon.BlockNum(height))
+		if err != nil {
+			//fmt.Println("Watcher GetCompactBlock error: ", err)
+			return nil, nil, err
 		}
-		blockTimestampsMap[uint64(blockHeight)] = block.Timestamp
+		blockTimestampsMap[uint64(height)] = block.Timestamp
 		query := ethereum.FilterQuery{
 			// FromBlock: new(big.Int).SetUint64(from), // inclusive
 			// ToBlock:   new(big.Int).SetUint64(to),   // inclusive
@@ -64,21 +67,19 @@ func (f *L2WatcherLogic) L2FetcherUpwardMessageFromLogs(ctx context.Context, blo
 			Topics:    make([][]common.Hash, 1),
 		}
 		query.Topics[0] = make([]common.Hash, 1)
-		query.Topics[0][0] = backendabi.L2UpwardMessageEventSig
+		query.Topics[0][0] = backendabi.L2SentMessageEventSig
 
 		eventLogs, err := f.FilterLogs(ctx, block, query)
 		if err != nil {
-			//fmt.Println("Watcher GetCompactBlock error: ", err)
+			logrus.Error("FilterLogs err:", err)
 			return nil, nil, err
 		}
 		if len(eventLogs) == 0 {
-			blockHeight--
 			continue
 		}
-		//fmt.Println("Watcher eventLogs: ", eventLogs)
 		upwardMessages, err := f.parser.ParseL2EventLogs(ctx, eventLogs)
 		if err != nil {
-			log.Error("Failed to parse L2 event logs 3", "err", err)
+			logrus.Error("Failed to parse L2 event logs 3", "err", err)
 			return nil, nil, err
 		}
 		allL2CrossMessages = append(allL2CrossMessages, upwardMessages...)
@@ -156,40 +157,15 @@ func (f *L2WatcherLogic) getLogs(ctx context.Context, block *yutypes.Block) ([][
 func (f *L2WatcherLogic) getReceipts(ctx context.Context, block *yutypes.Block) (types.Receipts, error) {
 
 	var receipts []*types.Receipt
-
 	for _, tx := range block.Txns {
-		rcptReq := &evm.ReceiptRequest{Hash: common.Hash(tx.TxnHash)}
-		resp, err := f.adaptChainRead(rcptReq, "GetReceipt")
+		receipt, err := f.solidity.GetEthReceipt(common.Hash(tx.TxnHash))
 		if err != nil {
-			continue
+			return nil, err
 		}
-		receiptResponse := resp.DataInterface.(*evm.ReceiptResponse)
-		if receiptResponse.Err != nil {
-			continue
-		}
-		receipts = append(receipts, receiptResponse.Receipt)
+		receipts = append(receipts, receipt)
 	}
 
 	return receipts, nil
-}
-
-func (f *L2WatcherLogic) adaptChainRead(req any, funcName string) (*yucontext.ResponseData, error) {
-	byt, err := json.Marshal(req)
-	if err != nil {
-		return nil, err
-	}
-
-	rdCall := &yucommon.RdCall{
-		TripodName: "solidity",
-		FuncName:   funcName,
-		Params:     string(byt),
-	}
-
-	resp, err := f.HandleRead(rdCall)
-	if err != nil {
-		return nil, err
-	}
-	return resp, nil
 }
 
 func (f *L2WatcherLogic) HandleRead(rdCall *yucommon.RdCall) (*yucontext.ResponseData, error) {
