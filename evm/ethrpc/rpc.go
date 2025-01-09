@@ -101,12 +101,12 @@ func (s *EthRPC) Serve(ctx context.Context) error {
 
 func logRequestResponse(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ip := getIP(r)
+		//ip := getIP(r)
 		bodyBytes, err := io.ReadAll(r.Body)
 		if err == nil {
 			r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 		}
-		logrus.Infof("[API] IP,request: %s, %s", ip, string(bodyBytes))
+		//logrus.Infof("[API] IP,request: %s, %s", ip, string(bodyBytes))
 
 		rec := &responseRecorder{ResponseWriter: w, body: &bytes.Buffer{}}
 		next.ServeHTTP(rec, r)
