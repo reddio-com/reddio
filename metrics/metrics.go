@@ -45,7 +45,7 @@ var (
 			Subsystem: "batch_txn",
 			Name:      "execute_duration_seconds",
 			Help:      "txn execute duration distribution.",
-			Buckets:   TxnBuckets,
+			Buckets:   prometheus.ExponentialBuckets(10, 2, 20), // 10us ~ 5s
 		},
 		[]string{TypeLbl},
 	)

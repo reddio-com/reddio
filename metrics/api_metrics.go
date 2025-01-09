@@ -18,7 +18,7 @@ var (
 		Subsystem: "ethereum_api",
 		Name:      "op_execute_hist",
 		Help:      "operation execute duration distribution.",
-		Buckets:   TxnBuckets,
+		Buckets:   prometheus.ExponentialBuckets(10, 2, 20), // 10us ~ 5s
 	}, []string{TypeLbl, TypeStatusLbl})
 )
 
