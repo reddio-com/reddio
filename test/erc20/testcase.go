@@ -19,11 +19,12 @@ import (
 )
 
 const (
-	nodeUrl                 = "http://localhost:9092"
-	accountInitialFunds     = 1e18
-	chainID                 = 50341
-	waitForConfirmationTime = 1 * time.Second
-	maxRetries              = 300
+	nodeUrl                  = "http://localhost:9092"
+	accountInitialFunds      = 1e18
+	chainID                  = 50341
+	waitForConfirmationTime  = 1 * time.Second
+	maxRetries               = 300
+	accountInitialERC20Token = 1e18
 )
 
 type TestContract struct {
@@ -38,7 +39,7 @@ type ERC20DeployedContract struct {
 }
 
 type TestCase interface {
-	Prepare(ctx context.Context, m *pkg.WalletManager) (common.Address, error)
+	Prepare(ctx context.Context, m *pkg.WalletManager, client *ethclient.Client, wallets []*pkg.ERC20Wallet) (common.Address, error)
 	Run(ctx context.Context, m *pkg.WalletManager) error
 	Name() string
 }
@@ -56,16 +57,16 @@ type RandomTransferTestCase struct {
 
 	wallets      []*pkg.CaseEthWallet
 	transCase    *pkg.Erc20TransferCase
-	erc20Wallets []*pkg.CaseERC20Wallet
+	erc20Wallets []*pkg.ERC20Wallet
 }
 
-func NewRandomTest(name string, count int, initial uint64, steps int, contractAddr common.Address) *RandomTransferTestCase {
+func NewRandomTest(name string, count int, initial uint64, steps int) *RandomTransferTestCase {
 	return &RandomTransferTestCase{
 		CaseName:     name,
 		walletCount:  count,
 		initialCount: initial,
 		steps:        steps,
-		tm:           pkg.NewErc20TransferManager(contractAddr),
+		tm:           pkg.NewErc20TransferManager(common.Address{}),
 	}
 }
 
@@ -83,13 +84,7 @@ func (tc *RandomTransferTestCase) Run(ctx context.Context, m *pkg.WalletManager)
 	log.Println(fmt.Sprintf("%s create wallets finish", tc.CaseName))
 	tc.wallets = pkg.GenerateCaseWallets(tc.initialCount, wallets)
 
-	contractAddress, err := tc.Prepare(ctx, m)
-	fmt.Println(contractAddress)
-	if err != nil {
-		return err
-	}
-
-	client, err := ethclient.Dial("http://localhost:9092")
+	client, err := ethclient.Dial(nodeUrl)
 	if err != nil {
 		log.Fatalf("Failed to connect to the Ethereum client: %v", err)
 	}
@@ -99,29 +94,28 @@ func (tc *RandomTransferTestCase) Run(ctx context.Context, m *pkg.WalletManager)
 		log.Fatalf("Failed to Close  the Ethereum client: %v", err)
 	}
 
-	var caseERC20Wallets []*pkg.CaseERC20Wallet
+	var erc20Wallets []*pkg.ERC20Wallet
 
 	for _, ethWallet := range tc.wallets {
-		caseERC20Wallets = append(caseERC20Wallets, convertEthWalletToERC20Wallet(ethWallet))
+		erc20Wallets = append(erc20Wallets, convertEthWalletToERC20Wallet(ethWallet))
 	}
 
-	tc.transCase = tc.tm.GenerateRandomErc20TransferSteps(tc.steps, caseERC20Wallets)
-	return runAndAssert(tc.transCase, m, caseERC20Wallets)
+	contractAddress, err := tc.Prepare(ctx, m, client, erc20Wallets)
+	fmt.Println("Contract Address:", contractAddress)
+	if err != nil {
+		return err
+	}
+
+	tc.transCase = tc.tm.GenerateRandomErc20TransferSteps(tc.steps, erc20Wallets, contractAddress)
+	return runAndAssert(tc.transCase, m, erc20Wallets)
 }
 
-func (tc *RandomTransferTestCase) Prepare(ctx context.Context, m *pkg.WalletManager) (common.Address, error) {
+func (tc *RandomTransferTestCase) Prepare(ctx context.Context, m *pkg.WalletManager, client *ethclient.Client, wallets []*pkg.ERC20Wallet) (common.Address, error) {
 	deployerUsers, err := m.GenerateRandomWallets(1, accountInitialFunds)
-	fmt.Println(deployerUsers) // 临时打印变量，避免未使用报错
+	fmt.Println(deployerUsers)
 	if err != nil {
 		return common.Address{}, fmt.Errorf("failed to generate deployer user: %v", err.Error())
 	}
-
-	client, err := ethclient.Dial(nodeUrl)
-
-	if err != nil {
-		return common.Address{}, fmt.Errorf("failed to connect to the Ethereum client: %v", err)
-	}
-	defer client.Close()
 
 	// get gas price
 	gasPrice, err := client.SuggestGasPrice(context.Background())
@@ -129,8 +123,8 @@ func (tc *RandomTransferTestCase) Prepare(ctx context.Context, m *pkg.WalletMana
 		return common.Address{}, fmt.Errorf("failed to suggest gas price: %v", err)
 	}
 
-	contractAddress, err := tc.prepareDeployerContract(deployerUsers[0], gasPrice, client)
-	fmt.Println(contractAddress) // 临时打印变量，避免未使用报错
+	contractAddress, err := tc.prepareDeployerContract(deployerUsers[0], gasPrice, client, wallets)
+	fmt.Println(contractAddress)
 	if err != nil {
 		return common.Address{}, fmt.Errorf("prepare contract failed, err:%v", err)
 	}
@@ -138,7 +132,7 @@ func (tc *RandomTransferTestCase) Prepare(ctx context.Context, m *pkg.WalletMana
 	return contractAddress, nil
 }
 
-func (tc *RandomTransferTestCase) prepareDeployerContract(deployerUser *pkg.EthWallet, gasPrice *big.Int, client *ethclient.Client) (contractAddress common.Address, err error) {
+func (tc *RandomTransferTestCase) prepareDeployerContract(deployerUser *pkg.EthWallet, gasPrice *big.Int, client *ethclient.Client, wallets []*pkg.ERC20Wallet) (contractAddress common.Address, err error) {
 	privateKey, err := crypto.HexToECDSA(deployerUser.PK)
 	if err != nil {
 		return common.Address{}, nil
@@ -147,20 +141,29 @@ func (tc *RandomTransferTestCase) prepareDeployerContract(deployerUser *pkg.EthW
 	depolyerAuth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(chainID))
 	depolyerAuth.GasPrice = gasPrice
 	depolyerAuth.GasLimit = uint64(6e7)
-	depolyerNonce, err := client.PendingNonceAt(context.Background(), common.HexToAddress(deployerUser.Address))
+	//depolyerNonce, err := client.PendingNonceAt(context.Background(), common.HexToAddress(deployerUser.Address))
 
 	if err != nil {
 		return common.Address{}, nil
 	}
 
-	depolyerAuth.Nonce = big.NewInt(int64(depolyerNonce))
+	//depolyerAuth.Nonce = big.NewInt(int64(depolyerNonce))
 
-	contractAddress, err = deployERC20Contracts(depolyerAuth, client)
+	deployedToken, err := deployERC20Contracts(depolyerAuth, client)
 
-	return contractAddress, nil
+	tc.tm = pkg.NewErc20TransferManager(deployedToken.tokenAddress)
+
+	ERC20DeployedContracts := []*ERC20DeployedContract{deployedToken}
+
+	err = dispatchTestToken(client, depolyerAuth, ERC20DeployedContracts, wallets, big.NewInt(accountInitialERC20Token))
+	if err != nil {
+		log.Fatalf("failed to dispatch test tokens: %v", err)
+	}
+
+	return deployedToken.tokenAddress, nil
 }
 
-func runAndAssert(transferCase *pkg.Erc20TransferCase, m *pkg.WalletManager, wallets []*pkg.CaseERC20Wallet) error {
+func runAndAssert(transferCase *pkg.Erc20TransferCase, m *pkg.WalletManager, wallets []*pkg.ERC20Wallet) error {
 	if err := transferCase.Run(m); err != nil {
 		return err
 	}
@@ -173,7 +176,6 @@ func runAndAssert(transferCase *pkg.Erc20TransferCase, m *pkg.WalletManager, wal
 	if !success {
 		return errors.New("transfer manager assert failed")
 	}
-
 	bm := pkg.GetDefaultBlockManager()
 	block, err := bm.GetCurrentBlock()
 	if err != nil {
@@ -184,7 +186,7 @@ func runAndAssert(transferCase *pkg.Erc20TransferCase, m *pkg.WalletManager, wal
 }
 
 func assert(transferCase *pkg.Erc20TransferCase, walletsManager *pkg.WalletManager, wallets []*pkg.ERC20Wallet) (bool, error) {
-	var got map[string]*pkg.CaseERC20Wallet
+	var got map[string]*pkg.ERC20Wallet
 	var success bool
 	var err error
 	for i := 0; i < 20; i++ {
@@ -205,32 +207,32 @@ func assert(transferCase *pkg.Erc20TransferCase, walletsManager *pkg.WalletManag
 	return false, nil
 }
 
-func printChange(got, expect map[string]*pkg.CaseEthWallet, transferCase *pkg.Erc20TransferCase) {
+func printChange(got, expect map[string]*pkg.ERC20Wallet, transferCase *pkg.Erc20TransferCase) {
 	for _, step := range transferCase.Steps {
-		log.Println(fmt.Sprintf("%v transfer %v eth to %v", step.From.Address, step.Count, step.To.Address))
+		log.Println(fmt.Sprintf("%v transfer %v erc20 token to %v", step.From.Address, step.Count, step.To.Address))
 	}
 	for k, v := range got {
 		ev, ok := expect[k]
 		if ok {
-			if v.EthCount != ev.EthCount {
-				log.Println(fmt.Sprintf("%v got:%v expect:%v", k, v.EthCount, ev.EthCount))
+			if v.Balance != ev.Balance {
+				log.Println(fmt.Sprintf("%v got:%v expect:%v", k, v.Balance, ev.Balance))
 			}
 		}
 	}
 }
 
 // deploy Erc20 token contracts
-func deployERC20Contracts(auth *bind.TransactOpts, client *ethclient.Client) (common.Address, error) {
+func deployERC20Contracts(auth *bind.TransactOpts, client *ethclient.Client) (*ERC20DeployedContract, error) {
 	var err error
 
 	deployedToken := &ERC20DeployedContract{}
 	deployedToken.tokenAddress, deployedToken.tokenTransaction, deployedToken.tokenInstance, err = contracts.DeployToken(auth, client)
 
 	if err != nil {
-		return common.Address{}, err
+		return nil, err
 	}
 
-	return deployedToken.tokenAddress, nil
+	return deployedToken, nil
 }
 
 func waitForConfirmation(client *ethclient.Client, txHash common.Hash) (bool, error) {
@@ -247,17 +249,16 @@ func waitForConfirmation(client *ethclient.Client, txHash common.Hash) (bool, er
 	return false, fmt.Errorf("transaction was not confirmed after %d retries", maxRetries)
 }
 
-func dispatchTestToken(client *ethclient.Client, ownerAuth *bind.TransactOpts, ERC20DeployedContracts []*ERC20DeployedContract, testUsers []*pkg.EthWallet, accountInitialERC20Token *big.Int) error {
+func dispatchTestToken(client *ethclient.Client, ownerAuth *bind.TransactOpts, ERC20DeployedContracts []*ERC20DeployedContract, testUsers []*pkg.ERC20Wallet, accountInitialERC20Token *big.Int) error {
 	var lastTxHash common.Hash
 	for _, contract := range ERC20DeployedContracts {
 		for _, user := range testUsers {
 			amount := accountInitialERC20Token
-			tx, err := contract.tokenInstance.Transfer(ownerAuth, common.HexToAddress(user.Address), amount)
+			tx, err := contract.tokenInstance.Transfer(ownerAuth, user.Address, amount)
 			if err != nil {
 				return err
 			}
 			lastTxHash = tx.Hash()
-			ownerAuth.Nonce = ownerAuth.Nonce.Add(ownerAuth.Nonce, big.NewInt(1))
 		}
 	}
 
@@ -268,22 +269,28 @@ func dispatchTestToken(client *ethclient.Client, ownerAuth *bind.TransactOpts, E
 	if !isConfirmed {
 		return fmt.Errorf("transaction %s was not confirmed", lastTxHash.Hex())
 	}
+
+	// for _, contract := range ERC20DeployedContracts {
+	// 	for _, user := range testUsers {
+	// 		callOpts := &bind.CallOpts{
+	// 			Pending: false,
+	// 			Context: context.Background(),
+	// 		}
+	// 		balance, err := contract.tokenInstance.BalanceOf(callOpts, user.Address)
+	// 		if err != nil {
+	// 			return err
+	// 		}
+	// 	}
+	// }
+
 	return nil
 }
 
-func convertEthWalletToERC20Wallet(ethWallet *pkg.CaseEthWallet) *pkg.CaseERC20Wallet {
-	return &pkg.CaseERC20Wallet{
-		ERC20Wallet: &pkg.ERC20Wallet{
-			Address: common.HexToAddress(ethWallet.Address),
-			Balance: 0,
-		},
+func convertEthWalletToERC20Wallet(ethWallet *pkg.CaseEthWallet) *pkg.ERC20Wallet {
+	return &pkg.ERC20Wallet{
+		PK:         ethWallet.PK,
+		Address:    common.HexToAddress(ethWallet.Address),
+		Balance:    0,
 		TokenCount: 0,
-	}
-}
-
-func convertERC20WalletToCaseERC20Wallet(erc20Wallet *pkg.ERC20Wallet, tokenCount uint64) *pkg.CaseERC20Wallet {
-	return &pkg.CaseERC20Wallet{
-		ERC20Wallet: erc20Wallet,
-		TokenCount:  tokenCount,
 	}
 }

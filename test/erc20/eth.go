@@ -49,12 +49,12 @@ func (m *EthManager) Run(ctx context.Context) error {
 }
 
 func (m *EthManager) Prepare(ctx context.Context) error {
-	for _, tc := range m.testcases {
-		log.Println(fmt.Sprintf("start to prepare %v", tc.Name()))
-		if _, err := tc.Prepare(ctx, m.wm); err != nil {
-			return fmt.Errorf("%s failed, err:%v", tc.Name(), err)
-		}
-		log.Println(fmt.Sprintf("prepare %v success", tc.Name()))
-	}
+	// for _, tc := range m.testcases {
+	// 	log.Println(fmt.Sprintf("start to prepare %v", tc.Name()))
+	// 	if _, err := tc.Prepare(ctx, m.wm); err != nil {
+	// 		return fmt.Errorf("%s failed, err:%v", tc.Name(), err)
+	// 	}
+	// 	log.Println(fmt.Sprintf("prepare %v success", tc.Name()))
+	// }
 	return nil
 }

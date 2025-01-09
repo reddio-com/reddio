@@ -133,48 +133,6 @@ func (m *WalletManager) QueryEth(wallet *EthWallet) (uint64, error) {
 	return parse(resp.Result)
 }
 
-func (m *WalletManager) QueryERC20(walletAddress, tokenAddress string) (uint64, error) {
-	data := append([]byte{0x70, 0xa0, 0x82, 0x31}, common.HexToAddress(walletAddress).Bytes()...)
-
-	requestBody := fmt.Sprintf(
-		`{
-			"jsonrpc": "2.0",
-			"id": 0,
-			"method": "eth_call",
-			"params": [{
-				"to": "%s",
-				"data": "%s"
-			}, "latest"]
-		}`, tokenAddress, common.Bytes2Hex(data))
-
-	d, err := sendRequest(m.hostAddress, requestBody)
-	if err != nil {
-		return 0, err
-	}
-
-	resp := &queryResponse{}
-	if err := json.Unmarshal(d, resp); err != nil {
-		return 0, err
-	}
-
-	return parseERC20Balance(resp.Result)
-}
-
-func parseERC20Balance(value string) (uint64, error) {
-	if !strings.HasPrefix(value, "0x") {
-		return 0, fmt.Errorf("invalid response format: %v", value)
-	}
-
-	value = value[2:]
-
-	parsedValue, err := strconv.ParseUint(value, 16, 64)
-	if err != nil {
-		return 0, fmt.Errorf("failed to parse ERC-20 balance: %v", err)
-	}
-
-	return parsedValue, nil
-}
-
 func parse(v string) (uint64, error) {
 	if !strings.HasPrefix(v, "0x") {
 		return 0, fmt.Errorf("%v should start with 0v", v)
@@ -191,13 +149,13 @@ type queryResponse struct {
 }
 
 func (m *WalletManager) transferEth(privateKeyHex string, toAddress string, amount, nonce uint64) error {
-	return m.sendRawTx(privateKeyHex, toAddress, amount, nonce, nil)
+	return m.sendRawTx(privateKeyHex, toAddress, amount, nonce)
 }
 
 var counter = uint64(0)
 
 // sendRawTx is used by transferring and contract creation/invocation.
-func (m *WalletManager) sendRawTx(privateKeyHex string, toAddress string, amount uint64, nonce uint64, data []byte) error {
+func (m *WalletManager) sendRawTx(privateKeyHex string, toAddress string, amount uint64, nonce uint64) error {
 	to := common.HexToAddress(toAddress)
 	gasLimit := uint64(21000)
 	gasPrice := big.NewInt(0)
@@ -205,17 +163,13 @@ func (m *WalletManager) sendRawTx(privateKeyHex string, toAddress string, amount
 	counter++
 	nonce = nonce + counter
 
-	if data == nil {
-		data = []byte{}
-	}
-
 	tx := types.NewTx(&types.LegacyTx{
 		Nonce:    nonce,
 		GasPrice: gasPrice,
 		Gas:      gasLimit,
 		To:       &to,
 		Value:    big.NewInt(int64(amount)),
-		Data:     data,
+		Data:     nil,
 	})
 
 	privateKey, err := crypto.HexToECDSA(privateKeyHex)
@@ -242,33 +196,6 @@ func (m *WalletManager) sendRawTx(privateKeyHex string, toAddress string, amount
 	}`, rawTxBytes)
 	_, err = sendRequest(m.hostAddress, requestBody)
 	return err
-}
-
-func (m *WalletManager) TransferERC20(privateKeyHex, tokenAddress, toAddress string, amount uint64, nonce uint64) error {
-	data := buildERC20TransferData(toAddress, amount)
-
-	return m.sendRawTx(privateKeyHex, tokenAddress, amount, nonce, data)
-}
-
-func buildERC20TransferData(toAddress string, amount uint64) []byte {
-	// ERC-20 `transfer(address to, uint256 value)`
-	transferMethodID := []byte{0xa9, 0x05, 0x9c, 0xbb} // "0xa9059cbb"
-
-	toAddressBytes := common.HexToAddress(toAddress).Bytes()
-
-	amountBytes := padAmountBytes(amount)
-
-	return append(append(transferMethodID, toAddressBytes...), amountBytes...)
-}
-
-func padAmountBytes(amount uint64) []byte {
-	amountBigInt := big.NewInt(int64(amount))
-	amountBytes := amountBigInt.Bytes()
-
-	paddedAmountBytes := make([]byte, 32)
-	copy(paddedAmountBytes[32-len(amountBytes):], amountBytes)
-
-	return paddedAmountBytes
 }
 
 type RawTxReq struct {

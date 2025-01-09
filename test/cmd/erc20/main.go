@@ -58,9 +58,8 @@ func assertErc20Transfer(ctx context.Context, evmCfg *evm.GethConfig) error {
 	ethManager := &erc20.EthManager{}
 	cfg := conf.Config.EthCaseConf
 	ethManager.Configure(cfg, evmCfg)
-	conntractAddress := ethManager.Prepare(ctx)
 	ethManager.AddTestCase(
-		erc20.NewRandomTest("[rand_test 2 account, 1 transfer]", 2, cfg.InitialEthCount, 1, conntractAddress),
+		erc20.NewRandomTest("[rand_test 2 account, 1 transfer]", 2, cfg.InitialEthCount, 1),
 	)
 	return ethManager.Run(ctx)
 }

@@ -1,32 +1,42 @@
 package pkg
 
 import (
+	"context"
+	"fmt"
 	"github.com/ethereum/go-ethereum/common"
+	"math/big"
 	"math/rand"
 	"time"
+
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/reddio-com/reddio/test/contracts"
+)
+
+const (
+	nodeUrl                  = "http://localhost:9092"
+	accountInitialFunds      = 1e18
+	chainID                  = 50341
+	waitForConfirmationTime  = 1 * time.Second
+	maxRetries               = 300
+	accountInitialERC20Token = 1e18
 )
 
 type ERC20Wallet struct {
-	Address common.Address `json:"address"`
-	Balance uint64         `json:"balance"`
-}
-
-type CaseERC20Wallet struct {
-	*ERC20Wallet
-	TokenCount uint64 `json:"tokenCount"`
+	PK         string         `json:"pk"`
+	Address    common.Address `json:"address"`
+	Balance    uint64         `json:"balance"`
+	TokenCount uint64         `json:"tokenCount"`
 }
 
 func (w *ERC20Wallet) Copy() *ERC20Wallet {
 	return &ERC20Wallet{
-		Address: w.Address,
-		Balance: w.Balance,
-	}
-}
-
-func (c *CaseERC20Wallet) Copy() *CaseERC20Wallet {
-	return &CaseERC20Wallet{
-		ERC20Wallet: c.ERC20Wallet.Copy(),
-		TokenCount:  c.TokenCount,
+		PK:         w.PK,
+		Address:    w.Address,
+		Balance:    w.Balance,
+		TokenCount: w.TokenCount,
 	}
 }
 
@@ -40,21 +50,18 @@ func NewErc20TransferManager(contractAddr common.Address) *Erc20TransferManager 
 	}
 }
 
-func GenerateCaseERC20Wallets(initialTokenCount uint64, wallets []*ERC20Wallet) []*CaseERC20Wallet {
-	c := make([]*CaseERC20Wallet, 0)
+func GenerateERC20Wallets(initialTokenCount uint64, wallets []*ERC20Wallet) []*ERC20Wallet {
 	for _, w := range wallets {
-		c = append(c, &CaseERC20Wallet{
-			ERC20Wallet: w,
-			TokenCount:  initialTokenCount,
-		})
+		w.TokenCount = initialTokenCount
 	}
-	return c
+	return wallets
 }
 
-func (m *Erc20TransferManager) GenerateRandomErc20TransferSteps(stepCount int, wallets []*CaseERC20Wallet) *Erc20TransferCase {
+func (m *Erc20TransferManager) GenerateRandomErc20TransferSteps(stepCount int, wallets []*ERC20Wallet, contractAddress common.Address) *Erc20TransferCase {
 	t := &Erc20TransferCase{
-		Original: getCopyERC20(wallets),
-		Expect:   getCopyERC20(wallets),
+		Original:     getCopyERC20(wallets),
+		Expect:       getCopyERC20(wallets),
+		ContractAddr: contractAddress,
 	}
 	steps := make([]*Erc20Step, 0)
 	r := rand.New(rand.NewSource(time.Now().Unix()))
@@ -68,7 +75,7 @@ func (m *Erc20TransferManager) GenerateRandomErc20TransferSteps(stepCount int, w
 	return t
 }
 
-func (m *Erc20TransferManager) GenerateErc20TransferSteps(wallets []*CaseERC20Wallet) *Erc20TransferCase {
+func (m *Erc20TransferManager) GenerateErc20TransferSteps(wallets []*ERC20Wallet) *Erc20TransferCase {
 	t := &Erc20TransferCase{
 		Original: getCopyERC20(wallets),
 		Expect:   getCopyERC20(wallets),
@@ -84,7 +91,7 @@ func (m *Erc20TransferManager) GenerateErc20TransferSteps(wallets []*CaseERC20Wa
 	return t
 }
 
-func (m *Erc20TransferManager) GenerateSameTargetErc20TransferSteps(stepCount int, wallets []*CaseERC20Wallet, target *CaseERC20Wallet) *Erc20TransferCase {
+func (m *Erc20TransferManager) GenerateSameTargetErc20TransferSteps(stepCount int, wallets []*ERC20Wallet, target *ERC20Wallet) *Erc20TransferCase {
 	t := &Erc20TransferCase{
 		Original: getCopyERC20(wallets),
 		Expect:   getCopyERC20(wallets),
@@ -108,36 +115,137 @@ func (m *Erc20TransferManager) GenerateSameTargetErc20TransferSteps(stepCount in
 
 func (tc *Erc20TransferCase) Run(m *WalletManager) error {
 	nonceMap := make(map[string]uint64)
+	client, err := ethclient.Dial(nodeUrl)
+	if err != nil {
+		return fmt.Errorf("Failed to connect to the Ethereum client: %v", err)
+	}
+
+	defer client.Close()
+
 	for _, step := range tc.Steps {
 		fromAddress := step.From.Address.Hex()
 		toAddress := step.To.Address.Hex()
-		contractAddress := step.ContractAddr.Hex()
+		//contractAddress := step.ContractAddr.Hex()
 
 		if _, ok := nonceMap[fromAddress]; ok {
 			nonceMap[fromAddress]++
 		}
-		if err := m.TransferERC20(fromAddress, toAddress, contractAddress, step.Count, nonceMap[fromAddress]); err != nil {
+		privateKey, err := crypto.HexToECDSA(step.From.PK)
+		if err != nil {
+			return err
+		}
+
+		ownerAuth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(50341))
+		if err != nil {
+			return err
+		}
+
+		amount := new(big.Int).SetUint64(step.Count)
+
+		ownerAuth.GasPrice = big.NewInt(0)
+		ownerAuth.GasLimit = uint64(6e7)
+
+		if err := tc.TransferERC20(client, step.ContractAddr, *ownerAuth, fromAddress, toAddress, amount); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (tc *Erc20TransferCase) AssertExpect(m *WalletManager, wallets []*ERC20Wallet) (map[string]*CaseERC20Wallet, bool, error) {
-	got := make(map[string]*CaseERC20Wallet)
-	for _, w := range wallets {
+func (tc *Erc20TransferCase) TransferERC20(client *ethclient.Client, contractAddress common.Address, ownerAuth bind.TransactOpts, fromAddress string, toAddress string, amount *big.Int) error {
+	var lastTxHash common.Hash
 
+	tokenInstance, err := contracts.NewToken(contractAddress, client)
+	if err != nil {
+		return err
+	}
+
+	toAddr := common.HexToAddress(toAddress)
+	tx, err := tokenInstance.Transfer(&ownerAuth, toAddr, amount)
+	if err != nil {
+		return err
+	}
+
+	lastTxHash = tx.Hash()
+	isConfirmed, err := waitForConfirmation(client, lastTxHash)
+	if err != nil {
+		return err
+	}
+	if !isConfirmed {
+		return fmt.Errorf("transaction %s was not confirmed", lastTxHash.Hex())
+	}
+
+	// callOpts := &bind.CallOpts{
+	// 	Pending: false,
+	// 	Context: context.Background(),
+	// }
+	//balance, err := tokenInstance.BalanceOf(callOpts, toAddr)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (tc *Erc20TransferCase) QueryERC20(contractAddress common.Address, address string) (uint64, error) {
+	client, err := ethclient.Dial(nodeUrl)
+	if err != nil {
+		return 0, fmt.Errorf("Failed to connect to the Ethereum client: %v", err)
+	}
+
+	defer client.Close()
+
+	tokenInstance, err := contracts.NewToken(contractAddress, client)
+	if err != nil {
+		return 0, err
+	}
+
+	toAddr := common.HexToAddress(address)
+
+	callOpts := &bind.CallOpts{
+		Pending: false,
+		Context: context.Background(),
+	}
+	balance, err := tokenInstance.BalanceOf(callOpts, toAddr)
+	if err != nil {
+		return 0, err
+	}
+
+	return balance.Uint64(), nil
+}
+
+func waitForConfirmation(client *ethclient.Client, txHash common.Hash) (bool, error) {
+	for i := 0; i < maxRetries; i++ {
+		receipt, err := client.TransactionReceipt(context.Background(), txHash)
+		if err == nil {
+			if receipt.Status == types.ReceiptStatusSuccessful {
+				return true, nil
+			}
+			return false, fmt.Errorf("transaction failed with status: %v", receipt.Status)
+		}
+		time.Sleep(waitForConfirmationTime)
+	}
+	return false, fmt.Errorf("transaction was not confirmed after %d retries", maxRetries)
+}
+
+func (tc *Erc20TransferCase) AssertExpect(m *WalletManager, wallets []*ERC20Wallet) (map[string]*ERC20Wallet, bool, error) {
+	got := make(map[string]*ERC20Wallet)
+	for _, w := range wallets {
 		addressStr := w.Address.Hex()
 
-		c, err := m.QueryERC20(addressStr, tc.ContractAddr.Hex())
+		c, err := tc.QueryERC20(tc.ContractAddr, addressStr)
 		if err != nil {
 			return nil, false, err
 		}
-		got[addressStr] = &CaseERC20Wallet{
-			ERC20Wallet: w,
-			TokenCount:  c,
+
+		got[addressStr] = &ERC20Wallet{
+			PK:         w.PK,
+			Address:    w.Address,
+			Balance:    w.Balance,
+			TokenCount: c,
 		}
 	}
+
 	if len(tc.Expect) != len(got) {
 		return got, false, nil
 	}
@@ -146,7 +254,7 @@ func (tc *Erc20TransferCase) AssertExpect(m *WalletManager, wallets []*ERC20Wall
 		if !ok {
 			return got, false, nil
 		}
-		if e.TokenCount != value.TokenCount {
+		if e.Balance != value.Balance {
 			return got, false, nil
 		}
 	}
@@ -159,7 +267,7 @@ func calculateExpectERC20(tc *Erc20TransferCase) {
 	}
 }
 
-func calculateERC20(step *Erc20Step, expect map[string]*CaseERC20Wallet) {
+func calculateERC20(step *Erc20Step, expect map[string]*ERC20Wallet) {
 	fromAddress := step.From.Address.Hex()
 	toAddress := step.To.Address.Hex()
 
@@ -172,40 +280,40 @@ func calculateERC20(step *Erc20Step, expect map[string]*CaseERC20Wallet) {
 	expect[toAddress] = toWallet
 }
 
-func generateRandomERC20Step(r *rand.Rand, wallets []*CaseERC20Wallet, contractAddr common.Address, transfer int) *Erc20Step {
+func generateRandomERC20Step(r *rand.Rand, wallets []*ERC20Wallet, contractAddr common.Address, transfer int) *Erc20Step {
 	from := r.Intn(len(wallets))
 	to := from + 1
 	if to >= len(wallets) {
 		to = 0
 	}
 	return &Erc20Step{
-		From:         wallets[from].ERC20Wallet,
-		To:           wallets[to].ERC20Wallet,
+		From:         wallets[from],
+		To:           wallets[to],
 		Count:        uint64(transfer),
 		ContractAddr: contractAddr,
 	}
 }
 
-func generateERC20Step(from, to *CaseERC20Wallet, contractAddr common.Address, transfer int) *Erc20Step {
+func generateERC20Step(from, to *ERC20Wallet, contractAddr common.Address, transfer int) *Erc20Step {
 	return &Erc20Step{
-		From:         from.ERC20Wallet,
-		To:           to.ERC20Wallet,
+		From:         from,
+		To:           to,
 		Count:        uint64(transfer),
 		ContractAddr: contractAddr,
 	}
 }
 
-func generateERC20TransferStep(from, to *CaseERC20Wallet, contractAddr common.Address, transferCount int) *Erc20Step {
+func generateERC20TransferStep(from, to *ERC20Wallet, contractAddr common.Address, transferCount int) *Erc20Step {
 	return &Erc20Step{
-		From:         from.ERC20Wallet,
-		To:           to.ERC20Wallet,
+		From:         from,
+		To:           to,
 		Count:        uint64(transferCount),
 		ContractAddr: contractAddr,
 	}
 }
 
-func getCopyERC20(wallets []*CaseERC20Wallet) map[string]*CaseERC20Wallet {
-	m := make(map[string]*CaseERC20Wallet)
+func getCopyERC20(wallets []*ERC20Wallet) map[string]*ERC20Wallet {
+	m := make(map[string]*ERC20Wallet)
 	for _, w := range wallets {
 		addressStr := w.Address.Hex()
 		m[addressStr] = w.Copy()
@@ -216,9 +324,9 @@ func getCopyERC20(wallets []*CaseERC20Wallet) map[string]*CaseERC20Wallet {
 type Erc20TransferCase struct {
 	Steps []*Erc20Step `json:"steps"`
 	// address to wallet
-	Original     map[string]*CaseERC20Wallet `json:"original"`
-	Expect       map[string]*CaseERC20Wallet `json:"expect"`
-	ContractAddr common.Address              `json:"contractAddress"`
+	Original     map[string]*ERC20Wallet `json:"original"`
+	Expect       map[string]*ERC20Wallet `json:"expect"`
+	ContractAddr common.Address          `json:"contractAddress"`
 }
 
 type Erc20Step struct {
