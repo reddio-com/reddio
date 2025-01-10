@@ -19,6 +19,7 @@ var (
 	yuConfigPath  string
 	poaConfigPath string
 	isParallel    bool
+	useSql        bool
 )
 
 func init() {
@@ -26,6 +27,7 @@ func init() {
 	flag.StringVar(&yuConfigPath, "yuConfigPath", "./conf/yu.toml", "")
 	flag.StringVar(&poaConfigPath, "poaConfigPath", "./conf/poa.toml", "")
 	flag.BoolVar(&isParallel, "parallel", true, "")
+	flag.BoolVar(&useSql, "use-sql", false, "")
 }
 
 func main() {
