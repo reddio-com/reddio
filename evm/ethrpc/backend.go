@@ -103,6 +103,9 @@ func GetAPIs(apiBackend Backend) []rpc.API {
 		}, {
 			Namespace: "net",
 			Service:   NewNetAPI(nil, 0),
+		}, {
+			Namespace: "web3",
+			Service:   NewWeb3API(apiBackend),
 		},
 	}
 }
