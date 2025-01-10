@@ -27,11 +27,6 @@ const (
 	accountInitialERC20Token = 1e18
 )
 
-type TestContract struct {
-	UniswapV2Router common.Address      `json:"uniswapV2Router"`
-	TokenPairs      [][2]common.Address `json:"tokenPairs"`
-}
-
 type ERC20DeployedContract struct {
 	tokenAddress     common.Address
 	tokenTransaction *types.Transaction
