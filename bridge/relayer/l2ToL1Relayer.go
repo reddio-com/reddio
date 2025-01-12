@@ -114,7 +114,7 @@ func (b *L2ToL1Relayer) HandleUpwardMessage(msgs []*orm.CrossMessage, blockTimes
 			logrus.Errorf("Failed to insert or update L2 messages: %v", err)
 		}
 	}
-	
+
 	return nil
 }
 
