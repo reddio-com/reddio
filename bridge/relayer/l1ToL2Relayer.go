@@ -32,7 +32,7 @@ import (
 	"github.com/reddio-com/reddio/metrics"
 )
 
-type L1ToL2Relayer struct {
+type L1Relayer struct {
 	ctx             context.Context
 	cfg             *evm.GethConfig
 	l2Client        *ethclient.Client
@@ -84,10 +84,10 @@ type TransactionArgs struct {
 	blobSidecarAllowed bool
 }
 
-func NewL1ToL2Relayer(ctx context.Context, cfg *evm.GethConfig, l1Client *ethclient.Client, l2Client *ethclient.Client, chain *kernel.Kernel, db *gorm.DB) (*L1ToL2Relayer, error) {
+func NewL1Relayer(ctx context.Context, cfg *evm.GethConfig, l1Client *ethclient.Client, l2Client *ethclient.Client, chain *kernel.Kernel, db *gorm.DB) (*L1Relayer, error) {
 	l1EventParser := logic.NewL1EventParser(cfg, l2Client)
 
-	relayer := &L1ToL2Relayer{
+	relayer := &L1Relayer{
 		ctx:             ctx,
 		cfg:             cfg,
 		l2Client:        l2Client,
@@ -101,7 +101,7 @@ func NewL1ToL2Relayer(ctx context.Context, cfg *evm.GethConfig, l1Client *ethcli
 
 	return relayer, nil
 }
-func (b *L1ToL2Relayer) startPolling() {
+func (b *L1Relayer) startPolling() {
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
@@ -115,7 +115,7 @@ func (b *L1ToL2Relayer) startPolling() {
 	}
 }
 
-func (b *L1ToL2Relayer) pollUnconsumedMessages() {
+func (b *L1Relayer) pollUnconsumedMessages() {
 	ctx := context.Background()
 	//messages, err := r.crossMessageOrm.QueryL1UnConsumedMessages(ctx, btypes.TxTypeDeposit)
 	messages, err := b.crossMessageOrm.QueryUnConsumedMessages(ctx, btypes.TxTypeDeposit)
@@ -176,7 +176,7 @@ func (b *L1ToL2Relayer) pollUnconsumedMessages() {
 		// }
 	}
 }
-func (b *L1ToL2Relayer) isL2MessageExecuted(messageHash string) (bool, error) {
+func (b *L1Relayer) isL2MessageExecuted(messageHash string) (bool, error) {
 	contractAddress := common.HexToAddress(b.cfg.ChildLayerContractAddress)
 	instance, err := contract.NewUpwardMessageDispatcherFacet(contractAddress, b.l1Client)
 	if err != nil {
@@ -191,7 +191,7 @@ func (b *L1ToL2Relayer) isL2MessageExecuted(messageHash string) (bool, error) {
 	return executed, nil
 }
 
-func (b *L1ToL2Relayer) HandleRelayerMessage(msg *contract.UpwardMessageDispatcherFacetRelayedMessage) error {
+func (b *L1Relayer) HandleRelayerMessage(msg *contract.UpwardMessageDispatcherFacetRelayedMessage) error {
 	relayedMessages, err := b.l1EventParser.ParseL1RelayMessagePayload(b.ctx, msg)
 	if err != nil {
 		logrus.Infof("Failed to parse L1 cross chain payload: %v", err)
@@ -204,7 +204,7 @@ func (b *L1ToL2Relayer) HandleRelayerMessage(msg *contract.UpwardMessageDispatch
 }
 
 // HandleDownwardMessageWithSystemCall handles the downward message
-func (b *L1ToL2Relayer) HandleDownwardMessageWithSystemCall(msg *contract.ParentBridgeCoreFacetQueueTransaction) error {
+func (b *L1Relayer) HandleDownwardMessageWithSystemCall(msg *contract.ParentBridgeCoreFacetQueueTransaction) error {
 	// 1. parse downward message
 	// 2. setup auth
 	// 3. send downward message to child layer contract by calling downwardMessageDispatcher.ReceiveDownwardMessages
@@ -389,7 +389,7 @@ func newTxArgsFromTx(tx *types.Transaction) *TransactionArgs {
 
 	return &args
 }
-func (b *L1ToL2Relayer) systemCall(ctx context.Context, signedTx *types.Transaction) error {
+func (b *L1Relayer) systemCall(ctx context.Context, signedTx *types.Transaction) error {
 	// Check if this tx has been created
 	v, r, s := signedTx.RawSignatureValues()
 	txArg := newTxArgsFromTx(signedTx)
@@ -435,7 +435,7 @@ func (b *L1ToL2Relayer) systemCall(ctx context.Context, signedTx *types.Transact
 	return nil
 }
 
-func (b *L1ToL2Relayer) createRefundMessage(msgs []*orm.CrossMessage) error {
+func (b *L1Relayer) createRefundMessage(msgs []*orm.CrossMessage) error {
 	privateKey, err := LoadPrivateKey("bridge/relayer/.sepolia.env")
 	if err != nil {
 		logrus.Fatalf("Error loading private key: %v", err)
@@ -486,7 +486,7 @@ func (b *L1ToL2Relayer) createRefundMessage(msgs []*orm.CrossMessage) error {
 	return nil
 }
 
-func (b *L1ToL2Relayer) insertDepositMessage(msgs []*orm.CrossMessage, messageNonce *big.Int) error {
+func (b *L1Relayer) insertDepositMessage(msgs []*orm.CrossMessage, messageNonce *big.Int) error {
 
 	for _, msg := range msgs {
 		var downwardMessages []contract.UpwardMessage

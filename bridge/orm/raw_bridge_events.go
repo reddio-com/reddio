@@ -36,8 +36,8 @@ type RawBridgeEvents struct {
 	UpdatedAt          time.Time  `json:"updated_at" gorm:"column:updated_at"`
 	DeletedAt          *time.Time `json:"deleted_at" gorm:"column:deleted_at"`
 	Remark             string     `json:"remark" gorm:"column:remark"`
-	Status             int        `json:"status" gorm:"column:status"`
-	CheckStatus        int        `json:"check_status" gorm:"column:check_status"`
+	Status             int        `json:"status" gorm:"column:status"`             // 1.success 2.failed
+	CheckStatus        int        `json:"check_status" gorm:"column:check_status"` // 1.checked1 2.checked2
 }
 
 // TableName returns the table name for the BridgeEvents model.

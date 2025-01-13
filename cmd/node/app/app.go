@@ -122,12 +122,12 @@ func StartupL1Watcher(chain *kernel.Kernel, cfg *evm.GethConfig, db *gorm.DB) {
 	if err != nil {
 		logrus.Fatal("failed to connect to L2 geth", "endpoint", cfg.L2ClientAddress, "err", err)
 	}
-	l1ToL2Relayer, err := relayer.NewL1ToL2Relayer(ctx, cfg, l1Client, l2Client, chain, db)
+	l1Relayer, err := relayer.NewL1Relayer(ctx, cfg, l1Client, l2Client, chain, db)
 	if err != nil {
 		logrus.Fatal("init bridge relayer failed: ", err)
 	}
 
-	l1Watcher, err := watcher.NewL1EventsWatcher(ctx, cfg, l1Client, l1ToL2Relayer)
+	l1Watcher, err := watcher.NewL1EventsWatcher(ctx, cfg, l1Client, l1Relayer)
 	if err != nil {
 		logrus.Fatal("init L1 client failed: ", err)
 	}
