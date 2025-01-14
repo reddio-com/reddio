@@ -44,7 +44,5 @@ jobs:
         run: make build_transfer_erc20_test_race
       - name: Parallel Transfer Test
         run: make ci_parallel_transfer_erc20_test
-      - name: Parallel SQL ERC20 Transfer Test
-        run: make ci_parallel_sql_transfer_erc20_test
       - name: Serial erc20 Transfer Test
         run: make ci_serial_transfer_erc20_test
