@@ -64,20 +64,17 @@ func StartUpChain(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm
 	ethrpc.StartupEthRPC(chain, evmCfg)
 
 	StartupL1Watcher(chain, evmCfg, db)
-
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-
-	go func() {
-		<-sigCh
-		if evmCfg.EnableBridge {
-			if err := database.CloseDB(db); err != nil {
-				logrus.Fatal("Failed to close database:", "error", err)
-			}
-		}
-		os.Exit(0)
-	}()
 	chain.Startup()
+	logrus.Info("start the server")
+	sigint := make(chan os.Signal, 1)
+	signal.Notify(sigint, os.Interrupt, syscall.SIGTERM)
+	select {
+	case <-sigint:
+		logrus.Info("stop the server")
+		chain.Stop()
+		chain.WaitExit()
+	}
+
 }
 
 func InitReddio(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm.GethConfig, db *gorm.DB) *kernel.Kernel {
