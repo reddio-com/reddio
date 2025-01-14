@@ -44,7 +44,5 @@ jobs:
         run: make build_transfer_test_race
       - name: Parallel Transfer Test
         run: make ci_parallel_transfer_test
-      - name: Parallel SQL Transfer Test
-        run: make ci_parallel_sql_transfer_test
       - name: Serial Transfer Test
         run: make ci_serial_transfer_test

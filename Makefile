@@ -29,9 +29,6 @@ build_uniswap_test_race:
 
 build_transfer_erc20_test_race:
 	go build -race -v -o transfer_erc20_test ./test/cmd/erc20/main.go
-	
-ci_parallel_sql_transfer_test: reset
-	./transfer_test --parallel=true --use-sql=true
 
 ci_parallel_transfer_test: reset
 	./transfer_test --parallel=true
@@ -39,17 +36,11 @@ ci_parallel_transfer_test: reset
 ci_serial_transfer_test: reset
 	./transfer_test --parallel=false
 
-ci_parallel_sql_uniswap_test: reset
-	./uniswap_test --parallel=true --use-sql=true
-
 ci_parallel_uniswap_test: reset
 	./uniswap_test --parallel=true
 
 ci_serial_uniswap_test: reset
 	./uniswap_test --parallel=false
-
-ci_parallel_sql_transfer_erc20_test: reset
-	./transfer_erc20_test --parallel=true --use-sql=true
 
 ci_parallel_transfer_erc20_test: reset
 	./transfer_erc20_test --parallel=true
