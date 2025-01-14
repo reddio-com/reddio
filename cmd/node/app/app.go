@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 
 	"github.com/common-nighthawk/go-figure"
@@ -68,8 +67,6 @@ func StartUpChain(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-	var wg sync.WaitGroup
-
 	go func() {
 		<-sigCh
 		if evmCfg.EnableBridge {
@@ -77,12 +74,9 @@ func StartUpChain(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm
 				logrus.Fatal("Failed to close database:", "error", err)
 			}
 		}
-		wg.Wait()
 		os.Exit(0)
 	}()
 	chain.Startup()
-
-	wg.Wait()
 
 }
 
