@@ -1,0 +1,50 @@
+# This workflow will build a golang project
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
+
+name: ERC20Transfer
+
+on:
+  push:
+    branches: ["main"]
+    paths-ignore:
+      - "**/docs/**"
+      - "**/README.md"
+  pull_request:
+    branches: ["main"]
+    paths-ignore:
+      - "**/docs/**"
+      - "**/README.md"
+
+jobs:
+  transfer:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:5.7
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: test
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: "1.23"
+
+      - name: Run Makefile check-mod-tidy
+        run: make check-mod-tidy
+      - name: Build
+        run: make build
+      - name: Build Test
+        run: make build_transfer_erc20_test_race
+      - name: Parallel Transfer Test
+        run: make ci_parallel_transfer_erc20_test
+      - name: Parallel SQL ERC20 Transfer Test
+        run: make ci_parallel_sql_transfer_erc20_test
+      - name: Serial erc20 Transfer Test
+        run: make ci_serial_transfer_erc20_test
