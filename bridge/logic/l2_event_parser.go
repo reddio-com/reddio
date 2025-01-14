@@ -92,8 +92,8 @@ func (e *L2EventParser) ParseL2SingleCrossChainEventLogs(ctx context.Context, lo
 				logrus.Error("Failed to unpack UpwardMessage event", "err", err)
 				return nil, err
 			}
-			switch utils.MessagePayloadType(event.PayloadType) {
-			case utils.ETH:
+			switch btypes.MessagePayloadType(event.PayloadType) {
+			case btypes.PayloadTypeETH:
 				payloadHex := hex.EncodeToString(event.Payload)
 				l2ETHBurntMsg, err := decodeL2ETHBurnt(payloadHex)
 				if err != nil {
@@ -121,7 +121,7 @@ func (e *L2EventParser) ParseL2SingleCrossChainEventLogs(ctx context.Context, lo
 					CreatedAt:    time.Now().UTC(),
 					UpdatedAt:    time.Now().UTC(),
 				})
-			case utils.ERC20:
+			case btypes.PayloadTypeERC20:
 				payloadHex := hex.EncodeToString(event.Payload)
 
 				l2ERC20BurntMsg, err := decodeERC20TokenBurnt(payloadHex)
@@ -153,7 +153,7 @@ func (e *L2EventParser) ParseL2SingleCrossChainEventLogs(ctx context.Context, lo
 					UpdatedAt:    time.Now().UTC(),
 				})
 
-			case utils.RED:
+			case btypes.PayloadTypeRED:
 				payloadHex := hex.EncodeToString(event.Payload)
 
 				l2REDBurntMsg, err := decodeREDTokenBurnt(payloadHex)

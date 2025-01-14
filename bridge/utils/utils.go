@@ -20,16 +20,6 @@ import (
 	yu_common "github.com/yu-org/yu/common"
 )
 
-type MessagePayloadType int
-
-const (
-	ETH MessagePayloadType = iota
-	ERC20
-	ERC721
-	ERC1155
-	RED
-)
-
 // Loop Run the f func periodically.
 func Loop(ctx context.Context, period time.Duration, f func()) {
 	tick := time.NewTicker(period)

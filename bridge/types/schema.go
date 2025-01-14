@@ -7,6 +7,9 @@ import (
 )
 
 const (
+	Sepolia = 11155111
+	Reddio  = 50341
+
 	// Success indicates that the operation was successful.
 	Success = 0
 	// InternalServerError represents a fatal error occurring on the server.
@@ -17,6 +20,25 @@ const (
 	ErrGetL2ClaimableWithdrawalsError = 40002
 	// ErrGetTxsError represents an error when trying to get transactions by address.
 	ErrGetTxsError = 40003
+)
+
+type EventType int
+
+const (
+	QueueTransaction EventType = iota + 1 // 1. QueueTransaction (L1DepositMsgSent)
+	L2RelayedMessage                      // 2. L2RelayedMessage (L2DepositMsgConsumed)
+	SentMessage                           // 3. SentMessage (L2withdrawMsgSent)
+	L1RelayedMessage                      // 4. L1RelayedMessage (L2DepositMsgConsumed)
+)
+
+type MessagePayloadType int
+
+const (
+	PayloadTypeETH MessagePayloadType = iota
+	PayloadTypeERC20
+	PayloadTypeERC721
+	PayloadTypeERC1155
+	PayloadTypeRED
 )
 
 type TokenType int

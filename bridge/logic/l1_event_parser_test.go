@@ -11,7 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/reddio-com/reddio/bridge/contract"
-	"github.com/reddio-com/reddio/bridge/utils"
+	btypes "github.com/reddio-com/reddio/bridge/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -37,7 +37,7 @@ func TestETHParseL1SingleCrossChainEventLogs(t *testing.T) {
 		nil,                        // data
 	)
 	msg := &contract.ParentBridgeCoreFacetQueueTransaction{
-		PayloadType: uint32(utils.ETH),
+		PayloadType: uint32(btypes.ETH),
 		Payload:     payload,
 		Raw: types.Log{
 			TxHash:      tx.Hash(),
@@ -54,7 +54,7 @@ func TestETHParseL1SingleCrossChainEventLogs(t *testing.T) {
 	lastMessage := l1DepositMessages[0]
 	assert.Equal(t, "0x7888b7B844B4B16c03F8daCACef7dDa0F5188645", lastMessage.Sender)
 	assert.Equal(t, "0x7888b7B844B4B16c03F8daCACef7dDa0F5188645", lastMessage.Receiver)
-	assert.Equal(t, int(uint32(utils.ETH)), lastMessage.TokenType)
+	assert.Equal(t, int(uint32(btypes.ETH)), lastMessage.TokenType)
 	assert.Equal(t, "100", lastMessage.TokenAmounts)
 }
 func TestREDParseL1SingleCrossChainEventLogs(t *testing.T) {
@@ -75,7 +75,7 @@ func TestREDParseL1SingleCrossChainEventLogs(t *testing.T) {
 		nil,                        // data
 	)
 	msg := &contract.ParentBridgeCoreFacetQueueTransaction{
-		PayloadType: uint32(utils.RED),
+		PayloadType: uint32(btypes.RED),
 		Payload:     payload,
 		Raw: types.Log{
 			TxHash:      tx.Hash(),
@@ -93,7 +93,7 @@ func TestREDParseL1SingleCrossChainEventLogs(t *testing.T) {
 	assert.Equal(t, "0xB878927d79975BDb288ab53271f171534A49eb7D", lastMessage.L1TokenAddress)
 	assert.Equal(t, "0x7888b7B844B4B16c03F8daCACef7dDa0F5188645", lastMessage.Sender)
 	assert.Equal(t, "0x7888b7B844B4B16c03F8daCACef7dDa0F5188645", lastMessage.Receiver)
-	assert.Equal(t, int(uint32(utils.RED)), lastMessage.TokenType)
+	assert.Equal(t, int(uint32(btypes.RED)), lastMessage.TokenType)
 	assert.Equal(t, "100", lastMessage.TokenAmounts)
 }
 
@@ -114,7 +114,7 @@ func TestERC20ParseL1SingleCrossChainEventLogs(t *testing.T) {
 		nil,                        // data
 	)
 	msg := &contract.ParentBridgeCoreFacetQueueTransaction{
-		PayloadType: uint32(utils.ERC20),
+		PayloadType: uint32(btypes.ERC20),
 		Payload:     payload,
 		Raw: types.Log{
 			TxHash:      tx.Hash(),
@@ -132,7 +132,7 @@ func TestERC20ParseL1SingleCrossChainEventLogs(t *testing.T) {
 	assert.Equal(t, "0xF1E77FF9A4d4fc09CD955EfC44cB843617C73F23", lastMessage.L1TokenAddress)
 	assert.Equal(t, "0x0CC0cD4A9024A2d15BbEdd348Fbf7Cd69B5489bA", lastMessage.Sender)
 	assert.Equal(t, "0x0CC0cD4A9024A2d15BbEdd348Fbf7Cd69B5489bA", lastMessage.Receiver)
-	assert.Equal(t, int(uint32(utils.ERC20)), lastMessage.TokenType)
+	assert.Equal(t, int(uint32(btypes.ERC20)), lastMessage.TokenType)
 	assert.Equal(t, "100", lastMessage.TokenAmounts)
 }
 
@@ -154,7 +154,7 @@ func TestERC20ParseL1SingleCrossChainEventLogs2(t *testing.T) {
 		nil,                        // data
 	)
 	msg := &contract.ParentBridgeCoreFacetQueueTransaction{
-		PayloadType: uint32(utils.ERC20),
+		PayloadType: uint32(btypes.ERC20),
 		Payload:     payload,
 		Raw: types.Log{
 			TxHash:      tx.Hash(),
@@ -172,7 +172,7 @@ func TestERC20ParseL1SingleCrossChainEventLogs2(t *testing.T) {
 	assert.Equal(t, "0x9627E313C18be25fC03100bbD3bf48743B4dee70", lastMessage.L1TokenAddress)
 	assert.Equal(t, "0x7888b7B844B4B16c03F8daCACef7dDa0F5188645", lastMessage.Sender)
 	assert.Equal(t, "0x7888b7B844B4B16c03F8daCACef7dDa0F5188645", lastMessage.Receiver)
-	assert.Equal(t, int(uint32(utils.ERC20)), lastMessage.TokenType)
+	assert.Equal(t, int(uint32(btypes.ERC20)), lastMessage.TokenType)
 	assert.Equal(t, "100", lastMessage.TokenAmounts)
 }
 
@@ -194,7 +194,7 @@ func TestERC20ParseL1SingleCrossChainEventLogs3(t *testing.T) {
 		nil,                        // data
 	)
 	msg := &contract.ParentBridgeCoreFacetQueueTransaction{
-		PayloadType: uint32(utils.ERC20),
+		PayloadType: uint32(btypes.ERC20),
 		Payload:     payload,
 		Raw: types.Log{
 			TxHash:      tx.Hash(),
@@ -212,6 +212,6 @@ func TestERC20ParseL1SingleCrossChainEventLogs3(t *testing.T) {
 	assert.Equal(t, "0x9627E313C18be25fC03100bbD3bf48743B4dee71", lastMessage.L1TokenAddress)
 	assert.Equal(t, "0x7888b7B844B4B16c03F8daCACef7dDa0F5188645", lastMessage.Sender)
 	assert.Equal(t, "0x7888b7B844B4B16c03F8daCACef7dDa0F5188645", lastMessage.Receiver)
-	assert.Equal(t, int(uint32(utils.ERC20)), lastMessage.TokenType)
+	assert.Equal(t, int(uint32(btypes.ERC20)), lastMessage.TokenType)
 	assert.Equal(t, "100", lastMessage.TokenAmounts)
 }

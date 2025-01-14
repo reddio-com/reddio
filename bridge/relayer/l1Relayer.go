@@ -85,7 +85,7 @@ type TransactionArgs struct {
 }
 
 func NewL1Relayer(ctx context.Context, cfg *evm.GethConfig, l1Client *ethclient.Client, l2Client *ethclient.Client, chain *kernel.Kernel, db *gorm.DB) (*L1Relayer, error) {
-	l1EventParser := logic.NewL1EventParser(cfg, l2Client)
+	l1EventParser := logic.NewL1EventParser(cfg)
 
 	relayer := &L1Relayer{
 		ctx:             ctx,

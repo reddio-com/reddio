@@ -51,19 +51,18 @@ func NewBridgeEvents(db *gorm.DB) *RawBridgeEvents {
 }
 
 // InsertBridgeEvents inserts a new BridgeEvents record into the database.
-func (b *RawBridgeEvents) InsertBridgeEvents(ctx context.Context, bridgeEvents []*RawBridgeEvents) error {
+func (b *RawBridgeEvents) InsertRawBridgeEvents(ctx context.Context, bridgeEvents []*RawBridgeEvents) error {
 	if len(bridgeEvents) == 0 {
 		return nil
 	}
 	db := b.db
 	db = db.WithContext(ctx)
 	db = db.Model(&RawBridgeEvents{})
-	// 'tx_status' column is not explicitly assigned during the update to prevent a later status from being overwritten back to "sent".
 
 	for _, event := range bridgeEvents {
 		if err := db.Create(event).Error; err != nil {
 			if isDuplicateEntryError(err) {
-				fmt.Printf("Message with hash %s already exists, skipping insert.\n", event.MessageHash)
+				fmt.Errorf("Message with hash %s already exists, skipping insert.\n", event.MessageHash)
 				continue
 			}
 			return fmt.Errorf("failed to insert message, error: %w", err)
@@ -74,3 +73,19 @@ func (b *RawBridgeEvents) InsertBridgeEvents(ctx context.Context, bridgeEvents [
 func isDuplicateEntryError(err error) bool {
 	return strings.Contains(err.Error(), "Error 1062")
 }
+
+// func (b *RawBridgeEvents) Queryl1DepositMessage(ctx context.Context, tx_type btypes.TxType) ([]*RawBridgeEvents, error) {
+// 	var messages []*CrossMessage
+
+// 	db := c.db.WithContext(ctx)
+// 	db = db.Model(&CrossMessage{})
+// 	db = db.Where("tx_status = ?", btypes.TxStatusTypeSent)
+// 	db = db.Where("tx_type = ?", tx_type)
+// 	db = db.Where("created_at >= DATE_SUB(NOW(), INTERVAL 1 DAY)")
+// 	db = db.Order("block_timestamp desc")
+// 	db = db.Limit(500)
+// 	if err := db.Find(&messages).Error; err != nil {
+// 		return nil, fmt.Errorf("failed to get L2 UnConsumed message, err: %v", err)
+// 	}
+// 	return messages, nil
+// }
