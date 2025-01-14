@@ -8,6 +8,7 @@
 data
 reddio
 transfer_test
+transfer_erc20_test
 benchmark_test
 uniswap_test
 uniswap_benchmark_test

@@ -18,7 +18,7 @@ var (
 		Subsystem: "solidity",
 		Name:      "op_execute_hist",
 		Help:      "solidity operation execute duration distribution.",
-		Buckets:   TxnBuckets,
+		Buckets:   prometheus.ExponentialBuckets(10, 2, 20), // 10us ~ 5s
 	}, []string{TypeLbl})
 )
 

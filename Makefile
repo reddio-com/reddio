@@ -16,6 +16,9 @@ build_uniswap_test_no_race:
 build_uniswap_benchmark_test:
 	go build -v -o uniswap_benchmark_test ./test/cmd/uniswap_benchmark/main.go
 
+build_transfer_erc20_test_no_race:
+	go build -v -o transfer_erc20_test ./test/cmd/erc20/main.go
+
 ## for ci
 
 build_transfer_test_race:
@@ -24,6 +27,9 @@ build_transfer_test_race:
 build_uniswap_test_race:
 	go build -race -v -o uniswap_test ./test/cmd/uniswap/main.go
 
+build_transfer_erc20_test_race:
+	go build -race -v -o transfer_erc20_test ./test/cmd/erc20/main.go
+	
 ci_parallel_sql_transfer_test: reset
 	./transfer_test --parallel=true --use-sql=true
 
@@ -41,6 +47,24 @@ ci_parallel_uniswap_test: reset
 
 ci_serial_uniswap_test: reset
 	./uniswap_test --parallel=false
+
+ci_parallel_sql_transfer_erc20_test: reset
+	./transfer_erc20_test --parallel=true --use-sql=true
+
+ci_parallel_transfer_erc20_test: reset
+	./transfer_erc20_test --parallel=true
+
+ci_serial_transfer_erc20_test: reset
+	./transfer_erc20_test --parallel=FALSE
+
+build_state_root_test:
+	go build -v -o state_root_test ./test/cmd/state_root/main.go
+
+state_root_test_gen: reset
+	./state_root_test --action=gen
+
+state_root_test_assert: reset
+	./state_root_test --action=assert
 
 ## for local benchmark
 
