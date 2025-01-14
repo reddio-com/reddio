@@ -1663,3 +1663,16 @@ func checkTxFee(gasPrice *big.Int, gas uint64, cap float64) error {
 	}
 	return nil
 }
+
+func NewWeb3API(b Backend) *Web3API {
+	return &Web3API{b: b}
+}
+
+type Web3API struct {
+	b Backend
+}
+
+func (s *Web3API) ClientVersion() string {
+	clientVersion := "Reddio/devnet-v2.2.2-45f4681/linux-amd64/go1.23.3"
+	return clientVersion
+}
