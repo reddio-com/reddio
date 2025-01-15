@@ -56,8 +56,7 @@ func (f *L2WatcherLogic) L2FetcherUpwardMessageFromLogs(ctx context.Context, blo
 
 		block, err = f.solidity.Chain.GetBlockByHeight(yucommon.BlockNum(height))
 		if err != nil {
-			//fmt.Println("Watcher GetCompactBlock error: ", err)、
-			logrus.Error("Watcher GetCompactBlock error, height: ", height, "err: ", err)
+			//fmt.Println("Watcher GetCompactBlock error: ", err)
 			return nil, nil, err
 		}
 		blockTimestampsMap[uint64(height)] = block.Timestamp
