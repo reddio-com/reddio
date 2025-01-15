@@ -87,10 +87,12 @@ func (w *L2EventsWatcher) FinalizeBlock(block *yutypes.Block) {
 		//watch upward message
 		blockHeightBigInt := big.NewInt(int64(block.Header.Height))
 		if big.NewInt(0).Mod(blockHeightBigInt, w.cfg.L2BlockCollectionDepth).Cmp(big.NewInt(0)) == 0 {
-			err := w.WatchUpwardMessage(context.Background(), block, w.solidity)
-			if err != nil {
-				logrus.Errorf("WatchUpwardMessage error: %v", err)
-			}
+			go func() {
+				err := w.WatchUpwardMessage(context.Background(), block, w.solidity)
+				if err != nil {
+					logrus.Errorf("WatchUpwardMessage error: %v", err)
+				}
+			}()
 		}
 	}
 }

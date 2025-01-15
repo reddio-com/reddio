@@ -4,6 +4,7 @@ import (
 	"context"
 	"math/big"
 	"slices"
+	"time"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
@@ -54,9 +55,10 @@ func (f *L2WatcherLogic) L2FetcherUpwardMessageFromLogs(ctx context.Context, blo
 
 	for height := startBlockHeight; height > endBlockHeight; height-- {
 
-		block, err = f.solidity.Chain.GetBlockByHeight(yucommon.BlockNum(height))
+		block, err = f.GetBlockWithRetry(yucommon.BlockNum(height), 5, 1*time.Second)
 		if err != nil {
 			//fmt.Println("Watcher GetCompactBlock error: ", err)
+			logrus.Error("Watcher GetCompactBlock ,Height:", height, "error:", err)
 			return nil, nil, err
 		}
 		blockTimestampsMap[uint64(height)] = block.Timestamp
@@ -87,7 +89,19 @@ func (f *L2WatcherLogic) L2FetcherUpwardMessageFromLogs(ctx context.Context, blo
 	}
 	return allL2CrossMessages, blockTimestampsMap, nil
 }
-
+func (f *L2WatcherLogic) GetBlockWithRetry(height yucommon.BlockNum, retries int, delay time.Duration) (*yutypes.Block, error) {
+	var block *yutypes.Block
+	var err error
+	for i := 0; i < retries; i++ {
+		block, err = f.solidity.Chain.GetBlockByHeight(height)
+		if err == nil {
+			return block, nil
+		}
+		logrus.Warnf("Retrying to get block, attempt %d/%d, height: %d, error: %v", i+1, retries, height, err)
+		time.Sleep(delay)
+	}
+	return nil, err
+}
 func (f *L2WatcherLogic) FilterLogs(ctx context.Context, block *yutypes.Block, criteria ethereum.FilterQuery) ([]types.Log, error) {
 	logs, err := f.getLogs(ctx, block)
 	if err != nil {
