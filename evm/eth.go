@@ -295,7 +295,7 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 
 	defer func() {
 		if r := recover(); r != nil {
-			err = errors.New(fmt.Sprintf("meet panic: %v", r))
+			err = errors.New("conflict panic")
 		}
 	}()
 
@@ -497,13 +497,6 @@ func (s *Solidity) executeContractCall(ctx *context.WriteContext, txReq *TxReque
 	ethState.SetNonce(txReq.Origin, ethState.GetNonce(txReq.Origin)+1)
 
 	// logrus.Printf("before transfer: account %s balance %d \n", sender.Address(), ethState.GetBalance(sender.Address()))
-
-	defer func() {
-		if r := recover(); r != nil {
-			result = 0
-			err = errors.New("conflict panic error")
-		}
-	}()
 
 	code, leftOverGas, err := vmenv.Call(sender, *txReq.Address, txReq.Input, txReq.GasLimit, uint256.MustFromBig(txReq.Value))
 	// logrus.Printf("after transfer: account %s balance %d \n", sender.Address(), ethState.GetBalance(sender.Address()))

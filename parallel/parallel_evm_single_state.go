@@ -3,6 +3,7 @@ package parallel
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -83,7 +84,7 @@ func (e *ParallelEvmSingleStateDBExecutor) executeTxnCtxListInConcurrency(list [
 		end := time.Now()
 		metrics.BatchTxnDuration.WithLabelValues(fmt.Sprintf("%v", conflict)).Observe(end.Sub(start).Seconds())
 	}()
-	copiedStateDBList := e.CopyStateDb(list)
+	wrapperList := e.CopyStateDbWrapper(list)
 	wg := sync.WaitGroup{}
 	for i, c := range list {
 		wg.Add(1)
@@ -94,7 +95,9 @@ func (e *ParallelEvmSingleStateDBExecutor) executeTxnCtxListInConcurrency(list [
 			tctx.ctx.ExtraInterface = cpDb
 			err := tctx.writing(tctx.ctx)
 			if err != nil {
-
+				if strings.Contains(err.Error(), "conflict") {
+					conflict = true
+				}
 				tctx.err = err
 				tctx.receipt = e.k.handleTxnError(err, tctx.ctx, tctx.ctx.Block, tctx.txn)
 			} else {
@@ -104,29 +107,20 @@ func (e *ParallelEvmSingleStateDBExecutor) executeTxnCtxListInConcurrency(list [
 			tctx.ps = tctx.ctx.ExtraInterface.(*pending_state.PendingStateWrapper)
 
 			list[index] = tctx
-		}(i, c, copiedStateDBList[i])
+		}(i, c, wrapperList[i])
 	}
 	wg.Wait()
-	curtCtx := pending_state.NewStateContext(false)
-	for _, tctx := range list {
-		if curtCtx.IsConflict(tctx.ps.GetCtx()) {
-			conflict = true
-			e.k.statManager.ConflictCount++
-			break
-		}
-	}
-	if conflict && !config.GetGlobalConfig().IgnoreConflict {
+	if conflict {
 		e.k.statManager.TxnBatchRedoCount++
 		metrics.BatchTxnCounter.WithLabelValues(batchTxnLabelRedo).Inc()
 		return e.k.executeTxnCtxListInOrder(e.cpdb, list, true)
 	}
 	metrics.BatchTxnCounter.WithLabelValues(batchTxnLabelSuccess).Inc()
-	e.mergeStateDB(list)
-	e.k.gcCopiedStateDB(copiedStateDBList, list)
+	e.k.gcCopiedStateDB(wrapperList, list)
 	return list
 }
 
-func (e *ParallelEvmSingleStateDBExecutor) CopyStateDb(list []*txnCtx) []*pending_state.PendingStateWrapper {
+func (e *ParallelEvmSingleStateDBExecutor) CopyStateDbWrapper(list []*txnCtx) []*pending_state.PendingStateWrapper {
 	copiedStateDBList := make([]*pending_state.PendingStateWrapper, 0)
 	start := time.Now()
 	defer func() {
