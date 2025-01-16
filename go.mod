@@ -21,7 +21,7 @@ require (
 	github.com/sourcegraph/conc v0.3.0
 	github.com/stretchr/testify v1.9.0
 	github.com/tendermint/tendermint v0.34.24
-	github.com/yu-org/yu v1.2.28
+	github.com/yu-org/yu v1.2.29
 	golang.org/x/sync v0.7.0
 	golang.org/x/time v0.8.0
 	gopkg.in/yaml.v3 v3.0.1
