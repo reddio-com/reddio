@@ -292,7 +292,12 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 
 	sender := vm.AccountRef(txReq.Origin)
 	rules := cfg.ChainConfig.Rules(vmenv.Context.BlockNumber, vmenv.Context.Random != nil, vmenv.Context.Time)
-	// s.Unlock()
+
+	defer func() {
+		if r := recover(); r != nil {
+			err = errors.New(fmt.Sprintf("meet panic: %v", r))
+		}
+	}()
 
 	var gasUsed uint64
 	if txReq.Address == nil {
