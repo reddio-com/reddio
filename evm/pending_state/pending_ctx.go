@@ -1,6 +1,7 @@
 package pending_state
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 
@@ -13,9 +14,10 @@ type VisitTxnID map[int64]struct{}
 
 type StateContext struct {
 	sync.RWMutex
-	needCheck bool
-	Read      *VisitedAddress
-	Write     *VisitedAddress
+	needCheck    bool
+	meetConflict bool
+	Read         *VisitedAddress
+	Write        *VisitedAddress
 
 	addSlotToAddress []slotToAddress
 	addAddressToList []common.Address
@@ -67,48 +69,63 @@ func (sctx *StateContext) IsConflict(tar *StateContext) bool {
 func (sctx *StateContext) GetReadState() map[common.Address]map[common.Hash]VisitTxnID {
 	sctx.RLock()
 	defer sctx.RUnlock()
+	if sctx.needCheck && sctx.meetConflict {
+		panic(errors.New("meet conflict already"))
+	}
 	return sctx.Read.State
 }
 
 func (sctx *StateContext) GetWriteState() map[common.Address]map[common.Hash]VisitTxnID {
 	sctx.RLock()
 	defer sctx.RUnlock()
+	if sctx.needCheck && sctx.meetConflict {
+		panic(errors.New("meet conflict already"))
+	}
 	return sctx.Write.State
-}
-
-func (sctx *StateContext) ReadAddress() map[common.Address]VisitTxnID {
-	sctx.RLock()
-	defer sctx.RUnlock()
-	return sctx.Read.Address
 }
 
 func (sctx *StateContext) GetWriteAddress() map[common.Address]VisitTxnID {
 	sctx.RLock()
 	defer sctx.RUnlock()
+	if sctx.needCheck && sctx.meetConflict {
+		panic(errors.New("meet conflict already"))
+	}
 	return sctx.Write.Address
 }
 
 func (sctx *StateContext) GetReadAddress() map[common.Address]VisitTxnID {
 	sctx.RLock()
 	defer sctx.RUnlock()
+	if sctx.needCheck && sctx.meetConflict {
+		panic(errors.New("meet conflict already"))
+	}
 	return sctx.Read.Address
 }
 
 func (sctx *StateContext) AddSlot2Address(slot slotToAddress) {
 	sctx.Lock()
 	defer sctx.Unlock()
+	if sctx.needCheck && sctx.meetConflict {
+		panic(errors.New("meet conflict already"))
+	}
 	sctx.addSlotToAddress = append(sctx.addSlotToAddress, slot)
 }
 
 func (sctx *StateContext) AddAddressToList(address common.Address) {
 	sctx.Lock()
 	defer sctx.Unlock()
+	if sctx.needCheck && sctx.meetConflict {
+		panic(errors.New("meet conflict already"))
+	}
 	sctx.addAddressToList = append(sctx.addAddressToList, address)
 }
 
 func (sctx *StateContext) SetPrepare(rules params.Rules, sender, coinbase common.Address, dest *common.Address, precompiles []common.Address, txAccesses types.AccessList) {
 	sctx.Lock()
 	defer sctx.Unlock()
+	if sctx.needCheck && sctx.meetConflict {
+		panic(errors.New("meet conflict already"))
+	}
 	sctx.prepareParams = &prepareParams{
 		rules:       rules,
 		sender:      sender,
@@ -122,7 +139,11 @@ func (sctx *StateContext) SetPrepare(rules params.Rules, sender, coinbase common
 func (sctx *StateContext) SelfDestruct(addr common.Address, txnID int64) error {
 	sctx.Lock()
 	defer sctx.Unlock()
+	if sctx.needCheck && sctx.meetConflict {
+		panic(errors.New("meet conflict already"))
+	}
 	if sctx.needCheck && sctx.WriteConflict(addr, txnID) {
+		sctx.meetConflict = true
 		return fmt.Errorf("conflict")
 	}
 	sctx.Write.VisitDestruct(addr, txnID)
@@ -132,7 +153,11 @@ func (sctx *StateContext) SelfDestruct(addr common.Address, txnID int64) error {
 func (sctx *StateContext) WriteAccount(addr common.Address, txnID int64) error {
 	sctx.Lock()
 	defer sctx.Unlock()
+	if sctx.needCheck && sctx.meetConflict {
+		panic(errors.New("meet conflict already"))
+	}
 	if sctx.needCheck && sctx.WriteConflict(addr, txnID) {
+		sctx.meetConflict = true
 		return fmt.Errorf("conflict")
 	}
 	sctx.Write.VisitAccount(addr, txnID)
@@ -142,7 +167,11 @@ func (sctx *StateContext) WriteAccount(addr common.Address, txnID int64) error {
 func (sctx *StateContext) WriteBalance(addr common.Address, txnID int64) error {
 	sctx.Lock()
 	defer sctx.Unlock()
+	if sctx.needCheck && sctx.meetConflict {
+		panic(errors.New("meet conflict already"))
+	}
 	if sctx.needCheck && sctx.WriteConflict(addr, txnID) {
+		sctx.meetConflict = true
 		return fmt.Errorf("conflict")
 	}
 	sctx.Write.VisitBalance(addr, txnID)
@@ -152,7 +181,11 @@ func (sctx *StateContext) WriteBalance(addr common.Address, txnID int64) error {
 func (sctx *StateContext) ReadBalance(addr common.Address, txnID int64) error {
 	sctx.Lock()
 	defer sctx.Unlock()
+	if sctx.needCheck && sctx.meetConflict {
+		panic(errors.New("meet conflict already"))
+	}
 	if sctx.needCheck && sctx.ReadConflict(addr, txnID) {
+		sctx.meetConflict = true
 		return fmt.Errorf("conflict")
 	}
 	sctx.Read.VisitBalance(addr, txnID)
@@ -162,7 +195,11 @@ func (sctx *StateContext) ReadBalance(addr common.Address, txnID int64) error {
 func (sctx *StateContext) WriteCode(addr common.Address, txnID int64) error {
 	sctx.Lock()
 	defer sctx.Unlock()
+	if sctx.needCheck && sctx.meetConflict {
+		panic(errors.New("meet conflict already"))
+	}
 	if sctx.needCheck && sctx.WriteConflict(addr, txnID) {
+		sctx.meetConflict = true
 		return fmt.Errorf("conflict")
 	}
 	sctx.Write.VisitCode(addr, txnID)
@@ -172,7 +209,11 @@ func (sctx *StateContext) WriteCode(addr common.Address, txnID int64) error {
 func (sctx *StateContext) ReadCode(addr common.Address, txnID int64) error {
 	sctx.Lock()
 	defer sctx.Unlock()
+	if sctx.needCheck && sctx.meetConflict {
+		panic(errors.New("meet conflict already"))
+	}
 	if sctx.needCheck && sctx.ReadConflict(addr, txnID) {
+		sctx.meetConflict = true
 		return fmt.Errorf("conflict")
 	}
 	sctx.Read.VisitCode(addr, txnID)
@@ -182,7 +223,11 @@ func (sctx *StateContext) ReadCode(addr common.Address, txnID int64) error {
 func (sctx *StateContext) WriteState(addr common.Address, key common.Hash, txnID int64) error {
 	sctx.Lock()
 	defer sctx.Unlock()
+	if sctx.needCheck && sctx.meetConflict {
+		panic(errors.New("meet conflict already"))
+	}
 	if sctx.needCheck && sctx.WriteConflict(addr, txnID) {
+		sctx.meetConflict = true
 		return fmt.Errorf("conflict")
 	}
 	sctx.Write.VisitState(addr, key, txnID)
@@ -192,7 +237,11 @@ func (sctx *StateContext) WriteState(addr common.Address, key common.Hash, txnID
 func (sctx *StateContext) ReadState(addr common.Address, key common.Hash, txnID int64) error {
 	sctx.Lock()
 	defer sctx.Unlock()
+	if sctx.needCheck && sctx.meetConflict {
+		panic(errors.New("meet conflict already"))
+	}
 	if sctx.needCheck && sctx.ReadConflict(addr, txnID) {
+		sctx.meetConflict = true
 		return fmt.Errorf("conflict")
 	}
 	sctx.Read.VisitState(addr, key, txnID)
