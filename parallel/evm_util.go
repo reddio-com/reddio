@@ -186,3 +186,28 @@ func (k *ParallelEVM) gcCopiedStateDB(copiedStateDBList []*pending_state.Pending
 		ctx.ps = nil
 	}
 }
+
+func (k *ParallelEVM) splitTxnCtxList(list []*txnCtx) [][]*txnCtx {
+	cur := 0
+	curList := make([]*txnCtx, 0)
+	got := make([][]*txnCtx, 0)
+	for cur < len(list) {
+		curTxnCtx := list[cur]
+		if checkAddressConflict(curTxnCtx, curList) {
+			got = append(got, curList)
+			curList = make([]*txnCtx, 0)
+			continue
+		}
+		curList = append(curList, curTxnCtx)
+		if len(curList) >= config.GetGlobalConfig().MaxConcurrency {
+			got = append(got, curList)
+			curList = make([]*txnCtx, 0)
+		}
+		cur++
+	}
+	if len(curList) > 0 {
+		got = append(got, curList)
+	}
+	k.statManager.TxnBatchCount = len(got)
+	return got
+}
