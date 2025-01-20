@@ -295,7 +295,7 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 
 	defer func() {
 		if r := recover(); r != nil {
-			err = errors.New(fmt.Sprintf("meet panic: %v", r))
+			err = errors.New("conflict panic")
 		}
 	}()
 
@@ -492,7 +492,7 @@ func (s *Solidity) executeContractCreation(ctx *context.WriteContext, txReq *TxR
 	return txReq.GasLimit - leftOverGas, emitReceipt(ctx, vmenv, txReq, code, address, leftOverGas, err)
 }
 
-func (s *Solidity) executeContractCall(ctx *context.WriteContext, txReq *TxRequest, ethState *pending_state.PendingStateWrapper, origin, coinBase common.Address, vmenv *vm.EVM, sender vm.AccountRef, rules params.Rules) (uint64, error) {
+func (s *Solidity) executeContractCall(ctx *context.WriteContext, txReq *TxRequest, ethState *pending_state.PendingStateWrapper, origin, coinBase common.Address, vmenv *vm.EVM, sender vm.AccountRef, rules params.Rules) (result uint64, err error) {
 	ethState.Prepare(rules, origin, coinBase, txReq.Address, vm.ActivePrecompiles(rules), nil)
 	ethState.SetNonce(txReq.Origin, ethState.GetNonce(txReq.Origin)+1)
 
