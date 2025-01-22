@@ -22,13 +22,21 @@ const (
 	ErrGetTxsError = 40003
 )
 
+type ProcessStatus int
+
+const (
+	UnProcessed ProcessStatus = iota + 1
+	Processed
+	ProcessFailed
+)
+
 type EventType int
 
 const (
 	QueueTransaction EventType = iota + 1 // 1. QueueTransaction (L1DepositMsgSent)
-	L2RelayedMessage                      // 2. L2RelayedMessage (L2DepositMsgConsumed)
+	L2RelayedMessage                      // 2. L2RelayedMessage (DepositMsgConsumed)
 	SentMessage                           // 3. SentMessage (L2withdrawMsgSent)
-	L1RelayedMessage                      // 4. L1RelayedMessage (L2DepositMsgConsumed)
+	L1RelayedMessage                      // 4. L1RelayedMessage (withdrawMsgConsumed)
 )
 
 type MessagePayloadType int
@@ -67,6 +75,7 @@ const (
 	TxStatusTypeSent TxStatusType = iota
 	TxStatusTypeConsumed
 	TxStatusTypeDropped
+	TxStatusTypeReadyForConsumption
 )
 
 // MessageType represents the type of message.

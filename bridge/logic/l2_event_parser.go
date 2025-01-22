@@ -3,6 +3,7 @@ package logic
 import (
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"time"
@@ -72,25 +73,31 @@ func NewL2EventParser(cfg *evm.GethConfig) *L2EventParser {
 }
 
 // ParseL2EventLogs parses L2 watchedevents
-func (e *L2EventParser) ParseL2EventLogs(ctx context.Context, logs []types.Log) ([]*orm.CrossMessage, error) {
-	l2CrossMessage, err := e.ParseL2SingleCrossChainEventLogs(ctx, logs)
+func (e *L2EventParser) ParseL2EventLogs(ctx context.Context, logs []types.Log) ([]*orm.RawBridgeEvent, []*orm.RawBridgeEvent, error) {
+	l2WithdrawMessages, l2RelayedMessages, err := e.ParseL2EventToRawBridgeEvents(ctx, logs)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return l2CrossMessage, nil
-}
 
-// ParseL2SingleCrossChainEventLogs L2->L1 ParseL2SingleCrossChainEventLogs parses L2 watched events
-func (e *L2EventParser) ParseL2SingleCrossChainEventLogs(ctx context.Context, logs []types.Log) ([]*orm.CrossMessage, error) {
-	var l2WithdrawMessages []*orm.CrossMessage
+	return l2WithdrawMessages, l2RelayedMessages, nil
+}
+func (e *L2EventParser) ParseL2EventToRawBridgeEvents(ctx context.Context, logs []types.Log) ([]*orm.RawBridgeEvent, []*orm.RawBridgeEvent, error) {
+	var l2WithdrawMessages []*orm.RawBridgeEvent
+	var l2RelayedMessages []*orm.RawBridgeEvent
 
 	for _, vlog := range logs {
+		vlogJson, err := json.MarshalIndent(vlog, "", "  ")
+		if err != nil {
+			logrus.Errorf("json.MarshalIndent(vlog) failed: %v", err)
+			return nil, nil, err
+		}
+		fmt.Printf("vlog: %s\n", vlogJson)
 		if vlog.Topics[0] == backendabi.L2SentMessageEventSig {
 			event := new(contract.ChildBridgeCoreFacetSentMessage)
 			err := utils.UnpackLog(backendabi.IL2ChildBridgeCoreFacetABI, event, "SentMessage", vlog)
 			if err != nil {
 				logrus.Error("Failed to unpack UpwardMessage event", "err", err)
-				return nil, err
+				return nil, nil, err
 			}
 			switch btypes.MessagePayloadType(event.PayloadType) {
 			case btypes.PayloadTypeETH:
@@ -98,28 +105,31 @@ func (e *L2EventParser) ParseL2SingleCrossChainEventLogs(ctx context.Context, lo
 				l2ETHBurntMsg, err := decodeL2ETHBurnt(payloadHex)
 				if err != nil {
 					logrus.Error("Failed to decode ETHLocked", "err", err)
-					return nil, err
+					return nil, nil, err
 				}
-				l2WithdrawMessages = append(l2WithdrawMessages, &orm.CrossMessage{
-					MessageType:        int(btypes.MessageTypeL2SentMessage),
-					TxStatus:           int(btypes.TxStatusTypeSent),
-					TokenType:          int(btypes.ETH),
-					TxType:             int(btypes.TxTypeWithdraw),
+				l2WithdrawMessages = append(l2WithdrawMessages, &orm.RawBridgeEvent{
+					EventType:       int(btypes.SentMessage),
+					ChainID:         btypes.Reddio,
+					ContractAddress: e.cfg.ChildLayerContractAddress,
+					TokenType:       int(btypes.ETH),
+					TxHash:          vlog.TxHash.String(),
+					//GasPriced:
+					//GasUsed:
+					//MsgValue:           msg.Raw
+					Timestamp:          uint64(time.Now().Unix()),
+					BlockNumber:        vlog.BlockNumber,
 					Sender:             l2ETHBurntMsg.ChildSender.String(),
 					Receiver:           l2ETHBurntMsg.ParentRecipient.String(),
-					L2TxHash:           vlog.TxHash.String(),
-					L2BlockNumber:      vlog.BlockNumber,
 					MessagePayloadType: int(btypes.ETH),
 					MessagePayload:     payloadHex,
+					MessageNonce:       int(event.Nonce.Int64()),
 					MessageFrom:        l2ETHBurntMsg.ChildSender.String(),
 					MessageTo:          l2ETHBurntMsg.ParentRecipient.String(),
 					MessageValue:       l2ETHBurntMsg.Amount.String(),
-					MessageNonce:       event.Nonce.String(),
 					MessageHash:        common.BytesToHash(event.XDomainCalldataHash[:]).String(),
-					//MultiSignProof: "",
-					TokenAmounts: l2ETHBurntMsg.Amount.String(),
-					CreatedAt:    time.Now().UTC(),
-					UpdatedAt:    time.Now().UTC(),
+					CreatedAt:          time.Now().UTC(),
+					UpdatedAt:          time.Now().UTC(),
+					ProcessStatus:      int(btypes.UnProcessed),
 				})
 			case btypes.PayloadTypeERC20:
 				payloadHex := hex.EncodeToString(event.Payload)
@@ -127,30 +137,31 @@ func (e *L2EventParser) ParseL2SingleCrossChainEventLogs(ctx context.Context, lo
 				l2ERC20BurntMsg, err := decodeERC20TokenBurnt(payloadHex)
 				if err != nil {
 					logrus.Error("Failed to decode ERC20TokenBurnt", "err", err)
-					return nil, err
+					return nil, nil, err
 				}
-				l2WithdrawMessages = append(l2WithdrawMessages, &orm.CrossMessage{
-					MessageType:        int(btypes.MessageTypeL2SentMessage),
-					TxStatus:           int(btypes.TxStatusTypeSent),
-					TokenType:          int(btypes.ERC20),
-					TxType:             int(btypes.TxTypeWithdraw),
-					L1TokenAddress:     l2ERC20BurntMsg.TokenAddress.String(),
+				l2WithdrawMessages = append(l2WithdrawMessages, &orm.RawBridgeEvent{
+					EventType:       int(btypes.SentMessage),
+					ChainID:         btypes.Reddio,
+					ContractAddress: e.cfg.ChildLayerContractAddress,
+					TokenType:       int(btypes.ERC20),
+					TxHash:          vlog.TxHash.String(),
+					//GasPriced:
+					//GasUsed:
+					//MsgValue:           msg.Raw
+					Timestamp:          uint64(time.Now().Unix()),
+					BlockNumber:        vlog.BlockNumber,
 					Sender:             l2ERC20BurntMsg.ChildSender.String(),
 					Receiver:           l2ERC20BurntMsg.ParentRecipient.String(),
-					L2TxHash:           vlog.TxHash.String(),
-					L2BlockNumber:      vlog.BlockNumber,
 					MessagePayloadType: int(btypes.ERC20),
 					MessagePayload:     payloadHex,
+					MessageNonce:       int(event.Nonce.Int64()),
 					MessageFrom:        l2ERC20BurntMsg.ChildSender.String(),
 					MessageTo:          l2ERC20BurntMsg.ParentRecipient.String(),
 					MessageValue:       l2ERC20BurntMsg.Amount.String(),
-					MessageNonce:       event.Nonce.String(),
 					MessageHash:        common.BytesToHash(event.XDomainCalldataHash[:]).String(),
-
-					//MultiSignProof: "",
-					TokenAmounts: l2ERC20BurntMsg.Amount.String(),
-					CreatedAt:    time.Now().UTC(),
-					UpdatedAt:    time.Now().UTC(),
+					CreatedAt:          time.Now().UTC(),
+					UpdatedAt:          time.Now().UTC(),
+					ProcessStatus:      int(btypes.UnProcessed),
 				})
 
 			case btypes.PayloadTypeRED:
@@ -159,87 +170,341 @@ func (e *L2EventParser) ParseL2SingleCrossChainEventLogs(ctx context.Context, lo
 				l2REDBurntMsg, err := decodeREDTokenBurnt(payloadHex)
 				if err != nil {
 					logrus.Error("Failed to decode REDTokenBurnt", "err", err)
-					return nil, err
+					return nil, nil, err
 				}
-				l2WithdrawMessages = append(l2WithdrawMessages, &orm.CrossMessage{
-					MessageType:        int(btypes.MessageTypeL2SentMessage),
-					TxStatus:           int(btypes.TxStatusTypeSent),
-					TokenType:          int(btypes.RED),
-					TxType:             int(btypes.TxTypeWithdraw),
-					L1TokenAddress:     l2REDBurntMsg.TokenAddress.String(),
+				l2WithdrawMessages = append(l2WithdrawMessages, &orm.RawBridgeEvent{
+					EventType:       int(btypes.SentMessage),
+					ChainID:         btypes.Reddio,
+					ContractAddress: e.cfg.ChildLayerContractAddress,
+					TokenType:       int(btypes.RED),
+					TxHash:          vlog.TxHash.String(),
+					//GasPriced:
+					//GasUsed:
+					//MsgValue:           msg.Raw
+					Timestamp:          uint64(time.Now().Unix()),
+					BlockNumber:        vlog.BlockNumber,
 					Sender:             l2REDBurntMsg.ChildSender.String(),
 					Receiver:           l2REDBurntMsg.ParentRecipient.String(),
-					L2TxHash:           vlog.TxHash.String(),
-					L2BlockNumber:      vlog.BlockNumber,
 					MessagePayloadType: int(btypes.RED),
 					MessagePayload:     payloadHex,
+					MessageNonce:       int(event.Nonce.Int64()),
 					MessageFrom:        l2REDBurntMsg.ChildSender.String(),
 					MessageTo:          l2REDBurntMsg.ParentRecipient.String(),
 					MessageValue:       l2REDBurntMsg.Amount.String(),
-					MessageNonce:       event.Nonce.String(),
 					MessageHash:        common.BytesToHash(event.XDomainCalldataHash[:]).String(),
-
-					//MultiSignProof: "",
-					TokenAmounts: l2REDBurntMsg.Amount.String(),
-					CreatedAt:    time.Now().UTC(),
-					UpdatedAt:    time.Now().UTC(),
+					CreatedAt:          time.Now().UTC(),
+					UpdatedAt:          time.Now().UTC(),
+					ProcessStatus:      int(btypes.UnProcessed),
 				})
-				// case utils.ERC721:
-				// 	payloadHex := hex.EncodeToString(event.Payload)
-				// 	l2ERC721BurntMsg, err := decodeERC721TokenBurnt(payloadHex)
-				// 	if err != nil {
-				// 		logrus.Error("Failed to decode ERC721TokenBurnt", "err", err)
-				// 		return nil, err
-				// 	}
-				// 	l2WithdrawMessages = append(l2WithdrawMessages, &orm.CrossMessage{
-				// 		MessageType:        int(btypes.MessageTypeL2SentMessage),
-				// 		TxStatus:           int(btypes.TxStatusTypeSent),
-				// 		TokenType:          int(btypes.ERC721),
-				// 		TxType:             int(btypes.TxTypeWithdraw),
-				// 		L1TokenAddress:     l2ERC721BurntMsg.TokenAddress.String(),
-				// 		Sender:             l2ERC721BurntMsg.ChildSender.String(),
-				// 		Receiver:           l2ERC721BurntMsg.ParentRecipient.String(),
-				// 		L2TxHash:           vlog.TxHash.String(),
-				// 		L2BlockNumber:      vlog.BlockNumber,
-				// 		MessagePayloadType: int(btypes.ERC721),
-				// 		MessagePayload:     payloadHex,
-				// 		MessageFrom:        l2ERC721BurntMsg.ChildSender.String(),
-				// 		MessageTo:          l2ERC721BurntMsg.ParentRecipient.String(),
-				// 		MessageValue:       l2ERC721BurntMsg.TokenID.String(),
-				// 		TokenAmounts:       l2ERC721BurntMsg.TokenID.String(),
-				// 		CreatedAt:          time.Now().UTC(),
-				// 		UpdatedAt:          time.Now().UTC(),
-				// 	})
-				// case utils.ERC1155:
-				// 	payloadHex := hex.EncodeToString(event.Payload)
-				// 	l2ERC1155BurntMsg, err := decodeERC1155BatchTokenBurnt(payloadHex)
-				// 	if err != nil {
-				// 		logrus.Error("Failed to decode ERC1155BatchTokenBurnt", "err", err)
-				// 		return nil, err
-				// 	}
-				// 	l2WithdrawMessages = append(l2WithdrawMessages, &orm.CrossMessage{
-				// 		MessageType:        int(btypes.MessageTypeL2SentMessage),
-				// 		TxStatus:           int(btypes.TxStatusTypeSent),
-				// 		TokenType:          int(btypes.ERC1155),
-				// 		TxType:             int(btypes.TxTypeWithdraw),
-				// 		L1TokenAddress:     l2ERC1155BurntMsg.TokenAddress.String(),
-				// 		Sender:             l2ERC1155BurntMsg.ChildSender.String(),
-				// 		Receiver:           l2ERC1155BurntMsg.ParentRecipient.String(),
-				// 		L2TxHash:           vlog.TxHash.String(),
-				// 		L2BlockNumber:      vlog.BlockNumber,
-				// 		MessagePayloadType: int(btypes.ERC1155),
-				// 		MessagePayload:     payloadHex,
-				// 		MessageFrom:        l2ERC1155BurntMsg.ChildSender.String(),
-				// 		MessageTo:          l2ERC1155BurntMsg.ParentRecipient.String(),
-				// 		MessageValue:       "",
-				// 		TokenAmounts:       "",
-				// 		CreatedAt:          time.Now().UTC(),
-				// 		UpdatedAt:          time.Now().UTC(),
-				// 	})
+			}
+		} else if vlog.Topics[0] == backendabi.DownwardMessageDispatcherFacetABI.Events["RelayedMessage"].ID {
+			fmt.Println("find RelayedMessage!")
+			event := new(contract.DownwardMessageDispatcherFacetRelayedMessage)
+			err := utils.UnpackLog(backendabi.DownwardMessageDispatcherFacetABI, event, "RelayedMessage", vlog)
+			if err != nil {
+				logrus.Error("Failed to unpack event event", "err", err)
+				return nil, nil, err
+			}
+
+			switch btypes.MessagePayloadType(event.PayloadType) {
+			case btypes.PayloadTypeETH:
+				payloadHex := hex.EncodeToString(event.Payload)
+
+				ethLocked, err := decodeL2ETHBurnt(payloadHex)
+				if err != nil {
+					fmt.Errorf("Failed to decode ETHLocked: %v", err)
+					return nil, nil, err
+				}
+				l2RelayedMessages = append(l2RelayedMessages, &orm.RawBridgeEvent{
+					EventType:       int(btypes.L2RelayedMessage),
+					ChainID:         btypes.Reddio,
+					ContractAddress: e.cfg.ChildLayerContractAddress,
+					TokenType:       int(btypes.ETH),
+					TxHash:          vlog.TxHash.String(),
+					//GasPriced:
+					//GasUsed:
+					//MsgValue:           msg.Raw
+					Timestamp:          uint64(time.Now().Unix()),
+					BlockNumber:        vlog.BlockNumber,
+					Sender:             ethLocked.ChildSender.String(),
+					Receiver:           ethLocked.ParentRecipient.String(),
+					MessagePayloadType: int(btypes.ETH),
+					MessagePayload:     payloadHex,
+					MessageNonce:       int(event.Nonce.Int64()),
+					MessageFrom:        ethLocked.ChildSender.String(),
+					MessageTo:          ethLocked.ParentRecipient.String(),
+					MessageValue:       ethLocked.Amount.String(),
+					MessageHash:        common.BytesToHash(event.MessageHash[:]).String(),
+					CreatedAt:          time.Now().UTC(),
+					UpdatedAt:          time.Now().UTC(),
+					ProcessStatus:      int(btypes.UnProcessed),
+				})
+			case btypes.PayloadTypeRED:
+				payloadHex := hex.EncodeToString(event.Payload)
+
+				redLocked, err := decodeREDTokenBurnt(payloadHex)
+				if err != nil {
+					fmt.Errorf("Failed to decode redLocked: %v", err)
+					return nil, nil, err
+				}
+				l2RelayedMessages = append(l2RelayedMessages, &orm.RawBridgeEvent{
+					EventType:       int(btypes.L2RelayedMessage),
+					ChainID:         btypes.Reddio,
+					ContractAddress: e.cfg.ChildLayerContractAddress,
+					TokenType:       int(btypes.RED),
+					TxHash:          vlog.TxHash.String(),
+					//GasPriced:
+					//GasUsed:
+					//MsgValue:           msg.Raw
+					Timestamp:          uint64(time.Now().Unix()),
+					BlockNumber:        vlog.BlockNumber,
+					Sender:             redLocked.ChildSender.String(),
+					Receiver:           redLocked.ParentRecipient.String(),
+					MessagePayloadType: int(btypes.RED),
+					MessagePayload:     payloadHex,
+					MessageNonce:       int(event.Nonce.Int64()),
+					MessageFrom:        redLocked.ChildSender.String(),
+					MessageTo:          redLocked.ParentRecipient.String(),
+					MessageValue:       redLocked.Amount.String(),
+					MessageHash:        common.BytesToHash(event.MessageHash[:]).String(),
+					CreatedAt:          time.Now().UTC(),
+					UpdatedAt:          time.Now().UTC(),
+					ProcessStatus:      int(btypes.UnProcessed),
+				})
 			}
 		}
 	}
+	return l2WithdrawMessages, l2RelayedMessages, nil
+}
+
+// ParseL2SingleCrossChainEventLogs L2->L1 ParseL2SingleCrossChainEventLogs parses L2 watched events
+// func (e *L2EventParser) ParseL2SingleCrossChainEventLogs(ctx context.Context, logs []types.Log) ([]*orm.RawBridgeEvent, error) {
+// 	var l2WithdrawMessages []*orm.RawBridgeEvent
+
+// 	for _, vlog := range logs {
+// 		if vlog.Topics[0] == backendabi.L2SentMessageEventSig {
+// 			event := new(contract.ChildBridgeCoreFacetSentMessage)
+// 			err := utils.UnpackLog(backendabi.IL2ChildBridgeCoreFacetABI, event, "SentMessage", vlog)
+// 			if err != nil {
+// 				logrus.Error("Failed to unpack UpwardMessage event", "err", err)
+// 				return nil, err
+// 			}
+// 			switch btypes.MessagePayloadType(event.PayloadType) {
+// 			case btypes.PayloadTypeETH:
+// 				payloadHex := hex.EncodeToString(event.Payload)
+// 				l2ETHBurntMsg, err := decodeL2ETHBurnt(payloadHex)
+// 				if err != nil {
+// 					logrus.Error("Failed to decode ETHLocked", "err", err)
+// 					return nil, err
+// 				}
+// 				l2WithdrawMessages = append(l2WithdrawMessages, &orm.RawBridgeEvent{
+// 					EventType:          int(btypes.SentMessage),
+// 					TxStatus:           int(btypes.TxStatusTypeSent),
+// 					TokenType:          int(btypes.ETH),
+// 					TxType:             int(btypes.TxTypeWithdraw),
+// 					Sender:             l2ETHBurntMsg.ChildSender.String(),
+// 					Receiver:           l2ETHBurntMsg.ParentRecipient.String(),
+// 					L2TxHash:           vlog.TxHash.String(),
+// 					L2BlockNumber:      vlog.BlockNumber,
+// 					MessagePayloadType: int(btypes.ETH),
+// 					MessagePayload:     payloadHex,
+// 					MessageFrom:        l2ETHBurntMsg.ChildSender.String(),
+// 					MessageTo:          l2ETHBurntMsg.ParentRecipient.String(),
+// 					MessageValue:       l2ETHBurntMsg.Amount.String(),
+// 					MessageNonce:       event.Nonce.String(),
+// 					MessageHash:        common.BytesToHash(event.XDomainCalldataHash[:]).String(),
+// 					//MultiSignProof: "",
+// 					TokenAmounts: l2ETHBurntMsg.Amount.String(),
+// 					CreatedAt:    time.Now().UTC(),
+// 					UpdatedAt:    time.Now().UTC(),
+// 				})
+// 			case btypes.PayloadTypeERC20:
+// 				payloadHex := hex.EncodeToString(event.Payload)
+
+// 				l2ERC20BurntMsg, err := decodeERC20TokenBurnt(payloadHex)
+// 				if err != nil {
+// 					logrus.Error("Failed to decode ERC20TokenBurnt", "err", err)
+// 					return nil, err
+// 				}
+// 				l2WithdrawMessages = append(l2WithdrawMessages, &orm.RawBridgeEvent{
+// 					MessageType:        int(btypes.MessageTypeL2SentMessage),
+// 					TxStatus:           int(btypes.TxStatusTypeSent),
+// 					TokenType:          int(btypes.ERC20),
+// 					TxType:             int(btypes.TxTypeWithdraw),
+// 					L1TokenAddress:     l2ERC20BurntMsg.TokenAddress.String(),
+// 					Sender:             l2ERC20BurntMsg.ChildSender.String(),
+// 					Receiver:           l2ERC20BurntMsg.ParentRecipient.String(),
+// 					L2TxHash:           vlog.TxHash.String(),
+// 					L2BlockNumber:      vlog.BlockNumber,
+// 					MessagePayloadType: int(btypes.ERC20),
+// 					MessagePayload:     payloadHex,
+// 					MessageFrom:        l2ERC20BurntMsg.ChildSender.String(),
+// 					MessageTo:          l2ERC20BurntMsg.ParentRecipient.String(),
+// 					MessageValue:       l2ERC20BurntMsg.Amount.String(),
+// 					MessageNonce:       event.Nonce.String(),
+// 					MessageHash:        common.BytesToHash(event.XDomainCalldataHash[:]).String(),
+
+// 					//MultiSignProof: "",
+// 					TokenAmounts: l2ERC20BurntMsg.Amount.String(),
+// 					CreatedAt:    time.Now().UTC(),
+// 					UpdatedAt:    time.Now().UTC(),
+// 				})
+
+// 			case btypes.PayloadTypeRED:
+// 				payloadHex := hex.EncodeToString(event.Payload)
+
+// 				l2REDBurntMsg, err := decodeREDTokenBurnt(payloadHex)
+// 				if err != nil {
+// 					logrus.Error("Failed to decode REDTokenBurnt", "err", err)
+// 					return nil, err
+// 				}
+// 				l2WithdrawMessages = append(l2WithdrawMessages, &orm.RawBridgeEvent{
+// 					MessageType:        int(btypes.MessageTypeL2SentMessage),
+// 					TxStatus:           int(btypes.TxStatusTypeSent),
+// 					TokenType:          int(btypes.RED),
+// 					TxType:             int(btypes.TxTypeWithdraw),
+// 					L1TokenAddress:     l2REDBurntMsg.TokenAddress.String(),
+// 					Sender:             l2REDBurntMsg.ChildSender.String(),
+// 					Receiver:           l2REDBurntMsg.ParentRecipient.String(),
+// 					L2TxHash:           vlog.TxHash.String(),
+// 					L2BlockNumber:      vlog.BlockNumber,
+// 					MessagePayloadType: int(btypes.RED),
+// 					MessagePayload:     payloadHex,
+// 					MessageFrom:        l2REDBurntMsg.ChildSender.String(),
+// 					MessageTo:          l2REDBurntMsg.ParentRecipient.String(),
+// 					MessageValue:       l2REDBurntMsg.Amount.String(),
+// 					MessageNonce:       event.Nonce.String(),
+// 					MessageHash:        common.BytesToHash(event.XDomainCalldataHash[:]).String(),
+
+// 					//MultiSignProof: "",
+// 					TokenAmounts: l2REDBurntMsg.Amount.String(),
+// 					CreatedAt:    time.Now().UTC(),
+// 					UpdatedAt:    time.Now().UTC(),
+// 				})
+
+//				}
+//			}
+//		}
+//		return l2WithdrawMessages, nil
+//	}
+//
+// ParseL2SingleCrossChainEventLogs parses L2 watched single cross chain events.
+func (e *L2EventParser) ParseL2SingleRawBridgeEventToCrossChainMessage(ctx context.Context, bridgeEvent *orm.RawBridgeEvent) ([]*orm.CrossMessage, error) {
+	var l2WithdrawMessages []*orm.CrossMessage
+
+	switch btypes.MessagePayloadType(bridgeEvent.MessagePayloadType) {
+	case btypes.PayloadTypeETH:
+		ethLocked, err := decodeL2ETHBurnt(bridgeEvent.MessagePayload)
+		if err != nil {
+			logrus.Error("Failed to decode ETHLocked", "err", err)
+			return nil, err
+		}
+		l2WithdrawMessages = append(l2WithdrawMessages, &orm.CrossMessage{
+
+			MessageType:        int(btypes.MessageTypeL2SentMessage),
+			TxStatus:           int(btypes.TxStatusTypeReadyForConsumption),
+			TokenType:          int(btypes.ETH),
+			TxType:             int(btypes.TxTypeWithdraw),
+			Sender:             ethLocked.ChildSender.String(),
+			Receiver:           ethLocked.ParentRecipient.String(),
+			MessagePayloadType: int(btypes.ETH),
+			MessagePayload:     bridgeEvent.MessagePayload,
+			MessageFrom:        ethLocked.ChildSender.String(),
+			MessageTo:          ethLocked.ParentRecipient.String(),
+			MessageValue:       ethLocked.Amount.String(),
+			TokenAmounts:       ethLocked.Amount.String(),
+			//toDo: change to message nonce to uint64
+			MessageNonce:   fmt.Sprintf("%d", bridgeEvent.MessageNonce),
+			MessageHash:    bridgeEvent.MessageHash,
+			L2TxHash:       bridgeEvent.TxHash,
+			L2BlockNumber:  bridgeEvent.BlockNumber,
+			CreatedAt:      time.Now().UTC(),
+			UpdatedAt:      time.Now().UTC(),
+			BlockTimestamp: bridgeEvent.Timestamp,
+		})
+	case btypes.PayloadTypeERC20:
+
+		erc20Locked, err := decodeERC20TokenBurnt(bridgeEvent.MessagePayload)
+		if err != nil {
+			logrus.Error("Failed to decode ParentERC20TokenLocked", "err", err)
+			return nil, err
+		}
+		l2WithdrawMessages = append(l2WithdrawMessages, &orm.CrossMessage{
+			MessageType:        int(btypes.MessageTypeL2SentMessage),
+			TxStatus:           int(btypes.TxStatusTypeReadyForConsumption),
+			TokenType:          int(btypes.ERC20),
+			TxType:             int(btypes.TxTypeWithdraw),
+			Sender:             erc20Locked.ChildSender.String(),
+			Receiver:           erc20Locked.ParentRecipient.String(),
+			MessagePayloadType: int(btypes.ERC20),
+			MessagePayload:     bridgeEvent.MessagePayload,
+			L1TokenAddress:     erc20Locked.TokenAddress.String(),
+			MessageFrom:        erc20Locked.ChildSender.String(),
+			MessageTo:          erc20Locked.ParentRecipient.String(),
+			MessageValue:       erc20Locked.Amount.String(),
+			TokenAmounts:       erc20Locked.Amount.String(),
+			//toDo: change to message nonce to uint64
+			MessageNonce:   fmt.Sprintf("%d", bridgeEvent.MessageNonce),
+			MessageHash:    bridgeEvent.MessageHash,
+			L2BlockNumber:  bridgeEvent.BlockNumber,
+			L2TxHash:       bridgeEvent.TxHash,
+			CreatedAt:      time.Now().UTC(),
+			UpdatedAt:      time.Now().UTC(),
+			BlockTimestamp: bridgeEvent.Timestamp,
+		})
+	case btypes.PayloadTypeRED:
+
+		redLocked, err := decodeREDTokenBurnt(bridgeEvent.MessagePayload)
+		if err != nil {
+			logrus.Error("Failed to decode ParentREDTokenLocked", "err", err)
+			return nil, err
+		}
+		l2WithdrawMessages = append(l2WithdrawMessages, &orm.CrossMessage{
+			MessageType:        int(btypes.MessageTypeL2SentMessage),
+			TxStatus:           int(btypes.TxStatusTypeReadyForConsumption),
+			TokenType:          int(btypes.RED),
+			TxType:             int(btypes.TxTypeWithdraw),
+			Sender:             redLocked.ChildSender.String(),
+			Receiver:           redLocked.ParentRecipient.String(),
+			MessagePayloadType: int(btypes.RED),
+			MessagePayload:     bridgeEvent.MessagePayload,
+			L1TokenAddress:     redLocked.TokenAddress.String(),
+			MessageFrom:        redLocked.ChildSender.String(),
+			MessageTo:          redLocked.ParentRecipient.String(),
+			MessageValue:       redLocked.Amount.String(),
+			//toDo: change to message nonce to uint64
+			MessageNonce:   fmt.Sprintf("%d", bridgeEvent.MessageNonce),
+			MessageHash:    bridgeEvent.MessageHash,
+			TokenAmounts:   redLocked.Amount.String(),
+			CreatedAt:      time.Now().UTC(),
+			UpdatedAt:      time.Now().UTC(),
+			BlockTimestamp: bridgeEvent.Timestamp,
+			L2BlockNumber:  bridgeEvent.BlockNumber,
+			L2TxHash:       bridgeEvent.TxHash,
+		})
+
+	}
 	return l2WithdrawMessages, nil
+}
+func (e *L2EventParser) ParseL2RawBridgeEventToCrossChainMessage(ctx context.Context, msg *orm.RawBridgeEvent) ([]*orm.CrossMessage, error) {
+	l2CrossChainDepositMessages, err := e.ParseL2SingleRawBridgeEventToCrossChainMessage(ctx, msg)
+	if err != nil {
+		return nil, err
+	}
+
+	return l2CrossChainDepositMessages, nil
+}
+
+// ParseL2RelayMessagePayload parses a single L2 relay message payload
+func (e *L2EventParser) ParseL2RelayMessagePayload(ctx context.Context, msg *orm.RawBridgeEvent) (*orm.CrossMessage, error) {
+	l2RelayedMessage := &orm.CrossMessage{
+		MessageHash:   msg.MessageHash,
+		L2BlockNumber: msg.BlockNumber,
+		L2TxHash:      msg.TxHash,
+		TxStatus:      int(btypes.TxStatusTypeConsumed),
+	}
+
+	return l2RelayedMessage, nil
 }
 func decodeL2ETHBurnt(payloadHex string) (*L2ETHBurnt, error) {
 	payload, err := hex.DecodeString(payloadHex)

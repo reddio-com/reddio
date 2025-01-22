@@ -10,7 +10,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/reddio-com/reddio/bridge/contract"
+	"github.com/reddio-com/reddio/bridge/orm"
 	btypes "github.com/reddio-com/reddio/bridge/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -36,16 +36,12 @@ func TestETHParseL1SingleCrossChainEventLogs(t *testing.T) {
 		big.NewInt(1),              // gas price
 		nil,                        // data
 	)
-	msg := &contract.ParentBridgeCoreFacetQueueTransaction{
-		PayloadType: uint32(btypes.ETH),
-		Payload:     payload,
-		Raw: types.Log{
-			TxHash:      tx.Hash(),
-			BlockNumber: 1,
-		},
+	msg := &orm.RawBridgeEvent{
+		MessagePayloadType: int(btypes.ETH),
+		MessagePayload:     string(payload),
 	}
 
-	l1DepositMessages, err := parser.ParseL1SingleCrossChainPayload(context.Background(), msg, tx)
+	l1DepositMessages, err := parser.ParseL1SingleRawBridgeEventToCrossChainMessage(context.Background(), msg, tx)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, l1DepositMessages)
@@ -74,16 +70,12 @@ func TestREDParseL1SingleCrossChainEventLogs(t *testing.T) {
 		big.NewInt(1),              // gas price
 		nil,                        // data
 	)
-	msg := &contract.ParentBridgeCoreFacetQueueTransaction{
-		PayloadType: uint32(btypes.RED),
-		Payload:     payload,
-		Raw: types.Log{
-			TxHash:      tx.Hash(),
-			BlockNumber: 1,
-		},
+	msg := &orm.RawBridgeEvent{
+		MessagePayloadType: int(btypes.ETH),
+		MessagePayload:     string(payload),
 	}
 
-	l1DepositMessages, err := parser.ParseL1SingleCrossChainPayload(context.Background(), msg, tx)
+	l1DepositMessages, err := parser.ParseL1SingleRawBridgeEventToCrossChainMessage(context.Background(), msg, tx)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, l1DepositMessages)
@@ -113,16 +105,12 @@ func TestERC20ParseL1SingleCrossChainEventLogs(t *testing.T) {
 		big.NewInt(1),              // gas price
 		nil,                        // data
 	)
-	msg := &contract.ParentBridgeCoreFacetQueueTransaction{
-		PayloadType: uint32(btypes.ERC20),
-		Payload:     payload,
-		Raw: types.Log{
-			TxHash:      tx.Hash(),
-			BlockNumber: 1,
-		},
+	msg := &orm.RawBridgeEvent{
+		MessagePayloadType: int(btypes.ETH),
+		MessagePayload:     string(payload),
 	}
 
-	l1DepositMessages, err := parser.ParseL1SingleCrossChainPayload(context.Background(), msg, tx)
+	l1DepositMessages, err := parser.ParseL1SingleRawBridgeEventToCrossChainMessage(context.Background(), msg, tx)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, l1DepositMessages)
@@ -153,16 +141,12 @@ func TestERC20ParseL1SingleCrossChainEventLogs2(t *testing.T) {
 		big.NewInt(1),              // gas price
 		nil,                        // data
 	)
-	msg := &contract.ParentBridgeCoreFacetQueueTransaction{
-		PayloadType: uint32(btypes.ERC20),
-		Payload:     payload,
-		Raw: types.Log{
-			TxHash:      tx.Hash(),
-			BlockNumber: 1,
-		},
+	msg := &orm.RawBridgeEvent{
+		MessagePayloadType: int(btypes.ETH),
+		MessagePayload:     string(payload),
 	}
 
-	l1DepositMessages, err := parser.ParseL1SingleCrossChainPayload(context.Background(), msg, tx)
+	l1DepositMessages, err := parser.ParseL1SingleRawBridgeEventToCrossChainMessage(context.Background(), msg, tx)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, l1DepositMessages)
@@ -193,16 +177,12 @@ func TestERC20ParseL1SingleCrossChainEventLogs3(t *testing.T) {
 		big.NewInt(1),              // gas price
 		nil,                        // data
 	)
-	msg := &contract.ParentBridgeCoreFacetQueueTransaction{
-		PayloadType: uint32(btypes.ERC20),
-		Payload:     payload,
-		Raw: types.Log{
-			TxHash:      tx.Hash(),
-			BlockNumber: 1,
-		},
+	msg := &orm.RawBridgeEvent{
+		MessagePayloadType: int(btypes.ETH),
+		MessagePayload:     string(payload),
 	}
 
-	l1DepositMessages, err := parser.ParseL1SingleCrossChainPayload(context.Background(), msg, tx)
+	l1DepositMessages, err := parser.ParseL1SingleRawBridgeEventToCrossChainMessage(context.Background(), msg, tx)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, l1DepositMessages)

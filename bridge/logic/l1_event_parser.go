@@ -73,22 +73,19 @@ func NewL1EventParser(cfg *evm.GethConfig) *L1EventParser {
  *    [CrossMessages]       *
  *****************************/
 // ParseL1CrossChainEventLogs parse l1 cross chain event logs
-func (e *L1EventParser) ParseL1RelayMessagePayload(ctx context.Context, msg *contract.UpwardMessageDispatcherFacetRelayedMessage) ([]*orm.CrossMessage, error) {
-	var l1RelayedMessages []*orm.CrossMessage
-
-	l1RelayedMessages = append(l1RelayedMessages, &orm.CrossMessage{
-		MessageHash:   common.BytesToHash(msg.MessageHash[:]).String(),
-		L1BlockNumber: msg.Raw.BlockNumber,
-		L1TxHash:      msg.Raw.TxHash.String(),
+func (e *L1EventParser) ParseL1RelayMessagePayload(ctx context.Context, msg *orm.RawBridgeEvent) (*orm.CrossMessage, error) {
+	l1RelayedMessage := &orm.CrossMessage{
+		MessageHash:   msg.MessageHash,
+		L1BlockNumber: msg.BlockNumber,
+		L1TxHash:      msg.TxHash,
 		TxStatus:      int(btypes.TxStatusTypeConsumed),
-	})
-
-	return l1RelayedMessages, nil
+	}
+	return l1RelayedMessage, nil
 }
 
 // ParseL1CrossChainEventLogs parse l1 cross chain event logs
-func (e *L1EventParser) ParseL1CrossChainPayload(ctx context.Context, msg *contract.ParentBridgeCoreFacetQueueTransaction, tx *types.Transaction) ([]*orm.CrossMessage, error) {
-	l1CrossChainDepositMessages, err := e.ParseL1SingleCrossChainPayload(ctx, msg, tx)
+func (e *L1EventParser) ParseL1RawBridgeEventToCrossChainMessage(ctx context.Context, msg *orm.RawBridgeEvent, tx *types.Transaction) ([]*orm.CrossMessage, error) {
+	l1CrossChainDepositMessages, err := e.ParseL1SingleRawBridgeEventToCrossChainMessage(ctx, msg, tx)
 	if err != nil {
 		return nil, err
 	}
@@ -194,14 +191,12 @@ func (e *L1EventParser) ParseL1CrossChainPayloadToRefundMsg(ctx context.Context,
 }
 
 // ParseL1SingleCrossChainEventLogs parses L1 watched single cross chain events.
-func (e *L1EventParser) ParseL1SingleCrossChainPayload(ctx context.Context, msg *contract.ParentBridgeCoreFacetQueueTransaction, tx *types.Transaction) ([]*orm.CrossMessage, error) {
+func (e *L1EventParser) ParseL1SingleRawBridgeEventToCrossChainMessage(ctx context.Context, bridgeEvent *orm.RawBridgeEvent, tx *types.Transaction) ([]*orm.CrossMessage, error) {
 	var l1DepositMessages []*orm.CrossMessage
 
-	switch btypes.MessagePayloadType(msg.PayloadType) {
+	switch btypes.MessagePayloadType(bridgeEvent.MessagePayloadType) {
 	case btypes.PayloadTypeETH:
-		payloadHex := hex.EncodeToString(msg.Payload)
-
-		ethLocked, err := decodeETHLocked(payloadHex)
+		ethLocked, err := decodeETHLocked(bridgeEvent.MessagePayload)
 		if err != nil {
 			logrus.Error("Failed to decode ETHLocked", "err", err)
 			return nil, err
@@ -215,22 +210,24 @@ func (e *L1EventParser) ParseL1SingleCrossChainPayload(ctx context.Context, msg 
 			Sender:             ethLocked.ParentSender.String(),
 			Receiver:           ethLocked.ChildRecipient.String(),
 			MessagePayloadType: int(btypes.ETH),
-			MessagePayload:     payloadHex,
+			MessagePayload:     bridgeEvent.MessagePayload,
 			MessageFrom:        ethLocked.ParentSender.String(),
 			MessageTo:          ethLocked.ChildRecipient.String(),
 			MessageValue:       ethLocked.Amount.String(),
 			TokenAmounts:       ethLocked.Amount.String(),
-			L1TxHash:           msg.Raw.TxHash.String(),
-			L2TxHash:           tx.Hash().String(),
-			L1BlockNumber:      msg.Raw.BlockNumber,
-			CreatedAt:          time.Now().UTC(),
-			UpdatedAt:          time.Now().UTC(),
-			BlockTimestamp:     uint64(tx.Time().Unix()),
+			//toDo: change to message nonce to uint64
+			MessageNonce:   fmt.Sprintf("%d", bridgeEvent.MessageNonce),
+			MessageHash:    bridgeEvent.MessageHash,
+			L1TxHash:       bridgeEvent.TxHash,
+			L2TxHash:       tx.Hash().String(),
+			L1BlockNumber:  bridgeEvent.BlockNumber,
+			CreatedAt:      time.Now().UTC(),
+			UpdatedAt:      time.Now().UTC(),
+			BlockTimestamp: uint64(tx.Time().Unix()),
 		})
 	case btypes.PayloadTypeERC20:
-		payloadHex := hex.EncodeToString(msg.Payload)
 
-		erc20Locked, err := decodeERC20TokenLocked(payloadHex)
+		erc20Locked, err := decodeERC20TokenLocked(bridgeEvent.MessagePayload)
 		if err != nil {
 			logrus.Error("Failed to decode ParentERC20TokenLocked", "err", err)
 			return nil, err
@@ -243,23 +240,25 @@ func (e *L1EventParser) ParseL1SingleCrossChainPayload(ctx context.Context, msg 
 			Sender:             erc20Locked.ParentSender.String(),
 			Receiver:           erc20Locked.ChildRecipient.String(),
 			MessagePayloadType: int(btypes.ERC20),
-			MessagePayload:     payloadHex,
+			MessagePayload:     bridgeEvent.MessagePayload,
 			L1TokenAddress:     erc20Locked.TokenAddress.String(),
 			MessageFrom:        erc20Locked.ParentSender.String(),
 			MessageTo:          erc20Locked.ChildRecipient.String(),
 			MessageValue:       erc20Locked.Amount.String(),
 			TokenAmounts:       erc20Locked.Amount.String(),
-			L1BlockNumber:      msg.Raw.BlockNumber,
-			L1TxHash:           msg.Raw.TxHash.String(),
-			L2TxHash:           tx.Hash().String(),
-			CreatedAt:          time.Now().UTC(),
-			UpdatedAt:          time.Now().UTC(),
-			BlockTimestamp:     uint64(tx.Time().Unix()),
+			//toDo: change to message nonce to uint64
+			MessageNonce:   fmt.Sprintf("%d", bridgeEvent.MessageNonce),
+			MessageHash:    bridgeEvent.MessageHash,
+			L1BlockNumber:  bridgeEvent.BlockNumber,
+			L1TxHash:       bridgeEvent.TxHash,
+			L2TxHash:       tx.Hash().String(),
+			CreatedAt:      time.Now().UTC(),
+			UpdatedAt:      time.Now().UTC(),
+			BlockTimestamp: uint64(tx.Time().Unix()),
 		})
 	case btypes.PayloadTypeRED:
-		payloadHex := hex.EncodeToString(msg.Payload)
 
-		redLocked, err := decodeREDTokenLocked(payloadHex)
+		redLocked, err := decodeREDTokenLocked(bridgeEvent.MessagePayload)
 		if err != nil {
 			logrus.Error("Failed to decode ParentREDTokenLocked", "err", err)
 			return nil, err
@@ -272,18 +271,21 @@ func (e *L1EventParser) ParseL1SingleCrossChainPayload(ctx context.Context, msg 
 			Sender:             redLocked.ParentSender.String(),
 			Receiver:           redLocked.ChildRecipient.String(),
 			MessagePayloadType: int(btypes.RED),
-			MessagePayload:     payloadHex,
+			MessagePayload:     bridgeEvent.MessagePayload,
 			L1TokenAddress:     redLocked.TokenAddress.String(),
 			MessageFrom:        redLocked.ParentSender.String(),
 			MessageTo:          redLocked.ChildRecipient.String(),
 			MessageValue:       redLocked.Amount.String(),
-			TokenAmounts:       redLocked.Amount.String(),
-			CreatedAt:          time.Now().UTC(),
-			UpdatedAt:          time.Now().UTC(),
-			BlockTimestamp:     uint64(tx.Time().Unix()),
-			L1BlockNumber:      msg.Raw.BlockNumber,
-			L1TxHash:           msg.Raw.TxHash.String(),
-			L2TxHash:           tx.Hash().String(),
+			//toDo: change to message nonce to uint64
+			MessageNonce:   fmt.Sprintf("%d", bridgeEvent.MessageNonce),
+			MessageHash:    bridgeEvent.MessageHash,
+			TokenAmounts:   redLocked.Amount.String(),
+			CreatedAt:      time.Now().UTC(),
+			UpdatedAt:      time.Now().UTC(),
+			BlockTimestamp: uint64(tx.Time().Unix()),
+			L1BlockNumber:  bridgeEvent.BlockNumber,
+			L1TxHash:       bridgeEvent.TxHash,
+			L2TxHash:       tx.Hash().String(),
 		})
 
 	}
@@ -372,10 +374,10 @@ func decodeERC20TokenLocked(payloadHex string) (*ParentERC20TokenLocked, error) 
 }
 
 /*****************************
- *    [RawBridgeEvents]       *
+ *    [RawBridgeEvent]       *
  *****************************/
-func (e *L1EventParser) ParseQueueTransactionToRawBridgeEvents(ctx context.Context, msg *contract.ParentBridgeCoreFacetQueueTransaction) ([]*orm.RawBridgeEvents, error) {
-	var l1DepositMessages []*orm.RawBridgeEvents
+func (e *L1EventParser) ParseDepositEventToRawBridgeEvents(ctx context.Context, msg *contract.ParentBridgeCoreFacetQueueTransaction) ([]*orm.RawBridgeEvent, error) {
+	var l1DepositMessages []*orm.RawBridgeEvent
 
 	switch btypes.MessagePayloadType(msg.PayloadType) {
 	case btypes.PayloadTypeETH:
@@ -386,7 +388,7 @@ func (e *L1EventParser) ParseQueueTransactionToRawBridgeEvents(ctx context.Conte
 			fmt.Errorf("Failed to decode ETHLocked: %v", err)
 			return nil, err
 		}
-		l1DepositMessages = append(l1DepositMessages, &orm.RawBridgeEvents{
+		l1DepositMessages = append(l1DepositMessages, &orm.RawBridgeEvent{
 			EventType:       int(btypes.QueueTransaction),
 			ChainID:         btypes.Sepolia,
 			ContractAddress: e.cfg.ParentLayerContractAddress,
@@ -405,9 +407,10 @@ func (e *L1EventParser) ParseQueueTransactionToRawBridgeEvents(ctx context.Conte
 			MessageFrom:        ethLocked.ParentSender.String(),
 			MessageTo:          ethLocked.ChildRecipient.String(),
 			MessageValue:       ethLocked.Amount.String(),
-			MessageHash:        hex.EncodeToString(msg.Hash[:]),
+			MessageHash:        common.BytesToHash(msg.Hash[:]).String(),
 			CreatedAt:          time.Now().UTC(),
 			UpdatedAt:          time.Now().UTC(),
+			ProcessStatus:      int(btypes.UnProcessed),
 		})
 	case btypes.PayloadTypeRED:
 		payloadHex := hex.EncodeToString(msg.Payload)
@@ -417,7 +420,7 @@ func (e *L1EventParser) ParseQueueTransactionToRawBridgeEvents(ctx context.Conte
 			fmt.Errorf("Failed to decode redLocked: %v", err)
 			return nil, err
 		}
-		l1DepositMessages = append(l1DepositMessages, &orm.RawBridgeEvents{
+		l1DepositMessages = append(l1DepositMessages, &orm.RawBridgeEvent{
 			EventType:       int(btypes.QueueTransaction),
 			ChainID:         btypes.Sepolia,
 			ContractAddress: e.cfg.ParentLayerContractAddress,
@@ -436,17 +439,18 @@ func (e *L1EventParser) ParseQueueTransactionToRawBridgeEvents(ctx context.Conte
 			MessageFrom:        redLocked.ParentSender.String(),
 			MessageTo:          redLocked.ChildRecipient.String(),
 			MessageValue:       redLocked.Amount.String(),
-			MessageHash:        hex.EncodeToString(msg.Hash[:]),
+			MessageHash:        common.BytesToHash(msg.Hash[:]).String(),
 			CreatedAt:          time.Now().UTC(),
 			UpdatedAt:          time.Now().UTC(),
+			ProcessStatus:      int(btypes.UnProcessed),
 		})
 
 	}
 	return l1DepositMessages, nil
 }
 
-func (e *L1EventParser) ParseL1RelayedMessageToRawBridgeEvents(ctx context.Context, msg *contract.UpwardMessageDispatcherFacetRelayedMessage) ([]*orm.RawBridgeEvents, error) {
-	var l1DepositMessages []*orm.RawBridgeEvents
+func (e *L1EventParser) ParseL1RelayedMessageToRawBridgeEvents(ctx context.Context, msg *contract.UpwardMessageDispatcherFacetRelayedMessage) ([]*orm.RawBridgeEvent, error) {
+	var l1DepositMessages []*orm.RawBridgeEvent
 
 	switch btypes.MessagePayloadType(msg.PayloadType) {
 	case btypes.PayloadTypeETH:
@@ -457,7 +461,7 @@ func (e *L1EventParser) ParseL1RelayedMessageToRawBridgeEvents(ctx context.Conte
 			fmt.Errorf("Failed to decode ETHLocked: %v", err)
 			return nil, err
 		}
-		l1DepositMessages = append(l1DepositMessages, &orm.RawBridgeEvents{
+		l1DepositMessages = append(l1DepositMessages, &orm.RawBridgeEvent{
 			EventType:       int(btypes.L1RelayedMessage),
 			ChainID:         btypes.Sepolia,
 			ContractAddress: e.cfg.ParentLayerContractAddress,
@@ -476,9 +480,10 @@ func (e *L1EventParser) ParseL1RelayedMessageToRawBridgeEvents(ctx context.Conte
 			MessageFrom:        ethLocked.ParentSender.String(),
 			MessageTo:          ethLocked.ChildRecipient.String(),
 			MessageValue:       ethLocked.Amount.String(),
-			MessageHash:        hex.EncodeToString(msg.MessageHash[:]),
+			MessageHash:        common.BytesToHash(msg.MessageHash[:]).String(),
 			CreatedAt:          time.Now().UTC(),
 			UpdatedAt:          time.Now().UTC(),
+			ProcessStatus:      int(btypes.UnProcessed),
 		})
 	case btypes.PayloadTypeRED:
 		payloadHex := hex.EncodeToString(msg.Payload)
@@ -488,7 +493,7 @@ func (e *L1EventParser) ParseL1RelayedMessageToRawBridgeEvents(ctx context.Conte
 			fmt.Errorf("Failed to decode redLocked: %v", err)
 			return nil, err
 		}
-		l1DepositMessages = append(l1DepositMessages, &orm.RawBridgeEvents{
+		l1DepositMessages = append(l1DepositMessages, &orm.RawBridgeEvent{
 			EventType:       int(btypes.L1RelayedMessage),
 			ChainID:         btypes.Sepolia,
 			ContractAddress: e.cfg.ParentLayerContractAddress,
@@ -507,9 +512,10 @@ func (e *L1EventParser) ParseL1RelayedMessageToRawBridgeEvents(ctx context.Conte
 			MessageFrom:        redLocked.ParentSender.String(),
 			MessageTo:          redLocked.ChildRecipient.String(),
 			MessageValue:       redLocked.Amount.String(),
-			MessageHash:        hex.EncodeToString(msg.MessageHash[:]),
+			MessageHash:        common.BytesToHash(msg.MessageHash[:]).String(),
 			CreatedAt:          time.Now().UTC(),
 			UpdatedAt:          time.Now().UTC(),
+			ProcessStatus:      int(btypes.UnProcessed),
 		})
 
 	}

@@ -60,6 +60,7 @@ type GethConfig struct {
 	BridgeHost                 string           `toml:"bridge_host"`
 	BridgePort                 string           `toml:"bridge_port"`
 	BridgeDBConfig             *database.Config `toml:"bridge_db_config"`
+	RelayerBatchSize           int              `toml:"relayer_batch_size"`
 }
 
 func (gc *GethConfig) Copy() *GethConfig {

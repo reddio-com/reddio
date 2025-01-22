@@ -56,8 +56,7 @@ func NewCrossMessage(db *gorm.DB) *CrossMessage {
 	return &CrossMessage{db: db}
 }
 
-// InsertOrUpdateL2Messages inserts or updates a list of L2 cross messages into the database.
-func (c *CrossMessage) InsertOrUpdateL2Messages(ctx context.Context, messages []*CrossMessage) error {
+func (c *CrossMessage) InsertOrUpdateCrossMessages(ctx context.Context, messages []*CrossMessage) error {
 	if len(messages) == 0 {
 		return nil
 	}
@@ -219,6 +218,7 @@ func (c *CrossMessage) QueryUnConsumedMessages(ctx context.Context, tx_type btyp
 }
 
 func (c *CrossMessage) UpdateL1Message(ctx context.Context, message_hash string, txStatus int, l2BlockNumber uint64) error {
+
 	db := c.db.WithContext(ctx)
 	err := db.Model(&CrossMessage{}).Where("message_hash = ? AND message_type = ?", message_hash, btypes.MessageTypeL1SentMessage).Updates(map[string]interface{}{
 		"tx_status":       txStatus,
@@ -231,21 +231,32 @@ func (c *CrossMessage) UpdateL1Message(ctx context.Context, message_hash string,
 	return nil
 }
 
-func (c *CrossMessage) UpdateL2Message(ctx context.Context, l1RelayedMessages []*CrossMessage) error {
-	if len(l1RelayedMessages) == 0 {
-		return nil
-	}
-
-	// just have 1 message right now
+func (c *CrossMessage) UpdateL1MessageConsumedStatus(ctx context.Context, l2RelayedMessage *CrossMessage) error {
 	db := c.db.WithContext(ctx)
-	err := db.Model(&CrossMessage{}).Where("message_hash = ? AND message_type = ?", l1RelayedMessages[0].MessageHash, btypes.MessageTypeL2SentMessage).Updates(map[string]interface{}{
-		"tx_status":       l1RelayedMessages[0].TxStatus,
-		"l1_block_number": l1RelayedMessages[0].L1BlockNumber,
-		"l1_tx_hash":      l1RelayedMessages[0].L1TxHash,
+	err := db.Model(&CrossMessage{}).Where("message_hash = ? AND message_type = ?", l2RelayedMessage.MessageHash, btypes.MessageTypeL1SentMessage).Updates(map[string]interface{}{
+		"tx_status":       btypes.TxStatusTypeConsumed,
+		"l2_block_number": l2RelayedMessage.L2BlockNumber,
+		"l2_tx_hash":      l2RelayedMessage.L2TxHash,
 		"updated_at":      time.Now(),
 	}).Error
 	if err != nil {
-		return fmt.Errorf("failed to update L1 message, message_hash: %s, error: %v", l1RelayedMessages[0].MessageHash, err)
+		return fmt.Errorf("failed to update L2 message, id: %s, error: %v", l2RelayedMessage.MessageHash, err)
+	}
+	fmt.Println("MessageHash:", l2RelayedMessage.MessageHash)
+	fmt.Println("RowsAffected:", db.RowsAffected)
+	return nil
+}
+func (c *CrossMessage) UpdateL2MessageConsumedStatus(ctx context.Context, l1RelayedMessage *CrossMessage) error {
+	// just have 1 message right now
+	db := c.db.WithContext(ctx)
+	err := db.Model(&CrossMessage{}).Where("message_hash = ? AND message_type = ?", l1RelayedMessage.MessageHash, btypes.MessageTypeL2SentMessage).Updates(map[string]interface{}{
+		"tx_status":       btypes.TxStatusTypeConsumed,
+		"l1_block_number": l1RelayedMessage.L1BlockNumber,
+		"l1_tx_hash":      l1RelayedMessage.L1TxHash,
+		"updated_at":      time.Now(),
+	}).Error
+	if err != nil {
+		return fmt.Errorf("failed to update L1 message, message_hash: %s, error: %v", l1RelayedMessage.MessageHash, err)
 	}
 	return nil
 }

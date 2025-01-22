@@ -10,32 +10,32 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/sirupsen/logrus"
+	"gorm.io/gorm"
 
 	"github.com/reddio-com/reddio/bridge/contract"
 	"github.com/reddio-com/reddio/bridge/logic"
 	"github.com/reddio-com/reddio/bridge/orm"
-	"github.com/reddio-com/reddio/bridge/relayer"
 	"github.com/reddio-com/reddio/evm"
 	"github.com/reddio-com/reddio/metrics"
 )
 
 type L1EventsWatcher struct {
-	ctx      context.Context
-	cfg      *evm.GethConfig
-	l1Client *ethclient.Client
-	//l1toL2Relayer  relayer.L1ToL2RelayerInterface
+	ctx           context.Context
+	cfg           *evm.GethConfig
+	l1Client      *ethclient.Client
 	l1EventParser *logic.L1EventParser
 
-	rawBridgeEventsOrm *orm.RawBridgeEvents
+	rawBridgeEventsOrm *orm.RawBridgeEvent
 }
 
-func NewL1EventsWatcher(ctx context.Context, cfg *evm.GethConfig, ethClient *ethclient.Client, l1toL2Relayer relayer.L1ToL2RelayerInterface) (*L1EventsWatcher, error) {
+func NewL1EventsWatcher(ctx context.Context, cfg *evm.GethConfig, ethClient *ethclient.Client, db *gorm.DB) (*L1EventsWatcher, error) {
 
 	c := &L1EventsWatcher{
-		ctx:           ctx,
-		cfg:           cfg,
-		l1Client:      ethClient,
-		l1EventParser: logic.NewL1EventParser(cfg),
+		ctx:                ctx,
+		cfg:                cfg,
+		l1Client:           ethClient,
+		l1EventParser:      logic.NewL1EventParser(cfg),
+		rawBridgeEventsOrm: orm.NewRawBridgeEvent(db),
 	}
 	return c, nil
 }
@@ -166,11 +166,11 @@ func (w *L1EventsWatcher) watchRelayerMessage(
 func (w *L1EventsWatcher) handleDownwardMessage(
 	msg *contract.ParentBridgeCoreFacetQueueTransaction,
 ) error {
-	bridgeEvents, err := w.l1EventParser.ParseQueueTransactionToRawBridgeEvents(context.Background(), msg)
+	bridgeEvents, err := w.l1EventParser.ParseDepositEventToRawBridgeEvents(context.Background(), msg)
 	if err != nil {
 		logrus.Errorf("Failed to parse downward message: %v", err)
 	}
-	err = w.rawBridgeEventsOrm.InsertRawBridgeEvents(context.Background(), bridgeEvents)
+	err = w.rawBridgeEventsOrm.InsertRawBridgeEvents(context.Background(), orm.TableRawBridgeEvents11155111, bridgeEvents)
 	if err != nil {
 		return err
 	}
@@ -182,7 +182,7 @@ func (w *L1EventsWatcher) handleRelayerMessage(msg *contract.UpwardMessageDispat
 	if err != nil {
 		logrus.Errorf("Failed to parse downward message: %v", err)
 	}
-	err = w.rawBridgeEventsOrm.InsertRawBridgeEvents(context.Background(), bridgeEvents)
+	err = w.rawBridgeEventsOrm.InsertRawBridgeEvents(context.Background(), orm.TableRawBridgeEvents11155111, bridgeEvents)
 	if err != nil {
 		return err
 	}

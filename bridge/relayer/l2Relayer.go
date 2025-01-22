@@ -8,31 +8,33 @@ import (
 	"math/big"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/joho/godotenv"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 
 	"github.com/reddio-com/reddio/bridge/contract"
+	"github.com/reddio-com/reddio/bridge/logic"
 	"github.com/reddio-com/reddio/bridge/orm"
+	btypes "github.com/reddio-com/reddio/bridge/types"
 	"github.com/reddio-com/reddio/evm"
 	"github.com/reddio-com/reddio/metrics"
 )
 
-type L2ToL1Relayer struct {
-	ctx             context.Context
-	cfg             *evm.GethConfig
-	l1Client        *ethclient.Client
-	Solidity        *evm.Solidity `tripod:"solidity"`
-	crossMessageOrm *orm.CrossMessage
-	sigPrivateKeys  []string
+type L2Relayer struct {
+	ctx               context.Context
+	cfg               *evm.GethConfig
+	crossMessageOrm   *orm.CrossMessage
+	rawBridgeEventOrm *orm.RawBridgeEvent
+	l2EventParser     *logic.L2EventParser
+	sigPrivateKeys    []string
 }
 
-func NewL2ToL1Relayer(ctx context.Context, cfg *evm.GethConfig, l1Client *ethclient.Client, db *gorm.DB) (*L2ToL1Relayer, error) {
+func NewL2Relayer(ctx context.Context, cfg *evm.GethConfig, db *gorm.DB) (*L2Relayer, error) {
 
 	privateKey, err := LoadPrivateKey("bridge/relayer/.sepolia.env")
 	if err != nil {
@@ -42,12 +44,13 @@ func NewL2ToL1Relayer(ctx context.Context, cfg *evm.GethConfig, l1Client *ethcli
 		privateKey,
 	}
 
-	return &L2ToL1Relayer{
-		ctx:             ctx,
-		cfg:             cfg,
-		l1Client:        l1Client,
-		crossMessageOrm: orm.NewCrossMessage(db),
-		sigPrivateKeys:  privateKeys,
+	return &L2Relayer{
+		ctx:               ctx,
+		cfg:               cfg,
+		crossMessageOrm:   orm.NewCrossMessage(db),
+		rawBridgeEventOrm: orm.NewRawBridgeEvent(db),
+		l2EventParser:     logic.NewL2EventParser(cfg),
+		sigPrivateKeys:    privateKeys,
 	}, nil
 }
 func LoadPrivateKey(envFilePath string) (string, error) {
@@ -65,18 +68,18 @@ func LoadPrivateKey(envFilePath string) (string, error) {
 }
 
 // HandleUpwardMessage handle L2 Upward Message
-func (b *L2ToL1Relayer) HandleUpwardMessage(msgs []*orm.CrossMessage, blockTimestampsMap map[uint64]uint64) error {
+func (b *L2Relayer) HandleUpwardMessage(ctx context.Context, bridgeEvents *orm.RawBridgeEvent) error {
 	// 1. parse upward message
 	// 2. setup auth
 	// 3. send upward message to parent layer contract by calling upwardMessageDispatcher.ReceiveUpwardMessages
+	msgs, err := b.l2EventParser.ParseL2RawBridgeEventToCrossChainMessage(ctx, bridgeEvents)
+	if err != nil {
+		logrus.Errorf("Failed to parse L2 raw bridge event to cross chain message: %v", err)
+	}
+
 	for _, msg := range msgs {
 		metrics.UpwardMessageReceivedCounter.WithLabelValues(fmt.Sprintf("%d", msg.MessagePayloadType)).Inc()
-	}
-	// upwardMessageDispatcher, err := contract.NewUpwardMessageDispatcherFacet(common.HexToAddress(b.cfg.ParentLayerContractAddress), b.l1Client)
-	// if err != nil {
-	// 	return err
-	// }
-	for _, msg := range msgs {
+
 		var upwardMessages []contract.UpwardMessage
 		payloadBytes, err := hex.DecodeString(msg.MessagePayload)
 		if err != nil {
@@ -105,16 +108,76 @@ func (b *L2ToL1Relayer) HandleUpwardMessage(msgs []*orm.CrossMessage, blockTimes
 		}
 
 		msg.MultiSignProof = strings.Join(multiSignProofs, ",")
-		msg.BlockTimestamp = blockTimestampsMap[msg.L2BlockNumber]
 	}
 
 	if msgs != nil {
-		err := b.crossMessageOrm.InsertOrUpdateL2Messages(context.Background(), msgs)
+		err := b.crossMessageOrm.InsertOrUpdateCrossMessages(context.Background(), msgs)
 		if err != nil {
 			logrus.Errorf("Failed to insert or update L2 messages: %v", err)
 		}
 	}
 
+	return nil
+}
+
+func (b *L2Relayer) StartPolling() {
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			b.pollUnProcessedMessages()
+		case <-b.ctx.Done():
+			return
+		}
+	}
+}
+
+func (b *L2Relayer) pollUnProcessedMessages() {
+	ctx := context.Background()
+	//messages, err := r.crossMessageOrm.QueryL1UnConsumedMessages(ctx, btypes.TxTypeDeposit)
+	bridgeEvents, err := b.rawBridgeEventOrm.QueryUnProcessedBridgeEvents(ctx, orm.TableRawBridgeEvents50341, 500)
+	if err != nil {
+		log.Printf("Failed to query unconsumed messages: %v", err)
+		return
+	}
+	fmt.Println("bridgeEvents:", bridgeEvents)
+	//1.proceeding the L1 unprocessed  messages
+	// QueueTransaction
+	//1.1 generate cross message
+	//1.2 update the status of the raw bridge events to processed
+	//2.check L2 message if it is consumed
+	//2.1 if it is consumed, update the status of the L1 message to consumed
+	for _, bridgeEvent := range bridgeEvents {
+		if bridgeEvent.EventType == int(btypes.SentMessage) {
+			//1.1 generate cross message
+
+			b.HandleUpwardMessage(ctx, bridgeEvent)
+		} else if bridgeEvent.EventType == int(btypes.L2RelayedMessage) {
+
+			b.HandleL2RelayerMessage(ctx, bridgeEvent)
+
+		}
+	}
+}
+func (b *L2Relayer) HandleL2RelayerMessage(ctx context.Context, bridgeEvent *orm.RawBridgeEvent) error {
+	fmt.Println("HandleL2RelayerMessage")
+	relayedMessage, err := b.l2EventParser.ParseL2RelayMessagePayload(ctx, bridgeEvent)
+	fmt.Println("relayedMessages:", relayedMessage.MessageHash)
+	if err != nil {
+		logrus.Infof("Failed to parse L1 cross chain payload: %v", err)
+		b.rawBridgeEventOrm.UpdateProcessFail(orm.TableRawBridgeEvents50341, bridgeEvent.ID, err.Error())
+		return err
+	}
+	err = b.crossMessageOrm.UpdateL1MessageConsumedStatus(b.ctx, relayedMessage)
+	fmt.Println("UpdateL1MessageConsumedStatus")
+	if err != nil {
+		logrus.Infof("Failed to update L2 message consumed status: %v", err)
+		b.rawBridgeEventOrm.UpdateProcessFail(orm.TableRawBridgeEvents50341, bridgeEvent.ID, err.Error())
+		return err
+	}
+	b.rawBridgeEventOrm.UpdateProcessStatus(orm.TableRawBridgeEvents50341, bridgeEvent.ID, int(btypes.Processed))
 	return nil
 }
 

@@ -109,16 +109,21 @@ func StartupL1Watcher(chain *kernel.Kernel, cfg *evm.GethConfig, db *gorm.DB) {
 		logrus.Fatal("failed to connect to L1 geth", "endpoint", cfg.L1ClientAddress, "err", err)
 	}
 
-	l2Client, err := ethclient.Dial(cfg.L2ClientAddress)
-	if err != nil {
-		logrus.Fatal("failed to connect to L2 geth", "endpoint", cfg.L2ClientAddress, "err", err)
-	}
-	l1Relayer, err := relayer.NewL1Relayer(ctx, cfg, l1Client, l2Client, chain, db)
+	l1Relayer, err := relayer.NewL1Relayer(ctx, cfg, l1Client, chain, db)
 	if err != nil {
 		logrus.Fatal("init bridge relayer failed: ", err)
 	}
 
-	l1Watcher, err := watcher.NewL1EventsWatcher(ctx, cfg, l1Client, l1Relayer)
+	go l1Relayer.StartPolling()
+
+	l2Relayer, err := relayer.NewL2Relayer(ctx, cfg, db)
+	if err != nil {
+		logrus.Fatal("init bridge relayer failed: ", err)
+	}
+
+	go l2Relayer.StartPolling()
+
+	l1Watcher, err := watcher.NewL1EventsWatcher(ctx, cfg, l1Client, db)
 	if err != nil {
 		logrus.Fatal("init L1 client failed: ", err)
 	}
