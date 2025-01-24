@@ -59,8 +59,8 @@ type GethConfig struct {
 	L2BlockCollectionDepth     *big.Int         `toml:"l2_block_collection_depth"`
 	BridgeHost                 string           `toml:"bridge_host"`
 	BridgePort                 string           `toml:"bridge_port"`
-	BridgeDBConfig             *database.Config `toml:"bridge_db_config"`
 	RelayerBatchSize           int              `toml:"relayer_batch_size"`
+	BridgeDBConfig             *database.Config `toml:"bridge_db_config"`
 }
 
 func (gc *GethConfig) Copy() *GethConfig {

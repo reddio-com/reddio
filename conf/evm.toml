@@ -16,11 +16,11 @@ l2_block_collection_depth = 5
 
 bridge_port = "8888"
 bridge_host = "0.0.0.0"
+# Relayer processing batch size
+relayer_batch_size = 500
+
 [bridge_db_config]
 dsn = "testuser:123456@tcp(localhost:3306)/testdb?charset=utf8mb4&parseTime=True&loc=Local"
 driverName = "mysql"
 maxOpenNum = 10
 maxIdleNum = 5
-
-# Relayer processing batch size
-relayer_batch_size = 500

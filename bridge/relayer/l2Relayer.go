@@ -68,11 +68,11 @@ func LoadPrivateKey(envFilePath string) (string, error) {
 }
 
 // HandleUpwardMessage handle L2 Upward Message
-func (b *L2Relayer) HandleUpwardMessage(ctx context.Context, bridgeEvents *orm.RawBridgeEvent) error {
+func (b *L2Relayer) HandleUpwardMessage(ctx context.Context, bridgeEvent *orm.RawBridgeEvent) error {
 	// 1. parse upward message
 	// 2. setup auth
 	// 3. send upward message to parent layer contract by calling upwardMessageDispatcher.ReceiveUpwardMessages
-	msgs, err := b.l2EventParser.ParseL2RawBridgeEventToCrossChainMessage(ctx, bridgeEvents)
+	msgs, err := b.l2EventParser.ParseL2RawBridgeEventToCrossChainMessage(ctx, bridgeEvent)
 	if err != nil {
 		logrus.Errorf("Failed to parse L2 raw bridge event to cross chain message: %v", err)
 	}
@@ -108,6 +108,7 @@ func (b *L2Relayer) HandleUpwardMessage(ctx context.Context, bridgeEvents *orm.R
 		}
 
 		msg.MultiSignProof = strings.Join(multiSignProofs, ",")
+
 	}
 
 	if msgs != nil {
@@ -115,6 +116,11 @@ func (b *L2Relayer) HandleUpwardMessage(ctx context.Context, bridgeEvents *orm.R
 		if err != nil {
 			logrus.Errorf("Failed to insert or update L2 messages: %v", err)
 		}
+		err = b.rawBridgeEventOrm.UpdateProcessStatus(orm.TableRawBridgeEvents50341, bridgeEvent.ID, int(btypes.Processed))
+		if err != nil {
+			logrus.Errorf("Failed to update process status of raw bridge events: %v", err)
+		}
+
 	}
 
 	return nil
@@ -142,7 +148,6 @@ func (b *L2Relayer) pollUnProcessedMessages() {
 		log.Printf("Failed to query unconsumed messages: %v", err)
 		return
 	}
-	fmt.Println("bridgeEvents:", bridgeEvents)
 	//1.proceeding the L1 unprocessed  messages
 	// QueueTransaction
 	//1.1 generate cross message

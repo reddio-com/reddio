@@ -127,6 +127,16 @@ func (e *RawBridgeEvent) UpdateProcessStatus(tableName string, id uint64, newSta
 	}).Error
 }
 
+// UpdateProcessStatusBatch updates the process status of multiple RawBridgeEvents.
+func (e *RawBridgeEvent) UpdateProcessStatusBatch(tableName string, ids []uint64, newStatus int) error {
+	fmt.Println("ids:", ids)
+	db := e.db.Table(tableName)
+	return db.Model(&RawBridgeEvent{}).Where("id IN ?", ids).Updates(map[string]interface{}{
+		"process_status": newStatus,
+		"updated_at":     time.Now().UTC(),
+	}).Error
+}
+
 // UpdateProcessFail updates the process fail reason and count of the RawBridgeEvent.
 func (e *RawBridgeEvent) UpdateProcessFail(tableName string, id uint64, reason string) error {
 	db := e.db.Table(tableName)
@@ -136,21 +146,4 @@ func (e *RawBridgeEvent) UpdateProcessFail(tableName string, id uint64, reason s
 		"process_status":      int(btypes.ProcessFailed),
 		"updated_at":          time.Now().UTC(),
 	}).Error
-}
-
-func (b *RawBridgeEvent) BatchUpdateProcessStatus(ids []uint64, newStatus int) error {
-	now := time.Now().UTC()
-	result := b.db.Model(&RawBridgeEvent{}).
-		Where("id IN ?", ids).
-		Updates(map[string]interface{}{
-			"process_status": newStatus,
-			"updated_at":     now,
-		})
-	if result.Error != nil {
-		return fmt.Errorf("failed to batch update process status: %w", result.Error)
-	}
-	if result.RowsAffected == 0 {
-		return fmt.Errorf("no records updated")
-	}
-	return nil
 }
