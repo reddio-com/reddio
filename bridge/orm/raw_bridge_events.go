@@ -17,6 +17,14 @@ const (
 	TableRawBridgeEvents50341    = "raw_bridge_events_50341"
 )
 
+// Gap represents a gap in MessageNonce.
+type Gap struct {
+	StartGap         int `json:"start_gap"`
+	EndGap           int `json:"end_gap"`
+	StartBlockNumber int `json:"start_block_number"`
+	EndBlockNumber   int `json:"end_block_number"`
+}
+
 // BridgeEvents represents a bridge event.
 type RawBridgeEvent struct {
 	db                 *gorm.DB   `gorm:"column:-"`
@@ -47,7 +55,8 @@ type RawBridgeEvent struct {
 	ProcessStatus      int        `json:"process_status" gorm:"column:process_status"`                             // 1.processed 2.unprocessed
 	ProcessFailReason  string     `json:"process_fail_reason" gorm:"column:process_fail_reason;type:varchar(256)"` // reason for process failure
 	ProcessFailCount   int        `json:"process_fail_count" gorm:"column:process_fail_count"`                     // number of process failures
-	CheckStatus        int        `json:"check_status" gorm:"column:check_status"`                                 // 1.checked1 2.checked2
+	CheckStatus        int        `json:"check_status" gorm:"column:check_status"`                                 // 1.checkedStep1 2.checkedStep2
+	CheckFailReason    string     `json:"check_fail_reason" gorm:"column:check_fail_reason;type:varchar(256)"`     // reason for check failure
 }
 
 // NewBridgeEvents creates a new instance of BridgeEvents.
@@ -63,31 +72,9 @@ func NewRawBridgeEvent(db *gorm.DB) *RawBridgeEvent {
 	return &RawBridgeEvent{db: db}
 }
 
-// InsertBridgeEvents inserts a new BridgeEvents record into the database.
-func (b *RawBridgeEvent) InsertRawBridgeEvents(ctx context.Context, tableName string, bridgeEvents []*RawBridgeEvent) error {
-	if len(bridgeEvents) == 0 {
-		return nil
-	}
-	db := b.db
-	db = db.WithContext(ctx)
-	db = db.Model(&RawBridgeEvent{})
-	db = db.Table(tableName)
-
-	for _, event := range bridgeEvents {
-		if err := db.Create(event).Error; err != nil {
-			if isDuplicateEntryError(err) {
-				fmt.Errorf("Message with hash %s already exists, skipping insert.\n", event.MessageHash)
-				continue
-			}
-			return fmt.Errorf("failed to insert message, error: %w", err)
-		}
-	}
-	return nil
-}
-func isDuplicateEntryError(err error) bool {
-	return strings.Contains(err.Error(), "Error 1062")
-}
-
+/***************
+ *    Read     *
+ ***************/
 func (b *RawBridgeEvent) QueryUnProcessedBridgeEventsByEventType(ctx context.Context, tableName string, eventType int, limit int) ([]*RawBridgeEvent, error) {
 	db := b.db
 	db = db.WithContext(ctx)
@@ -119,6 +106,70 @@ func (b *RawBridgeEvent) QueryUnProcessedBridgeEvents(ctx context.Context, table
 	return bridgeEvents, nil
 }
 
+func (r *RawBridgeEvent) CountEventsByMessageNonceRange(tableName string, eventType, startNonce, endNonce int) (int64, error) {
+	var count int64
+	err := r.db.Table(tableName).Model(&RawBridgeEvent{}).
+		Where("event_type = ? AND message_nonce BETWEEN ? AND ?", eventType, startNonce, endNonce).
+		Count(&count).Error
+	return count, err
+}
+
+// FindMessageNonceGaps finds gaps in MessageNonce between the specified range.
+func (r *RawBridgeEvent) FindMessageNonceGaps(tableName string, eventType, startNonce, endNonce int) ([]Gap, error) {
+	var gaps []Gap
+	query := `
+        SELECT t1.message_nonce + 1 AS start_gap, MIN(t2.message_nonce) - 1 AS end_gap, t1.block_number AS start_block_number, MIN(t2.block_number) AS end_block_number
+        FROM ` + tableName + ` t1
+        JOIN ` + tableName + ` t2 ON t1.message_nonce < t2.message_nonce
+        WHERE t1.event_type = ? AND t2.event_type = ? AND t1.message_nonce BETWEEN ? AND ? AND t2.message_nonce BETWEEN ? AND ?
+        GROUP BY t1.message_nonce, t1.block_number
+        HAVING start_gap < MIN(t2.message_nonce);
+    `
+	err := r.db.Raw(query, eventType, eventType, startNonce, endNonce, startNonce, endNonce).Scan(&gaps).Error
+	return gaps, err
+}
+
+// GetMaxNonceByCheckStatus gets the maximum MessageNonce by check_status.
+func (r *RawBridgeEvent) GetMaxNonceByCheckStatus(tableName string, eventType, checkStatus int) (int, error) {
+	var maxNonce int
+	err := r.db.Table(tableName).Where("event_type = ? AND check_status = ?", eventType, checkStatus).Select("MAX(message_nonce)").Scan(&maxNonce).Error
+	return maxNonce, err
+}
+
+// GetEventsByMessageNonceRange gets events by message nonce range.
+func (r *RawBridgeEvent) GetEventsByMessageNonceRange(tableName string, eventType, startNonce, endNonce int) ([]RawBridgeEvent, error) {
+	var events []RawBridgeEvent
+	err := r.db.Table(tableName).Where("event_type = ? AND message_nonce BETWEEN ? AND ?", eventType, startNonce, endNonce).Find(&events).Error
+	return events, err
+}
+
+/****************
+ *    Write     *
+ ****************/
+// InsertBridgeEvents inserts a new BridgeEvents record into the database.
+func (b *RawBridgeEvent) InsertRawBridgeEvents(ctx context.Context, tableName string, bridgeEvents []*RawBridgeEvent) error {
+	if len(bridgeEvents) == 0 {
+		return nil
+	}
+	db := b.db
+	db = db.WithContext(ctx)
+	db = db.Model(&RawBridgeEvent{})
+	db = db.Table(tableName)
+
+	for _, event := range bridgeEvents {
+		if err := db.Create(event).Error; err != nil {
+			if isDuplicateEntryError(err) {
+				fmt.Errorf("Message with hash %s already exists, skipping insert.\n", event.MessageHash)
+				continue
+			}
+			return fmt.Errorf("failed to insert message, error: %w", err)
+		}
+	}
+	return nil
+}
+func isDuplicateEntryError(err error) bool {
+	return strings.Contains(err.Error(), "Error 1062")
+}
 func (e *RawBridgeEvent) UpdateProcessStatus(tableName string, id uint64, newStatus int) error {
 	db := e.db.Table(tableName)
 	return db.Model(&RawBridgeEvent{}).Where("id = ?", id).Updates(map[string]interface{}{
@@ -145,5 +196,31 @@ func (e *RawBridgeEvent) UpdateProcessFail(tableName string, id uint64, reason s
 		"process_fail_count":  gorm.Expr("process_fail_count + ?", 1),
 		"process_status":      int(btypes.ProcessFailed),
 		"updated_at":          time.Now().UTC(),
+	}).Error
+}
+
+// UpdateCheckStatus updates the CheckStatus of the RawBridgeEvent.
+func (r *RawBridgeEvent) UpdateCheckStatus(tableName string, id uint64, newStatus int) error {
+	db := r.db.Table(tableName)
+	return db.Model(&RawBridgeEvent{}).Where("id = ?", id).Updates(map[string]interface{}{
+		"check_status": newStatus,
+		"updated_at":   time.Now().UTC(),
+	}).Error
+}
+
+// UpdateCheckStatusByNonceRange updates the CheckStatus of RawBridgeEvents within a range of MessageNonce and eventType.
+func (r *RawBridgeEvent) UpdateCheckStatusByNonceRange(tableName string, eventType, startNonce, endNonce, newStatus int) error {
+	db := r.db.Table(tableName)
+	return db.Model(&RawBridgeEvent{}).Where("event_type = ? AND message_nonce BETWEEN ? AND ?", eventType, startNonce, endNonce).Updates(map[string]interface{}{
+		"check_status": newStatus,
+		"updated_at":   time.Now().UTC(),
+	}).Error
+}
+func (r *RawBridgeEvent) UpdateCheckFailReason(tableName string, id uint64, newStatus int, reason string) error {
+	db := r.db.Table(tableName)
+	return db.Model(&RawBridgeEvent{}).Where("id = ?", id).Updates(map[string]interface{}{
+		"check_status":      newStatus,
+		"check_fail_reason": reason,
+		"updated_at":        time.Now().UTC(),
 	}).Error
 }

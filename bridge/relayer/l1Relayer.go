@@ -39,6 +39,7 @@ type L1Relayer struct {
 	l1EventParser     *logic.L1EventParser
 	crossMessageOrm   *orm.CrossMessage
 	rawBridgeEventOrm *orm.RawBridgeEvent
+	pollingSemaphore  chan struct{}
 }
 
 const (
@@ -94,6 +95,8 @@ func NewL1Relayer(ctx context.Context, cfg *evm.GethConfig, l2Client *ethclient.
 		l1EventParser:     l1EventParser,
 		crossMessageOrm:   orm.NewCrossMessage(db),
 		rawBridgeEventOrm: orm.NewRawBridgeEvent(db),
+		pollingSemaphore:  make(chan struct{}, 1), // 1 means only one polling goroutine can run at a time
+
 	}
 
 	return relayer, nil
@@ -105,7 +108,15 @@ func (b *L1Relayer) StartPolling() {
 	for {
 		select {
 		case <-ticker.C:
-			b.pollUnProcessedMessages()
+			select {
+			case b.pollingSemaphore <- struct{}{}:
+				go func() {
+					defer func() { <-b.pollingSemaphore }()
+					b.pollUnProcessedMessages()
+				}()
+			default:
+				// skip this round if semaphore is full
+			}
 		case <-b.ctx.Done():
 			return
 		}

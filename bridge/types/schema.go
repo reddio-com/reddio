@@ -22,6 +22,14 @@ const (
 	ErrGetTxsError = 40003
 )
 
+type CheckStatus int
+
+const (
+	CheckStatusUnChecked CheckStatus = iota
+	CheckStatusCheckedStep1
+	CheckStatusCheckedStep2
+)
+
 type ProcessStatus int
 
 const (

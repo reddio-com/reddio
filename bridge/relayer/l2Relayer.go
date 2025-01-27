@@ -31,6 +31,7 @@ type L2Relayer struct {
 	crossMessageOrm   *orm.CrossMessage
 	rawBridgeEventOrm *orm.RawBridgeEvent
 	l2EventParser     *logic.L2EventParser
+	pollingSemaphore  chan struct{}
 	sigPrivateKeys    []string
 }
 
@@ -51,6 +52,7 @@ func NewL2Relayer(ctx context.Context, cfg *evm.GethConfig, db *gorm.DB) (*L2Rel
 		rawBridgeEventOrm: orm.NewRawBridgeEvent(db),
 		l2EventParser:     logic.NewL2EventParser(cfg),
 		sigPrivateKeys:    privateKeys,
+		pollingSemaphore:  make(chan struct{}, 1), // 1 means only one polling goroutine can run at a time
 	}, nil
 }
 func LoadPrivateKey(envFilePath string) (string, error) {
@@ -133,7 +135,15 @@ func (b *L2Relayer) StartPolling() {
 	for {
 		select {
 		case <-ticker.C:
-			b.pollUnProcessedMessages()
+			select {
+			case b.pollingSemaphore <- struct{}{}:
+				go func() {
+					defer func() { <-b.pollingSemaphore }()
+					b.pollUnProcessedMessages()
+				}()
+			default:
+				// skip this round if semaphore is full
+			}
 		case <-b.ctx.Done():
 			return
 		}

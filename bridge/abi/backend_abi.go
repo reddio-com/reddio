@@ -12,11 +12,12 @@ var (
 	UpwardMessageDispatcherFacetABI   *abi.ABI
 	DownwardMessageDispatcherFacetABI *abi.ABI
 
-	L1RelayedMessageEventSig  common.Hash
-	L1DownwardMessageEventSig common.Hash
-	L2UpwardMessageEventSig   common.Hash
-	L2SentMessageEventSig     common.Hash
-	L2RelayedMessageEventSig  common.Hash
+	L1RelayedMessageEventSig   common.Hash
+	L1DownwardMessageEventSig  common.Hash
+	L1QueueTransactionEventSig common.Hash
+	L2UpwardMessageEventSig    common.Hash
+	L2SentMessageEventSig      common.Hash
+	L2RelayedMessageEventSig   common.Hash
 )
 
 func init() {
@@ -24,6 +25,7 @@ func init() {
 	UpwardMessageDispatcherFacetABI, _ = UpwardMessageDispatcherFacetMetaData.GetAbi()
 	L1DownwardMessageEventSig = IL1ParentBridgeCoreFacetABI.Events["DownwardMessage"].ID
 	L1RelayedMessageEventSig = UpwardMessageDispatcherFacetABI.Events["RelayedMessage"].ID
+	L1QueueTransactionEventSig = IL1ParentBridgeCoreFacetABI.Events["QueueTransaction"].ID
 
 	IL2ChildBridgeCoreFacetABI, _ = IL2ChildBridgeCoreFacetMetaData.GetAbi()
 	DownwardMessageDispatcherFacetABI, _ = DownwardMessageDispatcherFacetMetaData.GetAbi()
