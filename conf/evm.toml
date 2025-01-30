@@ -14,11 +14,18 @@ childlayer_contract_address = "0xeC054c6ee2DbbeBC9EbCA50CdBF94A94B02B2E40"
 # Used to collect L2->L1 cross-chain messages from L2 blocks. 'n' indicates collecting once every 'n' L2 blocks, collecting cross-chain messages from 'n' L2 blocks at a time.
 l2_block_collection_depth = 5
 
+#[bridge_api]
 bridge_port = "8888"
 bridge_host = "0.0.0.0"
-# Relayer processing batch size
+
+#[relayer_config]
 relayer_batch_size = 500
-checker_batch_size = 500
+#[checker_config]
+checker_batch_size = 5
+enable_bridge_checker = true
+sepolia_ticker_interval = 10 #seconds
+reddio_ticker_interval = 15
+
 
 [bridge_db_config]
 dsn = "testuser:123456@tcp(localhost:3306)/testdb?charset=utf8mb4&parseTime=True&loc=Local"

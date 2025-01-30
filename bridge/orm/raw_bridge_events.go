@@ -2,6 +2,7 @@ package orm
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log"
 	"strings"
@@ -116,6 +117,7 @@ func (r *RawBridgeEvent) CountEventsByMessageNonceRange(tableName string, eventT
 
 // FindMessageNonceGaps finds gaps in MessageNonce between the specified range.
 func (r *RawBridgeEvent) FindMessageNonceGaps(tableName string, eventType, startNonce, endNonce int) ([]Gap, error) {
+	fmt.Printf("FindMessageNonceGaps, tableName: %s, eventType: %d, startNonce: %d, endNonce: %d\n", tableName, eventType, startNonce, endNonce)
 	var gaps []Gap
 	query := `
         SELECT t1.message_nonce + 1 AS start_gap, MIN(t2.message_nonce) - 1 AS end_gap, t1.block_number AS start_block_number, MIN(t2.block_number) AS end_block_number
@@ -125,15 +127,36 @@ func (r *RawBridgeEvent) FindMessageNonceGaps(tableName string, eventType, start
         GROUP BY t1.message_nonce, t1.block_number
         HAVING start_gap < MIN(t2.message_nonce);
     `
-	err := r.db.Raw(query, eventType, eventType, startNonce, endNonce, startNonce, endNonce).Scan(&gaps).Error
+	err := r.db.Debug().Raw(query, eventType, eventType, startNonce, endNonce, startNonce, endNonce).Scan(&gaps).Error
 	return gaps, err
+}
+
+// GetMinNonceByCheckStatus gets the minimum MessageNonce by check_status.
+func (r *RawBridgeEvent) GetMinNonceByCheckStatus(tableName string, eventType, checkStatus int) (int, error) {
+	fmt.Printf("GetMinNonceByCheckStatus, tableName: %s, eventType: %d, checkStatus: %d\n", tableName, eventType, checkStatus)
+	var minNonce sql.NullInt64
+	err := r.db.Table(tableName).Where("event_type = ? AND check_status = ?", eventType, checkStatus).Select("MIN(message_nonce)").Scan(&minNonce).Error
+	if err != nil {
+		return -1, err
+	}
+	if minNonce.Valid {
+		return int(minNonce.Int64), nil
+	}
+	return -1, nil
 }
 
 // GetMaxNonceByCheckStatus gets the maximum MessageNonce by check_status.
 func (r *RawBridgeEvent) GetMaxNonceByCheckStatus(tableName string, eventType, checkStatus int) (int, error) {
-	var maxNonce int
+	fmt.Printf("GetMaxNonceByCheckStatus, tableName: %s, eventType: %d, checkStatus: %d\n", tableName, eventType, checkStatus)
+	var maxNonce sql.NullInt64
 	err := r.db.Table(tableName).Where("event_type = ? AND check_status = ?", eventType, checkStatus).Select("MAX(message_nonce)").Scan(&maxNonce).Error
-	return maxNonce, err
+	if err != nil {
+		return 0, err
+	}
+	if maxNonce.Valid {
+		return int(maxNonce.Int64), nil
+	}
+	return 0, nil
 }
 
 // GetEventsByMessageNonceRange gets events by message nonce range.
@@ -156,16 +179,21 @@ func (b *RawBridgeEvent) InsertRawBridgeEvents(ctx context.Context, tableName st
 	db = db.Model(&RawBridgeEvent{})
 	db = db.Table(tableName)
 
-	for _, event := range bridgeEvents {
-		if err := db.Create(event).Error; err != nil {
-			if isDuplicateEntryError(err) {
-				fmt.Errorf("Message with hash %s already exists, skipping insert.\n", event.MessageHash)
-				continue
+	return db.Transaction(func(tx *gorm.DB) error {
+		for _, event := range bridgeEvents {
+			fmt.Println("event:txhash,block_number,message_nonce:", event.TxHash, event.BlockNumber, event.MessageNonce)
+			if err := tx.Create(event).Error; err != nil {
+				if isDuplicateEntryError(err) {
+					fmt.Errorf("Message with hash %s already exists, skipping insert.\n", event.MessageHash)
+					continue
+				}
+				fmt.Printf("failed to insert message, error: %v\n", err)
+				return fmt.Errorf("failed to insert message, error: %w", err)
 			}
-			return fmt.Errorf("failed to insert message, error: %w", err)
 		}
-	}
-	return nil
+		fmt.Println("inserted bridge events")
+		return nil
+	})
 }
 func isDuplicateEntryError(err error) bool {
 	return strings.Contains(err.Error(), "Error 1062")

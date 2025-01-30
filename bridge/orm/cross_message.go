@@ -218,9 +218,9 @@ func (c *CrossMessage) QueryUnConsumedMessages(ctx context.Context, tx_type btyp
 }
 
 // ExistsByMessageHash checks if a cross message exists by message hash.
-func (r *CrossMessage) ExistsByMessageHash(tableName string, messageHash string) (bool, error) {
+func (r *CrossMessage) ExistsByMessageHash(messageHash string) (bool, error) {
 	var count int64
-	err := r.db.Table(tableName).Where("message_hash = ?", messageHash).Count(&count).Error
+	err := r.db.Table(r.TableName()).Where("message_hash = ?", messageHash).Count(&count).Error
 	return count > 0, err
 }
 func (c *CrossMessage) UpdateL1Message(ctx context.Context, message_hash string, txStatus int, l2BlockNumber uint64) error {

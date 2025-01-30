@@ -59,9 +59,15 @@ type GethConfig struct {
 	L2BlockCollectionDepth     *big.Int         `toml:"l2_block_collection_depth"`
 	BridgeHost                 string           `toml:"bridge_host"`
 	BridgePort                 string           `toml:"bridge_port"`
-	RelayerBatchSize           int              `toml:"relayer_batch_size"`
-	CheckerBatchSize           int              `toml:"checker_batch_size"`
 	BridgeDBConfig             *database.Config `toml:"bridge_db_config"`
+
+	// relayer config
+	RelayerBatchSize int `toml:"relayer_batch_size"`
+	// checker config
+	CheckerBatchSize      int  `toml:"checker_batch_size"`
+	EnableBridgeChecker   bool `toml:"enable_bridge_checker"`
+	SepoliaTickerInterval int  `toml:"sepolia_ticker_interval"`
+	ReddioTickerInterval  int  `toml:"reddio_ticker_interval"`
 }
 
 func (gc *GethConfig) Copy() *GethConfig {
