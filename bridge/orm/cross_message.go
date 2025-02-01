@@ -2,6 +2,7 @@ package orm
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -63,25 +64,58 @@ func (c *CrossMessage) InsertOrUpdateCrossMessages(ctx context.Context, messages
 	db := c.db
 	db = db.WithContext(ctx)
 	db = db.Model(&CrossMessage{})
-	// 'tx_status' column is not explicitly assigned during the update to prevent a later status from being overwritten back to "sent".
-	db = db.Clauses(clause.OnConflict{
-		Columns: []clause.Column{
-			{Name: "message_hash"},
-			{Name: "tx_type"},
-			{Name: "message_type"}},
-		DoUpdates: clause.AssignmentColumns([]string{"sender", "receiver", "token_type", "l2_block_number", "l2_tx_hash", "l1_token_address", "l2_token_address", "token_ids", "token_amounts", "message_type", "block_timestamp", "message_from", "message_to", "message_value", "message_payload", "message_payloadtype", "message_nonce", "updated_at"}),
-		Where: clause.Where{
-			Exprs: []clause.Expression{
-				clause.And(
-					// do not over-write terminal statuses.
-					clause.Neq{Column: "cross_message.tx_status", Value: btypes.TxStatusTypeConsumed},
-				),
-			},
-		},
-	})
-	if err := db.Create(messages).Error; err != nil {
-		return fmt.Errorf("failed to insert message, error: %w", err)
+
+	for _, message := range messages {
+		var existingMessage CrossMessage
+		err := db.Where("message_hash = ? AND tx_type = ? AND message_type = ?", message.MessageHash, message.TxType, message.MessageType).First(&existingMessage).Error
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			return fmt.Errorf("failed to query existing message: %w", err)
+		}
+
+		if existingMessage.ID != 0 && (existingMessage.TxStatus == int(btypes.TxStatusTypeConsumed) || existingMessage.TxStatus == int(btypes.TxStatusTypeDropped)) {
+			// Skip update if the existing message has been consumed or dropped
+			continue
+		}
+
+		// Update retry_count if the message already exists
+		if existingMessage.ID != 0 {
+			message.RetryCount = existingMessage.RetryCount + 1
+		}
+
+		// Insert or update the message
+		err = db.Clauses(clause.OnConflict{
+			Columns: []clause.Column{
+				{Name: "message_hash"},
+				{Name: "tx_type"},
+				{Name: "message_type"}},
+			DoUpdates: clause.Assignments(map[string]interface{}{
+				"sender":              gorm.Expr("VALUES(sender)"),
+				"receiver":            gorm.Expr("VALUES(receiver)"),
+				"token_type":          gorm.Expr("VALUES(token_type)"),
+				"l2_block_number":     gorm.Expr("VALUES(l2_block_number)"),
+				"l2_tx_hash":          gorm.Expr("VALUES(l2_tx_hash)"),
+				"l1_token_address":    gorm.Expr("VALUES(l1_token_address)"),
+				"l2_token_address":    gorm.Expr("VALUES(l2_token_address)"),
+				"token_ids":           gorm.Expr("VALUES(token_ids)"),
+				"token_amounts":       gorm.Expr("VALUES(token_amounts)"),
+				"message_type":        gorm.Expr("VALUES(message_type)"),
+				"block_timestamp":     gorm.Expr("VALUES(block_timestamp)"),
+				"message_from":        gorm.Expr("VALUES(message_from)"),
+				"message_to":          gorm.Expr("VALUES(message_to)"),
+				"message_value":       gorm.Expr("VALUES(message_value)"),
+				"message_payload":     gorm.Expr("VALUES(message_payload)"),
+				"message_payloadtype": gorm.Expr("VALUES(message_payloadtype)"),
+				"message_nonce":       gorm.Expr("VALUES(message_nonce)"),
+				"updated_at":          gorm.Expr("VALUES(updated_at)"),
+				"tx_status":           gorm.Expr("VALUES(tx_status)"),
+				"retry_count":         gorm.Expr("VALUES(retry_count)"),
+			}),
+		}).Create(message).Error
+		if err != nil {
+			return fmt.Errorf("failed to insert or update message: %w", err)
+		}
 	}
+
 	return nil
 }
 

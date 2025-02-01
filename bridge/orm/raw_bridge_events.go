@@ -119,6 +119,8 @@ func (r *RawBridgeEvent) CountEventsByMessageNonceRange(tableName string, eventT
 func (r *RawBridgeEvent) FindMessageNonceGaps(tableName string, eventType, startNonce, endNonce int) ([]Gap, error) {
 	fmt.Printf("FindMessageNonceGaps, tableName: %s, eventType: %d, startNonce: %d, endNonce: %d\n", tableName, eventType, startNonce, endNonce)
 	var gaps []Gap
+
+	// SQL query to find gaps within the specified range
 	query := `
         SELECT t1.message_nonce + 1 AS start_gap, MIN(t2.message_nonce) - 1 AS end_gap, t1.block_number AS start_block_number, MIN(t2.block_number) AS end_block_number
         FROM ` + tableName + ` t1
@@ -128,7 +130,41 @@ func (r *RawBridgeEvent) FindMessageNonceGaps(tableName string, eventType, start
         HAVING start_gap < MIN(t2.message_nonce);
     `
 	err := r.db.Debug().Raw(query, eventType, eventType, startNonce, endNonce, startNonce, endNonce).Scan(&gaps).Error
-	return gaps, err
+	if err != nil {
+		return nil, err
+	}
+
+	// Check for head gap
+	var firstEvent RawBridgeEvent
+	err = r.db.Table(tableName).Where("event_type = ? AND message_nonce >= ?", eventType, startNonce).
+		Order("message_nonce ASC").First(&firstEvent).Error
+	if err == nil && firstEvent.MessageNonce > startNonce {
+		var prevEvent RawBridgeEvent
+		err = r.db.Table(tableName).Where("event_type = ? AND message_nonce < ?", eventType, startNonce).
+			Order("message_nonce DESC").First(&prevEvent).Error
+		startBlockNumber := 0
+		if err == nil {
+			startBlockNumber = int(prevEvent.BlockNumber)
+		}
+		gaps = append([]Gap{{StartGap: startNonce, EndGap: firstEvent.MessageNonce - 1, StartBlockNumber: startBlockNumber, EndBlockNumber: int(firstEvent.BlockNumber)}}, gaps...)
+	}
+
+	// Check for tail gap
+	var lastEvent RawBridgeEvent
+	err = r.db.Table(tableName).Where("event_type = ? AND message_nonce <= ?", eventType, endNonce).
+		Order("message_nonce DESC").First(&lastEvent).Error
+	if err == nil && lastEvent.MessageNonce < endNonce {
+		var nextEvent RawBridgeEvent
+		err = r.db.Table(tableName).Where("event_type = ? AND message_nonce > ?", eventType, endNonce).
+			Order("message_nonce ASC").First(&nextEvent).Error
+		endBlockNumber := 0
+		if err == nil {
+			endBlockNumber = int(nextEvent.BlockNumber)
+		}
+		gaps = append(gaps, Gap{StartGap: lastEvent.MessageNonce + 1, EndGap: endNonce, StartBlockNumber: int(lastEvent.BlockNumber), EndBlockNumber: endBlockNumber})
+	}
+
+	return gaps, nil
 }
 
 // GetMinNonceByCheckStatus gets the minimum MessageNonce by check_status.
@@ -142,6 +178,7 @@ func (r *RawBridgeEvent) GetMinNonceByCheckStatus(tableName string, eventType, c
 	if minNonce.Valid {
 		return int(minNonce.Int64), nil
 	}
+	fmt.Println("minNonce:", minNonce)
 	return -1, nil
 }
 
@@ -156,6 +193,7 @@ func (r *RawBridgeEvent) GetMaxNonceByCheckStatus(tableName string, eventType, c
 	if maxNonce.Valid {
 		return int(maxNonce.Int64), nil
 	}
+	fmt.Println("maxNonce:", maxNonce)
 	return 0, nil
 }
 
@@ -178,7 +216,7 @@ func (b *RawBridgeEvent) InsertRawBridgeEvents(ctx context.Context, tableName st
 	db = db.WithContext(ctx)
 	db = db.Model(&RawBridgeEvent{})
 	db = db.Table(tableName)
-
+	fmt.Println("InsertRawBridgeEvents: tableName: , bridgeEvents:", tableName, bridgeEvents)
 	return db.Transaction(func(tx *gorm.DB) error {
 		for _, event := range bridgeEvents {
 			fmt.Println("event:txhash,block_number,message_nonce:", event.TxHash, event.BlockNumber, event.MessageNonce)

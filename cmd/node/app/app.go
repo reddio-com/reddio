@@ -63,12 +63,13 @@ func StartUpChain(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm
 	chain := InitReddio(yuCfg, poaCfg, evmCfg, db)
 
 	ethrpc.StartupEthRPC(chain, evmCfg)
-
-	if evmCfg.EnableBridgeChecker {
+	if evmCfg.EnableBridge {
 		StartupL1Watcher(evmCfg, db)
 		StartupRelayer(chain, evmCfg, db)
-		StartupChecker(evmCfg, db)
 		StartupBridgeRpc(evmCfg, db)
+	}
+	if evmCfg.EnableBridgeChecker {
+		StartupChecker(evmCfg, db)
 	}
 	chain.Startup()
 	logrus.Info("start the server")

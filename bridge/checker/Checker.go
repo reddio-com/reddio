@@ -54,40 +54,50 @@ func NewChecker(ctx context.Context, cfg *evm.GethConfig, db *gorm.DB) *Checker 
 }
 func (c *Checker) StartChecking() {
 	// Ticker for Sepolia deposit
-	tickerSepolia := time.NewTicker(time.Duration(c.cfg.SepoliaTickerInterval) * time.Second)
+	tickerSepolia := time.NewTicker(time.Duration(c.cfg.BridgeCheckerConfig.SepoliaTickerInterval) * time.Second)
 	defer tickerSepolia.Stop()
 
 	// Ticker for L2 withdraw
-	tickerReddio := time.NewTicker(time.Duration(c.cfg.ReddioTickerInterval) * time.Second)
+	tickerReddio := time.NewTicker(time.Duration(c.cfg.BridgeCheckerConfig.ReddioTickerInterval) * time.Second)
 	defer tickerReddio.Stop()
 
 	for {
 		select {
+		// L1 checker
 		case <-tickerSepolia.C:
 			select {
 			case c.l1CheckingSemaphore <- struct{}{}:
 				go func() {
 					defer func() { <-c.l1CheckingSemaphore }()
-					if err := c.checkStep1(orm.TableRawBridgeEvents11155111, int(btypes.QueueTransaction), c.cfg.L1ClientAddress); err != nil {
-						logrus.Errorf("checkStep1 for Sepolia deposit failed: %v", err)
+					if c.cfg.BridgeCheckerConfig.EnableL1CheckStep1 {
+						if err := c.checkStep1(orm.TableRawBridgeEvents11155111, int(btypes.QueueTransaction), c.cfg.L1ClientAddress); err != nil {
+							logrus.Errorf("checkStep1 for Sepolia deposit failed: %v", err)
+						}
 					}
-					if err := c.checkStep2(orm.TableRawBridgeEvents11155111, int(btypes.QueueTransaction)); err != nil {
-						logrus.Errorf("checkStep2 for Sepolia deposit failed: %v", err)
+					if c.cfg.BridgeCheckerConfig.EnableL1CheckStep2 {
+						if err := c.checkStep2(orm.TableRawBridgeEvents11155111, int(btypes.QueueTransaction)); err != nil {
+							logrus.Errorf("checkStep2 for Sepolia deposit failed: %v", err)
+						}
 					}
 				}()
 			default:
 				// skip this round if semaphore is full
 			}
+		// L2 checker
 		case <-tickerReddio.C:
 			select {
 			case c.l2CheckingSemaphore <- struct{}{}:
 				go func() {
 					defer func() { <-c.l2CheckingSemaphore }()
-					if err := c.checkStep1(orm.TableRawBridgeEvents50341, int(btypes.SentMessage), c.cfg.L2ClientAddress); err != nil {
-						logrus.Errorf("checkStep1 for L2 withdraw failed: %v", err)
+					if c.cfg.BridgeCheckerConfig.EnableL2CheckStep1 {
+						if err := c.checkStep1(orm.TableRawBridgeEvents50341, int(btypes.SentMessage), c.cfg.L2ClientAddress); err != nil {
+							logrus.Errorf("checkStep1 for L2 withdraw failed: %v", err)
+						}
 					}
-					if err := c.checkStep2(orm.TableRawBridgeEvents50341, int(btypes.SentMessage)); err != nil {
-						logrus.Errorf("checkStep2 for L2 withdraw failed: %v", err)
+					if c.cfg.BridgeCheckerConfig.EnableL2CheckStep2 {
+						if err := c.checkStep2(orm.TableRawBridgeEvents50341, int(btypes.SentMessage)); err != nil {
+							logrus.Errorf("checkStep2 for L2 withdraw failed: %v", err)
+						}
 					}
 				}()
 			default:
@@ -115,7 +125,7 @@ func (c *Checker) checkStep1(rawBridgeEventTableName string, eventType int, clie
 		return err
 	}
 	checkStartMessageNonce := earliestUnCheckMessageNonce
-	checkEndMessageNonce := earliestUnCheckMessageNonce + c.cfg.CheckerBatchSize
+	checkEndMessageNonce := earliestUnCheckMessageNonce + c.cfg.BridgeCheckerConfig.CheckerBatchSize
 	if checkEndMessageNonce > maxMessageNonce {
 		checkEndMessageNonce = maxMessageNonce
 	}
@@ -185,7 +195,7 @@ func (c *Checker) checkStep2(rawBridgeEventTableName string, eventType int) erro
 		return err
 	}
 	checkStartMessageNonce := earliestUnCheckMessageNonce
-	checkEndMessageNonce := earliestUnCheckMessageNonce + c.cfg.CheckerBatchSize
+	checkEndMessageNonce := earliestUnCheckMessageNonce + c.cfg.BridgeCheckerConfig.CheckerBatchSize
 	if checkEndMessageNonce > maxMessageNonce {
 		checkEndMessageNonce = maxMessageNonce
 	}
@@ -214,7 +224,7 @@ func (c *Checker) checkStep2(rawBridgeEventTableName string, eventType int) erro
 			}
 		} else {
 			// Update check_fail_reason if crossMessage does not exist
-			err := c.rawBridgeEventOrm.UpdateCheckFailReason(rawBridgeEventTableName, event.ID, int(btypes.CheckStatusCheckedStep1), "Cross message not found")
+			err := c.rawBridgeEventOrm.UpdateCheckFailReason(rawBridgeEventTableName, event.ID, int(btypes.CheckStatusCheckedStep2), "checkStep2 failed:Cross message not found")
 			if err != nil {
 				logrus.Errorf("Failed to update check fail reason: %v", err)
 				return err
@@ -225,8 +235,8 @@ func (c *Checker) checkStep2(rawBridgeEventTableName string, eventType int) erro
 	return nil
 }
 func (c *Checker) processL1Gap(gap orm.Gap, client *ethclient.Client) error {
-
-	parentLayerContractAddress := common.HexToAddress(c.cfg.ParentLayerContractAddress)
+	fmt.Println("Processing L1 gap，start block number", gap.StartBlockNumber, "end block number", gap.EndBlockNumber)
+	parentLayerContractAddress := common.HexToAddress(c.cfg.BridgeCheckerConfig.CheckL1ContractAddress)
 	query := ethereum.FilterQuery{
 		Addresses: []common.Address{parentLayerContractAddress},
 		FromBlock: big.NewInt(int64(gap.StartBlockNumber)),
@@ -235,11 +245,13 @@ func (c *Checker) processL1Gap(gap orm.Gap, client *ethclient.Client) error {
 
 	parentBridgeCoreFacetFilterer, err := contract.NewParentBridgeCoreFacetFilterer(parentLayerContractAddress, client)
 	if err != nil {
+		fmt.Println("failed to create parentBridgeCoreFacetFilterer")
 		return nil
 	}
 
 	upwardMessageDispatcherFacetFilterer, err := contract.NewUpwardMessageDispatcherFacetFilterer(parentLayerContractAddress, client)
 	if err != nil {
+		fmt.Println("failed to create upwardMessageDispatcherFacetFilterer")
 		return nil
 	}
 	var allBridgeEvents []*orm.RawBridgeEvent
@@ -249,6 +261,7 @@ func (c *Checker) processL1Gap(gap orm.Gap, client *ethclient.Client) error {
 	if err != nil {
 		return fmt.Errorf("failed to filter logs: %v", err)
 	}
+	fmt.Println("logs length", len(logs))
 	for _, vLog := range logs {
 		switch vLog.Topics[0] {
 		case backendabi.L1QueueTransactionEventSig:
@@ -289,7 +302,7 @@ func (c *Checker) processL1Gap(gap orm.Gap, client *ethclient.Client) error {
 }
 func (c *Checker) processL2Gap(gap orm.Gap, client *ethclient.Client) error {
 
-	childLayerContractAddress := common.HexToAddress(c.cfg.ChildLayerContractAddress)
+	childLayerContractAddress := common.HexToAddress(c.cfg.BridgeCheckerConfig.CheckL2ContractAddress)
 	query := ethereum.FilterQuery{
 		Addresses: []common.Address{childLayerContractAddress},
 		FromBlock: big.NewInt(int64(gap.StartBlockNumber)),

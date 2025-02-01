@@ -60,14 +60,23 @@ type GethConfig struct {
 	BridgeHost                 string           `toml:"bridge_host"`
 	BridgePort                 string           `toml:"bridge_port"`
 	BridgeDBConfig             *database.Config `toml:"bridge_db_config"`
-
 	// relayer config
 	RelayerBatchSize int `toml:"relayer_batch_size"`
 	// checker config
-	CheckerBatchSize      int  `toml:"checker_batch_size"`
-	EnableBridgeChecker   bool `toml:"enable_bridge_checker"`
-	SepoliaTickerInterval int  `toml:"sepolia_ticker_interval"`
-	ReddioTickerInterval  int  `toml:"reddio_ticker_interval"`
+	EnableBridgeChecker bool                `toml:"enable_bridge_checker"`
+	BridgeCheckerConfig BridgeCheckerConfig `toml:"bridge_checker_config"`
+}
+
+type BridgeCheckerConfig struct {
+	CheckerBatchSize       int    `toml:"checker_batch_size"`
+	SepoliaTickerInterval  int    `toml:"sepolia_ticker_interval"`
+	ReddioTickerInterval   int    `toml:"reddio_ticker_interval"`
+	EnableL1CheckStep1     bool   `toml:"enable_l1_check_step1"`
+	EnableL1CheckStep2     bool   `toml:"enable_l1_check_step2"`
+	EnableL2CheckStep1     bool   `toml:"enable_l2_check_step1"`
+	EnableL2CheckStep2     bool   `toml:"enable_l2_check_step2"`
+	CheckL1ContractAddress string `toml:"check_l1_contract_address"`
+	CheckL2ContractAddress string `toml:"check_l2_contract_address"`
 }
 
 func (gc *GethConfig) Copy() *GethConfig {
