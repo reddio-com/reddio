@@ -92,6 +92,7 @@ func (b *RawBridgeEvent) QueryUnProcessedBridgeEventsByEventType(ctx context.Con
 	return bridgeEvents, nil
 }
 func (b *RawBridgeEvent) QueryUnProcessedBridgeEvents(ctx context.Context, tableName string, limit int) ([]*RawBridgeEvent, error) {
+
 	db := b.db
 	db = db.WithContext(ctx)
 	db = db.Model(&RawBridgeEvent{})
@@ -117,9 +118,10 @@ func (r *RawBridgeEvent) CountEventsByMessageNonceRange(tableName string, eventT
 
 // FindMessageNonceGaps finds gaps in MessageNonce between the specified range.
 func (r *RawBridgeEvent) FindMessageNonceGaps(tableName string, eventType, startNonce, endNonce int) ([]Gap, error) {
-	fmt.Printf("FindMessageNonceGaps, tableName: %s, eventType: %d, startNonce: %d, endNonce: %d\n", tableName, eventType, startNonce, endNonce)
 	var gaps []Gap
-
+	db := r.db
+	db = db.Model(&RawBridgeEvent{})
+	db = db.Table(tableName)
 	// SQL query to find gaps within the specified range
 	query := `
         SELECT t1.message_nonce + 1 AS start_gap, MIN(t2.message_nonce) - 1 AS end_gap, t1.block_number AS start_block_number, MIN(t2.block_number) AS end_block_number
@@ -169,7 +171,6 @@ func (r *RawBridgeEvent) FindMessageNonceGaps(tableName string, eventType, start
 
 // GetMinNonceByCheckStatus gets the minimum MessageNonce by check_status.
 func (r *RawBridgeEvent) GetMinNonceByCheckStatus(tableName string, eventType, checkStatus int) (int, error) {
-	fmt.Printf("GetMinNonceByCheckStatus, tableName: %s, eventType: %d, checkStatus: %d\n", tableName, eventType, checkStatus)
 	var minNonce sql.NullInt64
 	err := r.db.Table(tableName).Where("event_type = ? AND check_status = ?", eventType, checkStatus).Select("MIN(message_nonce)").Scan(&minNonce).Error
 	if err != nil {
@@ -178,13 +179,11 @@ func (r *RawBridgeEvent) GetMinNonceByCheckStatus(tableName string, eventType, c
 	if minNonce.Valid {
 		return int(minNonce.Int64), nil
 	}
-	fmt.Println("minNonce:", minNonce)
 	return -1, nil
 }
 
 // GetMaxNonceByCheckStatus gets the maximum MessageNonce by check_status.
 func (r *RawBridgeEvent) GetMaxNonceByCheckStatus(tableName string, eventType, checkStatus int) (int, error) {
-	fmt.Printf("GetMaxNonceByCheckStatus, tableName: %s, eventType: %d, checkStatus: %d\n", tableName, eventType, checkStatus)
 	var maxNonce sql.NullInt64
 	err := r.db.Table(tableName).Where("event_type = ? AND check_status = ?", eventType, checkStatus).Select("MAX(message_nonce)").Scan(&maxNonce).Error
 	if err != nil {
@@ -193,7 +192,6 @@ func (r *RawBridgeEvent) GetMaxNonceByCheckStatus(tableName string, eventType, c
 	if maxNonce.Valid {
 		return int(maxNonce.Int64), nil
 	}
-	fmt.Println("maxNonce:", maxNonce)
 	return 0, nil
 }
 
@@ -216,20 +214,18 @@ func (b *RawBridgeEvent) InsertRawBridgeEvents(ctx context.Context, tableName st
 	db = db.WithContext(ctx)
 	db = db.Model(&RawBridgeEvent{})
 	db = db.Table(tableName)
-	fmt.Println("InsertRawBridgeEvents: tableName: , bridgeEvents:", tableName, bridgeEvents)
+	//fmt.Println("InsertRawBridgeEvents: tableName: , bridgeEvents:", tableName, bridgeEvents)
 	return db.Transaction(func(tx *gorm.DB) error {
 		for _, event := range bridgeEvents {
-			fmt.Println("event:txhash,block_number,message_nonce:", event.TxHash, event.BlockNumber, event.MessageNonce)
+			//fmt.Println("event:txhash,block_number,message_nonce:", event.TxHash, event.BlockNumber, event.MessageNonce)
 			if err := tx.Create(event).Error; err != nil {
 				if isDuplicateEntryError(err) {
 					fmt.Errorf("Message with hash %s already exists, skipping insert.\n", event.MessageHash)
 					continue
 				}
-				fmt.Printf("failed to insert message, error: %v\n", err)
 				return fmt.Errorf("failed to insert message, error: %w", err)
 			}
 		}
-		fmt.Println("inserted bridge events")
 		return nil
 	})
 }
@@ -246,7 +242,6 @@ func (e *RawBridgeEvent) UpdateProcessStatus(tableName string, id uint64, newSta
 
 // UpdateProcessStatusBatch updates the process status of multiple RawBridgeEvents.
 func (e *RawBridgeEvent) UpdateProcessStatusBatch(tableName string, ids []uint64, newStatus int) error {
-	fmt.Println("ids:", ids)
 	db := e.db.Table(tableName)
 	return db.Model(&RawBridgeEvent{}).Where("id IN ?", ids).Updates(map[string]interface{}{
 		"process_status": newStatus,

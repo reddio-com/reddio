@@ -8,7 +8,6 @@ import (
 
 	btypes "github.com/reddio-com/reddio/bridge/types"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 // CrossMessage represents a cross message.
@@ -58,64 +57,57 @@ func NewCrossMessage(db *gorm.DB) *CrossMessage {
 }
 
 func (c *CrossMessage) InsertOrUpdateCrossMessages(ctx context.Context, messages []*CrossMessage) error {
+
 	if len(messages) == 0 {
 		return nil
 	}
-	db := c.db
-	db = db.WithContext(ctx)
-	db = db.Model(&CrossMessage{})
+	db := c.db.WithContext(ctx).Model(&CrossMessage{})
 
 	for _, message := range messages {
 		var existingMessage CrossMessage
-		err := db.Where("message_hash = ? AND tx_type = ? AND message_type = ?", message.MessageHash, message.TxType, message.MessageType).First(&existingMessage).Error
-		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-			return fmt.Errorf("failed to query existing message: %w", err)
+		query := db.Session(&gorm.Session{}).Where("message_hash = ? AND tx_type = ? AND message_type = ?",
+			message.MessageHash, message.TxType, message.MessageType).First(&existingMessage)
+
+		if query.Error != nil && !errors.Is(query.Error, gorm.ErrRecordNotFound) {
+			return fmt.Errorf("failed to query existing message: %w", query.Error)
 		}
 
-		if existingMessage.ID != 0 && (existingMessage.TxStatus == int(btypes.TxStatusTypeConsumed) || existingMessage.TxStatus == int(btypes.TxStatusTypeDropped)) {
-			// Skip update if the existing message has been consumed or dropped
-			continue
-		}
-
-		// Update retry_count if the message already exists
-		if existingMessage.ID != 0 {
-			message.RetryCount = existingMessage.RetryCount + 1
-		}
-
-		// Insert or update the message
-		err = db.Clauses(clause.OnConflict{
-			Columns: []clause.Column{
-				{Name: "message_hash"},
-				{Name: "tx_type"},
-				{Name: "message_type"}},
-			DoUpdates: clause.Assignments(map[string]interface{}{
-				"sender":              gorm.Expr("VALUES(sender)"),
-				"receiver":            gorm.Expr("VALUES(receiver)"),
-				"token_type":          gorm.Expr("VALUES(token_type)"),
-				"l2_block_number":     gorm.Expr("VALUES(l2_block_number)"),
-				"l2_tx_hash":          gorm.Expr("VALUES(l2_tx_hash)"),
-				"l1_token_address":    gorm.Expr("VALUES(l1_token_address)"),
-				"l2_token_address":    gorm.Expr("VALUES(l2_token_address)"),
-				"token_ids":           gorm.Expr("VALUES(token_ids)"),
-				"token_amounts":       gorm.Expr("VALUES(token_amounts)"),
-				"message_type":        gorm.Expr("VALUES(message_type)"),
-				"block_timestamp":     gorm.Expr("VALUES(block_timestamp)"),
-				"message_from":        gorm.Expr("VALUES(message_from)"),
-				"message_to":          gorm.Expr("VALUES(message_to)"),
-				"message_value":       gorm.Expr("VALUES(message_value)"),
-				"message_payload":     gorm.Expr("VALUES(message_payload)"),
-				"message_payloadtype": gorm.Expr("VALUES(message_payloadtype)"),
-				"message_nonce":       gorm.Expr("VALUES(message_nonce)"),
-				"updated_at":          gorm.Expr("VALUES(updated_at)"),
-				"tx_status":           gorm.Expr("VALUES(tx_status)"),
-				"retry_count":         gorm.Expr("VALUES(retry_count)"),
-			}),
-		}).Create(message).Error
-		if err != nil {
-			return fmt.Errorf("failed to insert or update message: %w", err)
+		if errors.Is(query.Error, gorm.ErrRecordNotFound) {
+			create := db.Session(&gorm.Session{NewDB: true}).Create(message)
+			if create.Error != nil {
+				return fmt.Errorf("failed to insert message: %w", create.Error)
+			}
+		} else {
+			if existingMessage.TxStatus != int(btypes.TxStatusTypeConsumed) && existingMessage.TxStatus != int(btypes.TxStatusTypeDropped) {
+				message.RetryCount = existingMessage.RetryCount + 1
+				update := db.Session(&gorm.Session{NewDB: true}).Model(&CrossMessage{}).Where("id = ?", existingMessage.ID).Updates(map[string]interface{}{
+					"sender":              message.Sender,
+					"receiver":            message.Receiver,
+					"token_type":          message.TokenType,
+					"l2_block_number":     message.L2BlockNumber,
+					"l2_tx_hash":          message.L2TxHash,
+					"l1_token_address":    message.L1TokenAddress,
+					"l2_token_address":    message.L2TokenAddress,
+					"token_ids":           message.TokenIDs,
+					"token_amounts":       message.TokenAmounts,
+					"message_type":        message.MessageType,
+					"block_timestamp":     message.BlockTimestamp,
+					"message_from":        message.MessageFrom,
+					"message_to":          message.MessageTo,
+					"message_value":       message.MessageValue,
+					"message_payload":     message.MessagePayload,
+					"message_payloadtype": message.MessagePayloadType,
+					"message_nonce":       message.MessageNonce,
+					"updated_at":          message.UpdatedAt,
+					"tx_status":           message.TxStatus,
+					"retry_count":         message.RetryCount,
+				})
+				if update.Error != nil {
+					return fmt.Errorf("failed to update message: %w", update.Error)
+				}
+			}
 		}
 	}
-
 	return nil
 }
 
@@ -282,8 +274,7 @@ func (c *CrossMessage) UpdateL1MessageConsumedStatus(ctx context.Context, l2Rela
 	if err != nil {
 		return fmt.Errorf("failed to update L2 message, id: %s, error: %v", l2RelayedMessage.MessageHash, err)
 	}
-	fmt.Println("MessageHash:", l2RelayedMessage.MessageHash)
-	fmt.Println("RowsAffected:", db.RowsAffected)
+
 	return nil
 }
 func (c *CrossMessage) UpdateL2MessageConsumedStatus(ctx context.Context, l1RelayedMessage *CrossMessage) error {
