@@ -33,11 +33,17 @@ build_transfer_erc20_test_race:
 ci_parallel_transfer_test: reset
 	./transfer_test --parallel=true
 
+ci_sqlite_parallel_transfer_test: reset
+	./transfer_test --parallel=true --use-sql=true
+
 ci_serial_transfer_test: reset
 	./transfer_test --parallel=false
 
 ci_parallel_uniswap_test: reset
 	./uniswap_test --parallel=true
+
+ci_sqlite_parallel_uniswap_test: reset
+	./uniswap_test --parallel=true --use-sql=true
 
 ci_serial_uniswap_test: reset
 	./uniswap_test --parallel=false

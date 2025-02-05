@@ -34,8 +34,6 @@ func init() {
 func main() {
 	flag.Parse()
 	yuCfg, poaCfg, evmConfig, config := testx.GenerateConfig(yuConfigPath, evmConfigPath, poaConfigPath, useSql, isParallel)
-	yuCfg.SqliteDBConf.Path = "sqlite.db"
-	yuCfg.TxnConf.EnableSqliteStorage = true
 	go func() {
 		if config.IsParallel {
 			logrus.Info("start transfer test in parallel")

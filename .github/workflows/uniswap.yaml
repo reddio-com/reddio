@@ -39,5 +39,7 @@ jobs:
         run: make build_uniswap_test_race
       - name: Parallel Uniswap Test
         run: make ci_parallel_uniswap_test
+      - name: Sqlite Parallel Uniswap Test
+        run: make ci_sqlite_parallel_uniswap_test
       - name: Serial Uniswap Test
         run: make ci_serial_uniswap_test
