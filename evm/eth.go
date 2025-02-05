@@ -626,7 +626,7 @@ func (s *Solidity) GetEthReceipt(hash common.Hash) (*types.Receipt, error) {
 	}
 	yuReceipt, err := s.TxDB.GetReceipt(yuHash)
 	if err != nil {
-		logrus.Errorf("getReceipt() TxDB.GetReceipt, txHash(%s) error: %v", yuHash.String(), err)
+		logrus.Debugf("getReceipt() TxDB.GetReceipt, txHash(%s) error: %v", yuHash.String(), err)
 		return nil, err
 	}
 
