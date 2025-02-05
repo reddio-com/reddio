@@ -24,7 +24,7 @@ relayer_batch_size = 500
 #checker
 enable_bridge_checker = false
 [bridge_checker_config]
-check_l1_contract_address = "0xB74D5Dba3081bCaDb5D4e1CC77Cc4807E1c4ecf8"
+check_l1_contract_address = "0x9F7e49fcAB7eD379451e8422D20908bF439011A5"
 check_l2_contract_address = "0xeC054c6ee2DbbeBC9EbCA50CdBF94A94B02B2E40"
 enable_l1_check_step1 = false
 enable_l1_check_step2 = false

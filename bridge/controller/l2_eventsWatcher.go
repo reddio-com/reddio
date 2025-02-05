@@ -23,15 +23,16 @@ type L2EventsWatcher struct {
 	*tripod.Tripod
 	solidity           *evm.Solidity `tripod:"solidity"`
 	rawBridgeEventsOrm *orm.RawBridgeEvent
+	db                 *gorm.DB
 }
 
 func NewL2EventsWatcher(cfg *evm.GethConfig, db *gorm.DB) *L2EventsWatcher {
 	tri := tripod.NewTripod()
 	c := &L2EventsWatcher{
 		//ctx:            ctx,
-		cfg:                cfg,
-		Tripod:             tri,
-		rawBridgeEventsOrm: orm.NewRawBridgeEvent(db),
+		cfg:    cfg,
+		Tripod: tri,
+		db:     db,
 	}
 	return c
 }
@@ -58,6 +59,8 @@ func (w *L2EventsWatcher) WatchL2BridgeEvent(ctx context.Context, block *yutypes
 
 func (w *L2EventsWatcher) InitChain(block *yutypes.Block) {
 	if w.cfg.EnableBridge {
+		w.rawBridgeEventsOrm = orm.NewRawBridgeEvent(w.db)
+
 		l2WatcherLogic, err := logic.NewL2WatcherLogic(w.cfg, w.solidity)
 		if err != nil {
 			logrus.Fatal("init l2WatcherLogic failed: ", err)
@@ -89,7 +92,7 @@ func (w *L2EventsWatcher) FinalizeBlock(block *yutypes.Block) {
 func (w *L2EventsWatcher) savel2BridgeEvents(
 	rawBridgeEvents []*orm.RawBridgeEvent,
 ) error {
-	fmt.Println("savel2BridgeEvents rawBridgeEvents: ", rawBridgeEvents)
+	//fmt.Println("savel2BridgeEvents rawBridgeEvents: ", rawBridgeEvents)
 	if len(rawBridgeEvents) == 0 {
 		return nil
 	}
