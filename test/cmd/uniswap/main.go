@@ -36,6 +36,8 @@ func init() {
 func main() {
 	flag.Parse()
 	yuCfg, poaCfg, evmConfig, config := testx.GenerateConfig(yuConfigPath, evmConfigPath, poaConfigPath, useSql, isParallel)
+	yuCfg.SqliteDBConf.Path = "sqlite.db"
+	yuCfg.TxnConf.EnableSqliteStorage = true
 	go func() {
 		logrus.Infof("Number of goroutines after app.Start: %d", runtime.NumGoroutine())
 		if config.IsParallel {

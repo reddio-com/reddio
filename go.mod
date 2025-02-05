@@ -64,6 +64,7 @@ require (
 	github.com/deckarep/golang-set/v2 v2.6.0 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.3.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
+	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/elastic/gosigar v0.14.3 // indirect
 	github.com/ethereum/c-kzg-4844 v1.0.1 // indirect
 	github.com/flynn/noise v1.1.0 // indirect
@@ -153,6 +154,7 @@ require (
 	github.com/multiformats/go-multistream v0.5.0 // indirect
 	github.com/multiformats/go-varint v0.0.7 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
+	github.com/ncruces/go-strftime v0.1.9 // indirect
 	github.com/olekukonko/tablewriter v0.0.5 // indirect
 	github.com/onsi/ginkgo/v2 v2.19.1 // indirect
 	github.com/opencontainers/runtime-spec v1.2.0 // indirect
@@ -183,6 +185,7 @@ require (
 	github.com/quic-go/quic-go v0.45.2 // indirect
 	github.com/quic-go/webtransport-go v0.8.0 // indirect
 	github.com/raulk/go-watchdog v1.3.0 // indirect
+	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/rivo/uniseg v0.4.2 // indirect
 	github.com/rogpeppe/go-internal v1.12.0 // indirect
 	github.com/sasha-s/go-deadlock v0.3.1 // indirect
@@ -219,7 +222,13 @@ require (
 	gorm.io/driver/postgres v1.0.8 // indirect
 	gorm.io/driver/sqlite v1.1.4 // indirect
 	lukechampine.com/blake3 v1.3.0 // indirect
+	modernc.org/libc v1.55.3 // indirect
+	modernc.org/mathutil v1.6.0 // indirect
+	modernc.org/memory v1.8.0 // indirect
+	modernc.org/sqlite v1.34.5 // indirect
 	rsc.io/tmplfunc v0.0.3 // indirect
 )
 
 replace github.com/ethereum/go-ethereum => github.com/reddio-com/go-ethereum v1.10.19-0.20241203030429-cc7ffb6f4ed2
+
+replace github.com/yu-org/yu => /Users/yisa/Downloads/Github/reddio/yu

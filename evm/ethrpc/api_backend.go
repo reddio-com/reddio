@@ -430,7 +430,7 @@ func (e *EthAPIBackend) GetTransaction(ctx context.Context, txHash common.Hash) 
 		return false, nil, common.Hash{}, 0, 0, err
 	}
 	if stxn == nil {
-		logrus.Warningf("[GetTransaction] Transaction not found, txHash(%s), yuHash(%s)", txHash.Hex(), yucommon.Hash(txHash).Hex())
+		logrus.Debugf("[GetTransaction] Transaction not found, txHash(%s), yuHash(%s)", txHash.Hex(), yucommon.Hash(txHash).Hex())
 		return false, nil, common.Hash{}, 0, 0, nil
 	}
 	ethTxn, err := YuTxn2EthTxn(stxn)
@@ -446,7 +446,7 @@ func (e *EthAPIBackend) GetTransaction(ctx context.Context, txHash common.Hash) 
 		return false, nil, common.Hash{}, 0, 0, err
 	}
 	if receipt == nil {
-		logrus.Warningf("[GetTransaction] Receipt not found, txHash(%s), yuHash(%s)", txHash.Hex(), yucommon.Hash(txHash).Hex())
+		logrus.Debugf("[GetTransaction] Receipt not found, txHash(%s), yuHash(%s)", txHash.Hex(), yucommon.Hash(txHash).Hex())
 		return false, nil, common.Hash{}, 0, 0, nil
 	}
 
