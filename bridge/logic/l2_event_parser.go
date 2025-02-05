@@ -3,7 +3,6 @@ package logic
 import (
 	"context"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"math/big"
 	"time"
@@ -86,12 +85,12 @@ func (e *L2EventParser) ParseL2EventToRawBridgeEvents(ctx context.Context, logs 
 	var l2RelayedMessages []*orm.RawBridgeEvent
 
 	for _, vlog := range logs {
-		vlogJson, err := json.MarshalIndent(vlog, "", "  ")
-		if err != nil {
-			logrus.Errorf("json.MarshalIndent(vlog) failed: %v", err)
-			return nil, nil, err
-		}
-		fmt.Printf("vlog: %s\n", vlogJson)
+		// vlogJson, err := json.MarshalIndent(vlog, "", "  ")
+		// if err != nil {
+		// 	logrus.Errorf("json.MarshalIndent(vlog) failed: %v", err)
+		// 	return nil, nil, err
+		// }
+		//fmt.Printf("vlog: %s\n", vlogJson)
 		if vlog.Topics[0] == backendabi.L2SentMessageEventSig {
 			event := new(contract.ChildBridgeCoreFacetSentMessage)
 			err := utils.UnpackLog(backendabi.IL2ChildBridgeCoreFacetABI, event, "SentMessage", vlog)
@@ -198,7 +197,7 @@ func (e *L2EventParser) ParseL2EventToRawBridgeEvents(ctx context.Context, logs 
 				})
 			}
 		} else if vlog.Topics[0] == backendabi.DownwardMessageDispatcherFacetABI.Events["RelayedMessage"].ID {
-			fmt.Println("find RelayedMessage!")
+			//fmt.Println("find RelayedMessage!")
 			event := new(contract.DownwardMessageDispatcherFacetRelayedMessage)
 			err := utils.UnpackLog(backendabi.DownwardMessageDispatcherFacetABI, event, "RelayedMessage", vlog)
 			if err != nil {

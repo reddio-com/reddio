@@ -116,7 +116,7 @@ func (c *Checker) checkStep1(rawBridgeEventTableName string, eventType int, clie
 		return err
 	}
 	if earliestUnCheckMessageNonce == -1 {
-		fmt.Println("No unchecked message nonce found")
+		//fmt.Println("No unchecked message nonce found")
 		return nil
 	}
 	maxMessageNonce, err := c.rawBridgeEventOrm.GetMaxNonceByCheckStatus(rawBridgeEventTableName, eventType, int(btypes.CheckStatusUnChecked))
@@ -129,7 +129,7 @@ func (c *Checker) checkStep1(rawBridgeEventTableName string, eventType int, clie
 	if checkEndMessageNonce > maxMessageNonce {
 		checkEndMessageNonce = maxMessageNonce
 	}
-	fmt.Printf("Checking message nonce range from %d to %d\n", checkStartMessageNonce, checkEndMessageNonce)
+	//fmt.Printf("Checking message nonce range from %d to %d\n", checkStartMessageNonce, checkEndMessageNonce)
 	// 1.1 Query the actual number of data entries
 	actualCount, err := c.rawBridgeEventOrm.CountEventsByMessageNonceRange(rawBridgeEventTableName, eventType, checkStartMessageNonce, checkEndMessageNonce)
 	if err != nil {
@@ -142,7 +142,7 @@ func (c *Checker) checkStep1(rawBridgeEventTableName string, eventType int, clie
 
 	// 1.3 Check if the actual count matches the expected count
 	if actualCount != int64(expectedCount) {
-		fmt.Printf("Actual count (%d) does not match expected count (%d)\n", actualCount, expectedCount)
+		//fmt.Printf("Actual count (%d) does not match expected count (%d)\n", actualCount, expectedCount)
 
 		// 1.3.1 Query gaps
 		gaps, err := c.rawBridgeEventOrm.FindMessageNonceGaps(rawBridgeEventTableName, eventType, checkStartMessageNonce, checkEndMessageNonce)
@@ -157,15 +157,15 @@ func (c *Checker) checkStep1(rawBridgeEventTableName string, eventType int, clie
 		}
 		// 1.3.2 Process gaps
 		for _, gap := range gaps {
-			fmt.Printf("Gap from %d to %d\n", gap.StartGap, gap.EndGap)
+			//fmt.Printf("Gap from %d to %d\n", gap.StartGap, gap.EndGap)
 			if rawBridgeEventTableName == orm.TableRawBridgeEvents11155111 {
-				fmt.Println("Processing Sepolia deposit gap")
+				//fmt.Println("Processing Sepolia deposit gap")
 				c.processL1Gap(gap, client)
 			} else if rawBridgeEventTableName == orm.TableRawBridgeEvents50341 {
-				fmt.Println("Processing L2 withdraw gap")
+				//fmt.Println("Processing L2 withdraw gap")
 				c.processL2Gap(gap, client)
 			}
-			fmt.Println("Gap Processd,start gap", gap.StartGap, "end gap", gap.EndGap)
+			//fmt.Println("Gap Processd,start gap", gap.StartGap, "end gap", gap.EndGap)
 		}
 	} else {
 		// If the actual count matches the expected count, update the check_status to 1
@@ -186,7 +186,7 @@ func (c *Checker) checkStep2(rawBridgeEventTableName string, eventType int) erro
 		return err
 	}
 	if earliestUnCheckMessageNonce == -1 {
-		fmt.Println("checkStep2:No unchecked message nonce found")
+		//fmt.Println("checkStep2:No unchecked message nonce found")
 		return nil
 	}
 	maxMessageNonce, err := c.rawBridgeEventOrm.GetMaxNonceByCheckStatus(rawBridgeEventTableName, eventType, int(btypes.CheckStatusCheckedStep1))
@@ -201,7 +201,7 @@ func (c *Checker) checkStep2(rawBridgeEventTableName string, eventType int) erro
 	}
 
 	// 1.1 Query the actual number of data entries
-	fmt.Printf("checkStep2 Checking message nonce range from %d to %d\n", checkStartMessageNonce, checkEndMessageNonce)
+	//fmt.Printf("checkStep2 Checking message nonce range from %d to %d\n", checkStartMessageNonce, checkEndMessageNonce)
 	rawBridgeEvents, err := c.rawBridgeEventOrm.GetEventsByMessageNonceRange(rawBridgeEventTableName, eventType, checkStartMessageNonce, checkEndMessageNonce)
 	if err != nil {
 		logrus.Errorf("Failed to get events by message nonce range: %v", err)
@@ -235,7 +235,7 @@ func (c *Checker) checkStep2(rawBridgeEventTableName string, eventType int) erro
 	return nil
 }
 func (c *Checker) processL1Gap(gap orm.Gap, client *ethclient.Client) error {
-	fmt.Println("Processing L1 gap，start block number", gap.StartBlockNumber, "end block number", gap.EndBlockNumber)
+	//fmt.Println("Processing L1 gap，start block number", gap.StartBlockNumber, "end block number", gap.EndBlockNumber)
 	parentLayerContractAddress := common.HexToAddress(c.cfg.BridgeCheckerConfig.CheckL1ContractAddress)
 	query := ethereum.FilterQuery{
 		Addresses: []common.Address{parentLayerContractAddress},
@@ -245,13 +245,13 @@ func (c *Checker) processL1Gap(gap orm.Gap, client *ethclient.Client) error {
 
 	parentBridgeCoreFacetFilterer, err := contract.NewParentBridgeCoreFacetFilterer(parentLayerContractAddress, client)
 	if err != nil {
-		fmt.Println("failed to create parentBridgeCoreFacetFilterer")
+		//fmt.Println("failed to create parentBridgeCoreFacetFilterer")
 		return nil
 	}
 
 	upwardMessageDispatcherFacetFilterer, err := contract.NewUpwardMessageDispatcherFacetFilterer(parentLayerContractAddress, client)
 	if err != nil {
-		fmt.Println("failed to create upwardMessageDispatcherFacetFilterer")
+		//fmt.Println("failed to create upwardMessageDispatcherFacetFilterer")
 		return nil
 	}
 	var allBridgeEvents []*orm.RawBridgeEvent
@@ -261,11 +261,11 @@ func (c *Checker) processL1Gap(gap orm.Gap, client *ethclient.Client) error {
 	if err != nil {
 		return fmt.Errorf("failed to filter logs: %v", err)
 	}
-	fmt.Println("logs length", len(logs))
+	//fmt.Println("logs length", len(logs))
 	for _, vLog := range logs {
 		switch vLog.Topics[0] {
 		case backendabi.L1QueueTransactionEventSig:
-			//fmt.Println("QueueTransaction event detected")
+			////fmt.Println("QueueTransaction event detected")
 			event, err := parentBridgeCoreFacetFilterer.ParseQueueTransaction(vLog)
 			if err != nil {
 				return fmt.Errorf("failed to unpack event: %v", err)
@@ -275,7 +275,7 @@ func (c *Checker) processL1Gap(gap orm.Gap, client *ethclient.Client) error {
 				return fmt.Errorf("failed to parse L1RelayedMessage: %v", err)
 			}
 			if len(bridgeEvents) > 0 {
-				fmt.Println("bridgeEvents[0].MessageNonce", bridgeEvents[0].MessageNonce)
+				//fmt.Println("bridgeEvents[0].MessageNonce", bridgeEvents[0].MessageNonce)
 			}
 			allBridgeEvents = append(allBridgeEvents, bridgeEvents...)
 			queueEventCount++

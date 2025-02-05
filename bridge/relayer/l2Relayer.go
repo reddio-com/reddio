@@ -177,16 +177,16 @@ func (b *L2Relayer) pollUnProcessedMessages() {
 	}
 }
 func (b *L2Relayer) HandleL2RelayerMessage(ctx context.Context, bridgeEvent *orm.RawBridgeEvent) error {
-	fmt.Println("HandleL2RelayerMessage")
+	//fmt.Println("HandleL2RelayerMessage")
 	relayedMessage, err := b.l2EventParser.ParseL2RelayMessagePayload(ctx, bridgeEvent)
-	fmt.Println("relayedMessages:", relayedMessage.MessageHash)
+	//fmt.Println("relayedMessages:", relayedMessage.MessageHash)
 	if err != nil {
 		logrus.Infof("Failed to parse L1 cross chain payload: %v", err)
 		b.rawBridgeEventOrm.UpdateProcessFail(orm.TableRawBridgeEvents50341, bridgeEvent.ID, err.Error())
 		return err
 	}
 	err = b.crossMessageOrm.UpdateL1MessageConsumedStatus(b.ctx, relayedMessage)
-	fmt.Println("UpdateL1MessageConsumedStatus")
+	//fmt.Println("UpdateL1MessageConsumedStatus")
 	if err != nil {
 		logrus.Infof("Failed to update L2 message consumed status: %v", err)
 		b.rawBridgeEventOrm.UpdateProcessFail(orm.TableRawBridgeEvents50341, bridgeEvent.ID, err.Error())

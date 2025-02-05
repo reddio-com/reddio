@@ -2,7 +2,6 @@ package logic
 
 import (
 	"context"
-	"fmt"
 	"math/big"
 	"slices"
 	"time"
@@ -56,8 +55,8 @@ func (f *L2WatcherLogic) L2FetcherBridgeEventsFromLogs(ctx context.Context, bloc
 	endBlockHeight := int(blockHeight) - 2*depth
 
 	for height := startBlockHeight; height > endBlockHeight; height-- {
-		fmt.Println("Watcher GetCompactBlock startBlockHeight: ", startBlockHeight)
-		fmt.Println("Watcher GetCompactBlock endBlockHeight: ", endBlockHeight)
+		//fmt.Println("Watcher GetCompactBlock startBlockHeight: ", startBlockHeight)
+		//fmt.Println("Watcher GetCompactBlock endBlockHeight: ", endBlockHeight)
 		block, err = f.GetBlockWithRetry(yucommon.BlockNum(height), 5, 1*time.Second)
 		if err != nil {
 			//fmt.Println("Watcher GetCompactBlock error: ", err)
