@@ -125,7 +125,7 @@ func (b *L1Relayer) StartPolling() {
 func (b *L1Relayer) pollUnProcessedMessages() {
 	ctx := context.Background()
 	//messages, err := r.crossMessageOrm.QueryL1UnConsumedMessages(ctx, btypes.TxTypeDeposit)
-	bridgeEvents, err := b.rawBridgeEventOrm.QueryUnProcessedBridgeEvents(ctx, orm.TableRawBridgeEvents11155111, 500)
+	bridgeEvents, err := b.rawBridgeEventOrm.QueryUnProcessedBridgeEvents(ctx, orm.TableRawBridgeEvents11155111, b.cfg.RelayerBatchSize)
 	if err != nil {
 		log.Printf("Failed to query unconsumed messages: %v", err)
 		return
