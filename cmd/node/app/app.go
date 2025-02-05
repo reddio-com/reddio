@@ -19,6 +19,7 @@ import (
 	"github.com/yu-org/yu/core/startup"
 	"gorm.io/gorm"
 
+	"github.com/reddio-com/reddio/bridge/checker"
 	watcher "github.com/reddio-com/reddio/bridge/controller"
 	"github.com/reddio-com/reddio/bridge/controller/api"
 	"github.com/reddio-com/reddio/bridge/controller/route"
@@ -62,8 +63,14 @@ func StartUpChain(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm
 	chain := InitReddio(yuCfg, poaCfg, evmCfg, db)
 
 	ethrpc.StartupEthRPC(chain, evmCfg)
-
-	StartupL1Watcher(chain, evmCfg, db)
+	if evmCfg.EnableBridge {
+		StartupL1Watcher(evmCfg, db)
+		StartupRelayer(chain, evmCfg, db)
+		StartupBridgeRpc(evmCfg, db)
+	}
+	if evmCfg.EnableBridgeChecker {
+		StartupChecker(evmCfg, db)
+	}
 	chain.Startup()
 	logrus.Info("start the server")
 	sigint := make(chan os.Signal, 1)
@@ -97,28 +104,15 @@ func startPromServer() {
 	}
 }
 
-func StartupL1Watcher(chain *kernel.Kernel, cfg *evm.GethConfig, db *gorm.DB) {
+func StartupL1Watcher(cfg *evm.GethConfig, db *gorm.DB) {
 	ctx := context.Background()
-	if !cfg.EnableBridge {
-		logrus.Info("no client enabled, stop init watcher")
-		return
-	}
 
 	l1Client, err := ethclient.Dial(cfg.L1ClientAddress)
 	if err != nil {
 		logrus.Fatal("failed to connect to L1 geth", "endpoint", cfg.L1ClientAddress, "err", err)
 	}
 
-	l2Client, err := ethclient.Dial(cfg.L2ClientAddress)
-	if err != nil {
-		logrus.Fatal("failed to connect to L2 geth", "endpoint", cfg.L2ClientAddress, "err", err)
-	}
-	l1ToL2Relayer, err := relayer.NewL1ToL2Relayer(ctx, cfg, l1Client, l2Client, chain, db)
-	if err != nil {
-		logrus.Fatal("init bridge relayer failed: ", err)
-	}
-
-	l1Watcher, err := watcher.NewL1EventsWatcher(ctx, cfg, l1Client, l1ToL2Relayer)
+	l1Watcher, err := watcher.NewL1EventsWatcher(ctx, cfg, l1Client, db)
 	if err != nil {
 		logrus.Fatal("init L1 client failed: ", err)
 	}
@@ -127,6 +121,38 @@ func StartupL1Watcher(chain *kernel.Kernel, cfg *evm.GethConfig, db *gorm.DB) {
 		logrus.Fatal("l1 client run failed: ", err)
 	}
 
+}
+
+func StartupRelayer(chain *kernel.Kernel, cfg *evm.GethConfig, db *gorm.DB) {
+	ctx := context.Background()
+
+	l1Client, err := ethclient.Dial(cfg.L1ClientAddress)
+	if err != nil {
+		logrus.Fatal("failed to connect to L1 geth", "endpoint", cfg.L1ClientAddress, "err", err)
+	}
+
+	l1Relayer, err := relayer.NewL1Relayer(ctx, cfg, l1Client, chain, db)
+	if err != nil {
+		logrus.Fatal("init bridge relayer failed: ", err)
+	}
+
+	go l1Relayer.StartPolling()
+	l2Relayer, err := relayer.NewL2Relayer(ctx, cfg, db)
+	if err != nil {
+		logrus.Fatal("init bridge relayer failed: ", err)
+	}
+
+	go l2Relayer.StartPolling()
+}
+
+func StartupChecker(cfg *evm.GethConfig, db *gorm.DB) {
+	ctx := context.Background()
+	checker := checker.NewChecker(ctx, cfg, db)
+	go checker.StartChecking()
+
+}
+
+func StartupBridgeRpc(cfg *evm.GethConfig, db *gorm.DB) {
 	api.InitController(db)
 
 	router := gin.Default()

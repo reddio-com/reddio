@@ -10,30 +10,32 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/sirupsen/logrus"
-	
+	"gorm.io/gorm"
+
 	"github.com/reddio-com/reddio/bridge/contract"
 	"github.com/reddio-com/reddio/bridge/logic"
-	"github.com/reddio-com/reddio/bridge/relayer"
+	"github.com/reddio-com/reddio/bridge/orm"
 	"github.com/reddio-com/reddio/evm"
 	"github.com/reddio-com/reddio/metrics"
 )
 
 type L1EventsWatcher struct {
-	ctx            context.Context
-	cfg            *evm.GethConfig
-	l1Client       *ethclient.Client
-	l1WatcherLogic *logic.L1WatcherLogic
-	l1toL2Relayer  relayer.L1ToL2RelayerInterface
+	ctx           context.Context
+	cfg           *evm.GethConfig
+	l1Client      *ethclient.Client
+	l1EventParser *logic.L1EventParser
+
+	rawBridgeEventsOrm *orm.RawBridgeEvent
 }
 
-func NewL1EventsWatcher(ctx context.Context, cfg *evm.GethConfig, ethClient *ethclient.Client, l1toL2Relayer relayer.L1ToL2RelayerInterface) (*L1EventsWatcher, error) {
+func NewL1EventsWatcher(ctx context.Context, cfg *evm.GethConfig, ethClient *ethclient.Client, db *gorm.DB) (*L1EventsWatcher, error) {
 
 	c := &L1EventsWatcher{
-		ctx:            ctx,
-		cfg:            cfg,
-		l1Client:       ethClient,
-		l1WatcherLogic: logic.NewL1WatcherLogic(cfg, ethClient),
-		l1toL2Relayer:  l1toL2Relayer,
+		ctx:                ctx,
+		cfg:                cfg,
+		l1Client:           ethClient,
+		l1EventParser:      logic.NewL1EventParser(cfg),
+		rawBridgeEventsOrm: orm.NewRawBridgeEvent(db),
 	}
 	return c, nil
 }
@@ -143,10 +145,32 @@ func (w *L1EventsWatcher) watchRelayerMessage(
 /*****************************
  *    [Functions:Handler]    *
  *****************************/
+// func (w *L1EventsWatcher) handleDownwardMessage(
+// 	msg *contract.ParentBridgeCoreFacetQueueTransaction,
+// ) error {
+// 	err := w.l1toL2Relayer.HandleDownwardMessageWithSystemCall(msg)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	return nil
+// }
+// func (w *L1EventsWatcher) handleRelayerMessage(msg *contract.UpwardMessageDispatcherFacetRelayedMessage) error {
+// 	err := w.l1toL2Relayer.HandleRelayerMessage(msg)
+// 	if err != nil {
+// 		logrus.Errorf("Failed to handle RelayerMessage: %v", err)
+// 		return err
+// 	}
+// 	return nil
+// }
+//save downward message to db
 func (w *L1EventsWatcher) handleDownwardMessage(
 	msg *contract.ParentBridgeCoreFacetQueueTransaction,
 ) error {
-	err := w.l1toL2Relayer.HandleDownwardMessageWithSystemCall(msg)
+	bridgeEvents, err := w.l1EventParser.ParseDepositEventToRawBridgeEvents(context.Background(), msg)
+	if err != nil {
+		logrus.Errorf("Failed to parse downward message: %v", err)
+	}
+	err = w.rawBridgeEventsOrm.InsertRawBridgeEvents(context.Background(), orm.TableRawBridgeEvents11155111, bridgeEvents)
 	if err != nil {
 		return err
 	}
@@ -154,9 +178,12 @@ func (w *L1EventsWatcher) handleDownwardMessage(
 }
 
 func (w *L1EventsWatcher) handleRelayerMessage(msg *contract.UpwardMessageDispatcherFacetRelayedMessage) error {
-	err := w.l1toL2Relayer.HandleRelayerMessage(msg)
+	bridgeEvents, err := w.l1EventParser.ParseL1RelayedMessageToRawBridgeEvents(context.Background(), msg)
 	if err != nil {
-		logrus.Errorf("Failed to handle RelayerMessage: %v", err)
+		logrus.Errorf("Failed to parse downward message: %v", err)
+	}
+	err = w.rawBridgeEventsOrm.InsertRawBridgeEvents(context.Background(), orm.TableRawBridgeEvents11155111, bridgeEvents)
+	if err != nil {
 		return err
 	}
 	return nil

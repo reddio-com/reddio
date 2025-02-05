@@ -198,7 +198,7 @@ func TestInsertOrUpdateL2Messages(t *testing.T) {
 	}
 
 	c := &CrossMessage{db: db}
-	err = c.InsertOrUpdateL2Messages(context.Background(), []*CrossMessage{crossMessage})
+	err = c.InsertOrUpdateCrossMessages(context.Background(), []*CrossMessage{crossMessage})
 	if err != nil {
 		t.Fatalf("Failed to insert or update cross message: %v", err)
 	}
