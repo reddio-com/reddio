@@ -12,9 +12,8 @@ import (
 func GenerateConfig(yuConfigPath, evmConfigPath, poaConfigPath string, useSql, isParallel bool) (yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmConfig *evm.GethConfig, config *config2.Config) {
 	yuCfg = startup.InitKernelConfigFromPath(yuConfigPath)
 	if useSql {
-		yuCfg.KVDB.UseSQlDbConf = true
-		yuCfg.KVDB.SQLDbConf.SqlDbType = "mysql"
-		yuCfg.KVDB.SQLDbConf.Dsn = `root:root@tcp(127.0.0.1:3306)/test`
+		yuCfg.SqliteDBConf.Path = "sqlite.db"
+		yuCfg.TxnConf.EnableSqliteStorage = true
 	}
 	evmConfig = evm.LoadEvmConfig(evmConfigPath)
 	config = config2.GetGlobalConfig()
