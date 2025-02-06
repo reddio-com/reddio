@@ -166,11 +166,19 @@ func (c *Checker) checkStep1(rawBridgeEventTableName string, eventType int, clie
 			if rawBridgeEventTableName == orm.TableRawBridgeEvents11155111 {
 				logrus.Infof("Processing Sepolia deposit gap,start block number:%d,end block number:%d", gap.StartBlockNumber, gap.EndBlockNumber)
 				//fmt.Println("Processing Sepolia deposit gap")
-				c.processL1Gap(gap, client)
+				err = c.processL1Gap(gap, client)
+				if err != nil {
+					logrus.Errorf("Failed to process L1 gap: %v", err)
+					return err
+				}
 			} else if rawBridgeEventTableName == orm.TableRawBridgeEvents50341 {
 				logrus.Infof("Processing L2 gap,start block number:%d,end block number:%d", gap.StartBlockNumber, gap.EndBlockNumber)
 				//fmt.Println("Processing L2 withdraw gap")
-				c.processL2Gap(gap, client)
+				err = c.processL2Gap(gap, client)
+				if err != nil {
+					logrus.Errorf("Failed to process L2 gap: %v", err)
+					return err
+				}
 			}
 			//fmt.Println("Gap Processd,start gap", gap.StartGap, "end gap", gap.EndGap)
 		}
