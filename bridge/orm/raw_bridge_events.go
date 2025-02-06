@@ -232,24 +232,37 @@ func (b *RawBridgeEvent) InsertRawBridgeEvents(ctx context.Context, tableName st
 	db = db.WithContext(ctx)
 	db = db.Model(&RawBridgeEvent{})
 	db = db.Table(tableName)
-	//fmt.Println("InsertRawBridgeEvents: tableName: , bridgeEvents:", tableName, bridgeEvents)
-	return db.Transaction(func(tx *gorm.DB) error {
-		for _, event := range bridgeEvents {
-			result := tx.Create(event)
-			if result.Error != nil {
-				if isDuplicateEntryError(result.Error) {
-					logrus.Errorf("Message with hash %s already exists, skipping insert.\n", event.MessageHash)
-					continue
-				}
-				return fmt.Errorf("failed to insert message, error: %w", result.Error)
-			}
-			if result.RowsAffected == 0 {
-				logrus.Warnf("No rows affected for message with hash %s, skipping insert.\n", event.MessageHash)
+	tx := db.Begin()
+	if tx.Error != nil {
+		logrus.Errorf("Failed to begin transaction: %v", tx.Error)
+		return fmt.Errorf("failed to begin transaction: %w", tx.Error)
+	}
+
+	for _, event := range bridgeEvents {
+		result := tx.Create(event)
+		if result.Error != nil {
+			if isDuplicateEntryError(result.Error) {
+				logrus.Errorf("Message with hash %s already exists, skipping insert.\n", event.MessageHash)
 				continue
 			}
+			logrus.Errorf("Failed to insert message: %v", result.Error)
+			tx.Rollback()
+			return fmt.Errorf("failed to insert message, error: %w", result.Error)
 		}
-		return nil
-	})
+		if result.RowsAffected == 0 {
+			logrus.Warnf("No rows affected for message with hash %s, skipping insert.\n", event.MessageHash)
+			continue
+		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		logrus.Errorf("Failed to commit transaction: %v", err)
+		tx.Rollback()
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	logrus.Infof("Transaction committed successfully for table %s", tableName)
+	return nil
 }
 func isDuplicateEntryError(err error) bool {
 	return strings.Contains(err.Error(), "Error 1062")
