@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"log"
 	"math/big"
 	"strings"
 	"time"
@@ -127,7 +126,7 @@ func (b *L1Relayer) pollUnProcessedMessages() {
 	//messages, err := r.crossMessageOrm.QueryL1UnConsumedMessages(ctx, btypes.TxTypeDeposit)
 	bridgeEvents, err := b.rawBridgeEventOrm.QueryUnProcessedBridgeEvents(ctx, orm.TableRawBridgeEvents11155111, b.cfg.RelayerBatchSize)
 	if err != nil {
-		log.Printf("Failed to query unconsumed messages: %v", err)
+		logrus.Error("Failed to query unconsumed messages: %v", err)
 		return
 	}
 	//1.proceeding the L1 unprocessed  messages
@@ -327,14 +326,6 @@ func (b *L1Relayer) systemCall(ctx context.Context, signedTx *types.Transaction)
 		logrus.Infof("Failed to get nonce: %v", err)
 	}
 	txReq.Nonce = txNonce
-
-	// 打印 txReq 的 JSON 格式
-	txReqJson, err := json.MarshalIndent(txReq, "", "  ")
-	if err != nil {
-		logrus.Infof("json.MarshalIndent(txReq) failed: %v", err)
-		return err
-	}
-	log.Printf("txReq: %s\n", txReqJson)
 
 	byt, err := json.Marshal(txReq)
 	if err != nil {
