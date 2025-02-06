@@ -159,12 +159,16 @@ func (c *Checker) checkStep1(rawBridgeEventTableName string, eventType int, clie
 		}
 		// 1.3.2 Process gaps
 		for _, gap := range gaps {
-			logrus.Infof("Gap from %d to %d", gap.StartGap, gap.EndGap)
+
+			logrus.Infof("Gap from %d to %d:,starblock:%d,endblock:%d", gap.StartGap, gap.EndGap, gap.StartBlockNumber, gap.EndBlockNumber)
+
 			//fmt.Printf("Gap from %d to %d\n", gap.StartGap, gap.EndGap)
 			if rawBridgeEventTableName == orm.TableRawBridgeEvents11155111 {
+				logrus.Infof("Processing Sepolia deposit gap,start block number:%d,end block number:%d", gap.StartBlockNumber, gap.EndBlockNumber)
 				//fmt.Println("Processing Sepolia deposit gap")
 				c.processL1Gap(gap, client)
 			} else if rawBridgeEventTableName == orm.TableRawBridgeEvents50341 {
+				logrus.Infof("Processing L2 gap,start block number:%d,end block number:%d", gap.StartBlockNumber, gap.EndBlockNumber)
 				//fmt.Println("Processing L2 withdraw gap")
 				c.processL2Gap(gap, client)
 			}
@@ -320,11 +324,15 @@ func (c *Checker) processL2Gap(gap orm.Gap, client *ethclient.Client) error {
 	if err != nil {
 		return fmt.Errorf("failed to parse L2 event: %v", err)
 	}
-
+	logrus.Infof("L2 withdraw messages count: %d", len(l2WithdrawMessages))
 	err = c.rawBridgeEventOrm.InsertRawBridgeEvents(context.Background(), orm.TableRawBridgeEvents50341, l2WithdrawMessages)
 	if err != nil {
-		return fmt.Errorf("failed to insert bridge events: %v", err)
+		return fmt.Errorf("failed to insert bridge l2WithdrawMessages: %v", err)
 	}
+	logrus.Infof("L2 withdraw messages count: %d", len(l2WithdrawMessages))
 	err = c.rawBridgeEventOrm.InsertRawBridgeEvents(context.Background(), orm.TableRawBridgeEvents50341, l2RelayedMessages)
+	if err != nil {
+		return fmt.Errorf("failed to insert bridge l2RelayedMessages: %v", err)
+	}
 	return nil
 }
