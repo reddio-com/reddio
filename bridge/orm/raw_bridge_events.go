@@ -235,13 +235,17 @@ func (b *RawBridgeEvent) InsertRawBridgeEvents(ctx context.Context, tableName st
 	//fmt.Println("InsertRawBridgeEvents: tableName: , bridgeEvents:", tableName, bridgeEvents)
 	return db.Transaction(func(tx *gorm.DB) error {
 		for _, event := range bridgeEvents {
-			//fmt.Println("event:txhash,block_number,message_nonce:", event.TxHash, event.BlockNumber, event.MessageNonce)
-			if err := tx.Create(event).Error; err != nil {
-				if isDuplicateEntryError(err) {
-					fmt.Errorf("Message with hash %s already exists, skipping insert.\n", event.MessageHash)
+			result := tx.Create(event)
+			if result.Error != nil {
+				if isDuplicateEntryError(result.Error) {
+					logrus.Errorf("Message with hash %s already exists, skipping insert.\n", event.MessageHash)
 					continue
 				}
-				return fmt.Errorf("failed to insert message, error: %w", err)
+				return fmt.Errorf("failed to insert message, error: %w", result.Error)
+			}
+			if result.RowsAffected == 0 {
+				logrus.Warnf("No rows affected for message with hash %s, skipping insert.\n", event.MessageHash)
+				continue
 			}
 		}
 		return nil

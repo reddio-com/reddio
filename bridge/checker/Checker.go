@@ -301,6 +301,7 @@ func (c *Checker) processL1Gap(gap orm.Gap, client *ethclient.Client) error {
 			relayedEventCount++
 		}
 	}
+	logrus.Infof("QueueTransaction event count: %d", queueEventCount)
 	err = c.rawBridgeEventOrm.InsertRawBridgeEvents(context.Background(), orm.TableRawBridgeEvents11155111, allBridgeEvents)
 	if err != nil {
 		return fmt.Errorf("failed to insert bridge events: %v", err)
@@ -329,7 +330,9 @@ func (c *Checker) processL2Gap(gap orm.Gap, client *ethclient.Client) error {
 	if err != nil {
 		return fmt.Errorf("failed to insert bridge l2WithdrawMessages: %v", err)
 	}
-	logrus.Infof("L2 withdraw messages count: %d", len(l2WithdrawMessages))
+
+	logrus.Infof("L2RelayedMessages messages count: %d", len(l2RelayedMessages))
+
 	err = c.rawBridgeEventOrm.InsertRawBridgeEvents(context.Background(), orm.TableRawBridgeEvents50341, l2RelayedMessages)
 	if err != nil {
 		return fmt.Errorf("failed to insert bridge l2RelayedMessages: %v", err)
