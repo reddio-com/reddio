@@ -9,6 +9,7 @@ import (
 	"time"
 
 	btypes "github.com/reddio-com/reddio/bridge/types"
+	"github.com/sirupsen/logrus"
 
 	"gorm.io/gorm"
 )
@@ -132,7 +133,7 @@ func (r *RawBridgeEvent) FindMessageNonceGaps(tableName string, eventType, start
         GROUP BY t1.message_nonce, t1.block_number
         HAVING start_gap < MIN(t2.message_nonce);
     `
-	err := r.db.Debug().Raw(query, eventType, eventType, startNonce, endNonce, startNonce, endNonce).Scan(&gaps).Error
+	err := r.db.Raw(query, eventType, eventType, startNonce, endNonce, startNonce, endNonce).Scan(&gaps).Error
 	if err != nil {
 		return nil, err
 	}
@@ -148,6 +149,9 @@ func (r *RawBridgeEvent) FindMessageNonceGaps(tableName string, eventType, start
 		startBlockNumber := 0
 		if err == nil {
 			startBlockNumber = int(prevEvent.BlockNumber)
+		} else {
+			logrus.Errorf("failed to get prevEvent: %v", err)
+			return nil, err
 		}
 		gaps = append([]Gap{{StartGap: startNonce, EndGap: firstEvent.MessageNonce - 1, StartBlockNumber: startBlockNumber, EndBlockNumber: int(firstEvent.BlockNumber)}}, gaps...)
 	}
@@ -163,6 +167,9 @@ func (r *RawBridgeEvent) FindMessageNonceGaps(tableName string, eventType, start
 		endBlockNumber := 0
 		if err == nil {
 			endBlockNumber = int(nextEvent.BlockNumber)
+		} else {
+			logrus.Errorf("failed to get nextEvent: %v", err)
+			return nil, err
 		}
 		gaps = append(gaps, Gap{StartGap: lastEvent.MessageNonce + 1, EndGap: endNonce, StartBlockNumber: int(lastEvent.BlockNumber), EndBlockNumber: endBlockNumber})
 	}
@@ -173,7 +180,12 @@ func (r *RawBridgeEvent) FindMessageNonceGaps(tableName string, eventType, start
 // GetMinNonceByCheckStatus gets the minimum MessageNonce by check_status.
 func (r *RawBridgeEvent) GetMinNonceByCheckStatus(tableName string, eventType, checkStatus int) (int, error) {
 	var minNonce sql.NullInt64
-	err := r.db.Table(tableName).Where("event_type = ? AND check_status = ?", eventType, checkStatus).Select("MIN(message_nonce)").Scan(&minNonce).Error
+	twoHoursAgo := time.Now().Add(-2 * time.Hour).Unix()
+
+	err := r.db.Table(tableName).
+		Where("event_type = ? AND check_status = ? AND timestamp < ?", eventType, checkStatus, twoHoursAgo).
+		Select("MIN(message_nonce)").
+		Scan(&minNonce).Error
 	if err != nil {
 		return -1, err
 	}
@@ -186,7 +198,12 @@ func (r *RawBridgeEvent) GetMinNonceByCheckStatus(tableName string, eventType, c
 // GetMaxNonceByCheckStatus gets the maximum MessageNonce by check_status.
 func (r *RawBridgeEvent) GetMaxNonceByCheckStatus(tableName string, eventType, checkStatus int) (int, error) {
 	var maxNonce sql.NullInt64
-	err := r.db.Table(tableName).Where("event_type = ? AND check_status = ?", eventType, checkStatus).Select("MAX(message_nonce)").Scan(&maxNonce).Error
+	twoHoursAgo := time.Now().Add(-2 * time.Hour).Unix()
+
+	err := r.db.Table(tableName).
+		Where("event_type = ? AND check_status = ? AND timestamp < ?", eventType, checkStatus, twoHoursAgo).
+		Select("MAX(message_nonce)").
+		Scan(&maxNonce).Error
 	if err != nil {
 		return 0, err
 	}

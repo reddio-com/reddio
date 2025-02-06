@@ -143,6 +143,7 @@ func (c *Checker) checkStep1(rawBridgeEventTableName string, eventType int, clie
 	// 1.3 Check if the actual count matches the expected count
 	if actualCount != int64(expectedCount) {
 		//fmt.Printf("Actual count (%d) does not match expected count (%d)\n", actualCount, expectedCount)
+		logrus.Infof("Actual count (%d) does not match expected count (%d)", actualCount, expectedCount)
 
 		// 1.3.1 Query gaps
 		gaps, err := c.rawBridgeEventOrm.FindMessageNonceGaps(rawBridgeEventTableName, eventType, checkStartMessageNonce, checkEndMessageNonce)
@@ -150,6 +151,7 @@ func (c *Checker) checkStep1(rawBridgeEventTableName string, eventType int, clie
 			logrus.Errorf("Failed to find message nonce gaps: %v", err)
 			return err
 		}
+		logrus.Infof("Found %d gaps", len(gaps))
 		client, err := ethclient.Dial(clientAddress)
 		if err != nil {
 			logrus.Errorf("failed to connect to the Ethereum client: %v", err)
@@ -157,6 +159,7 @@ func (c *Checker) checkStep1(rawBridgeEventTableName string, eventType int, clie
 		}
 		// 1.3.2 Process gaps
 		for _, gap := range gaps {
+			logrus.Infof("Gap from %d to %d", gap.StartGap, gap.EndGap)
 			//fmt.Printf("Gap from %d to %d\n", gap.StartGap, gap.EndGap)
 			if rawBridgeEventTableName == orm.TableRawBridgeEvents11155111 {
 				//fmt.Println("Processing Sepolia deposit gap")
