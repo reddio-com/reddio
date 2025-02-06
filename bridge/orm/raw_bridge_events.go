@@ -82,9 +82,10 @@ func (b *RawBridgeEvent) QueryUnProcessedBridgeEventsByEventType(ctx context.Con
 	db = db.WithContext(ctx)
 	db = db.Model(&RawBridgeEvent{})
 	db = db.Table(tableName)
+	timeRange := time.Now().Add(-2 * time.Hour).Unix()
 
 	var bridgeEvents []*RawBridgeEvent
-	if err := db.Where("process_status = ? AND event_type = ?", btypes.UnProcessed, eventType).
+	if err := db.Where("process_status = ? AND event_type = ? AND timestamp < ?", btypes.UnProcessed, eventType, timeRange).
 		Order("block_number ASC, message_nonce ASC").
 		Limit(limit).
 		Find(&bridgeEvents).Error; err != nil {

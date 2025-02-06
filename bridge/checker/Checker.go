@@ -159,7 +159,9 @@ func (c *Checker) checkStep1(rawBridgeEventTableName string, eventType int, clie
 		}
 		// 1.3.2 Process gaps
 		for _, gap := range gaps {
+
 			logrus.Infof("Gap from %d to %d:,starblock:%d,endblock:%d", gap.StartGap, gap.EndGap, gap.StartBlockNumber, gap.EndBlockNumber)
+
 			//fmt.Printf("Gap from %d to %d\n", gap.StartGap, gap.EndGap)
 			if rawBridgeEventTableName == orm.TableRawBridgeEvents11155111 {
 				logrus.Infof("Processing Sepolia deposit gap,start block number:%d,end block number:%d", gap.StartBlockNumber, gap.EndBlockNumber)
