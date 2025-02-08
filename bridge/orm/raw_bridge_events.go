@@ -292,34 +292,6 @@ func (b *RawBridgeEvent) InsertRawBridgeEventsFromCheckStep1(ctx context.Context
 		return nil
 	})
 }
-func (b *RawBridgeEvent) InsertRawBridgeEventsFromCheckStep1(ctx context.Context, tableName string, bridgeEvents []*RawBridgeEvent) error {
-	if len(bridgeEvents) == 0 {
-		return nil
-	}
-	db := b.db
-	db = db.WithContext(ctx)
-	db = db.Model(&RawBridgeEvent{})
-	db = db.Table(tableName)
-	//fmt.Println("InsertRawBridgeEvents: tableName: , bridgeEvents:", tableName, bridgeEvents)
-	return db.Transaction(func(tx *gorm.DB) error {
-		for _, event := range bridgeEvents {
-			event.Remark = "checkStep1 inserted"
-			result := tx.Create(event)
-			if result.Error != nil {
-				if isDuplicateEntryError(result.Error) {
-					logrus.Errorf("Message with hash %s already exists, skipping insert.\n", event.MessageHash)
-					continue
-				}
-				return fmt.Errorf("failed to insert message, error: %w", result.Error)
-			}
-			if result.RowsAffected == 0 {
-				logrus.Warnf("No rows affected for message with hash %s, skipping insert.\n", event.MessageHash)
-				continue
-			}
-		}
-		return nil
-	})
-}
 func isDuplicateEntryError(err error) bool {
 	return strings.Contains(err.Error(), "Error 1062")
 }
