@@ -28,6 +28,7 @@ const (
 	CheckStatusUnChecked CheckStatus = iota
 	CheckStatusCheckedStep1
 	CheckStatusCheckedStep2
+	//99 means the check no need to do
 )
 
 type ProcessStatus int
