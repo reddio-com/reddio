@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"sync"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -24,6 +25,7 @@ type L1EventsWatcher struct {
 	cfg           *evm.GethConfig
 	l1Client      *ethclient.Client
 	l1EventParser *logic.L1EventParser
+	mu            sync.Mutex
 
 	rawBridgeEventsOrm *orm.RawBridgeEvent
 }
@@ -75,22 +77,28 @@ func (w *L1EventsWatcher) Run(ctx context.Context) error {
 					logrus.Errorf("L1 downward subscription failed: %v, Resubscribing...", subErr)
 					metrics.L1EventWatcherFailureCounter.Inc()
 					metrics.L1EventWatcherRetryCounter.Inc()
-					downwardSub, err = w.watchDownwardMessage(ctx, downwardMsgChan)
+					downwardSub.Unsubscribe()
+					newDownwardSub, err := w.watchDownwardMessage(ctx, downwardMsgChan)
 					if err != nil {
 						logrus.Errorf("Resubscribe failed: %v", err)
 						metrics.L1EventWatcherFailureCounter.Inc()
 						return
 					}
+					downwardSub = newDownwardSub
+
 				case subErr := <-relayerSub.Err():
 					logrus.Errorf("L1 relayer subscription failed: %v, Resubscribing...", subErr)
 					metrics.L1EventWatcherFailureCounter.Inc()
 					metrics.L1EventWatcherRetryCounter.Inc()
-					relayerSub, err = w.watchRelayerMessage(ctx, relayerMsgChan)
+					relayerSub.Unsubscribe()
+					newRelayerSub, err := w.watchRelayerMessage(ctx, relayerMsgChan)
 					if err != nil {
 						logrus.Errorf("Resubscribe failed: %v", err)
 						metrics.L1EventWatcherFailureCounter.Inc()
 						return
 					}
+					relayerSub = newRelayerSub
+
 				case <-ctx.Done():
 					return
 				}
@@ -166,6 +174,8 @@ func (w *L1EventsWatcher) watchRelayerMessage(
 func (w *L1EventsWatcher) handleDownwardMessage(
 	msg *contract.ParentBridgeCoreFacetQueueTransaction,
 ) error {
+	w.mu.Lock()
+	defer w.mu.Unlock() //
 	bridgeEvents, err := w.l1EventParser.ParseDepositEventToRawBridgeEvents(context.Background(), msg)
 	if err != nil {
 		logrus.Errorf("Failed to parse downward message: %v", err)
@@ -178,6 +188,8 @@ func (w *L1EventsWatcher) handleDownwardMessage(
 }
 
 func (w *L1EventsWatcher) handleRelayerMessage(msg *contract.UpwardMessageDispatcherFacetRelayedMessage) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
 	bridgeEvents, err := w.l1EventParser.ParseL1RelayedMessageToRawBridgeEvents(context.Background(), msg)
 	if err != nil {
 		logrus.Errorf("Failed to parse downward message: %v", err)

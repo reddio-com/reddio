@@ -70,7 +70,7 @@ func (c *Checker) StartChecking() {
 				go func() {
 					defer func() { <-c.l1CheckingSemaphore }()
 					if c.cfg.BridgeCheckerConfig.EnableL1CheckStep1 {
-						if err := c.checkStep1(orm.TableRawBridgeEvents11155111, int(btypes.QueueTransaction), c.cfg.L1ClientAddress); err != nil {
+						if err := c.checkStep1(orm.TableRawBridgeEvents11155111, int(btypes.QueueTransaction), "wss://eth-sepolia-wss.reddio.com/"); err != nil {
 							logrus.Errorf("checkStep1 for Sepolia deposit failed: %v", err)
 						}
 					}
@@ -90,7 +90,7 @@ func (c *Checker) StartChecking() {
 				go func() {
 					defer func() { <-c.l2CheckingSemaphore }()
 					if c.cfg.BridgeCheckerConfig.EnableL2CheckStep1 {
-						if err := c.checkStep1(orm.TableRawBridgeEvents50341, int(btypes.SentMessage), c.cfg.L2ClientAddress); err != nil {
+						if err := c.checkStep1(orm.TableRawBridgeEvents50341, int(btypes.SentMessage), "https://reddio-dev.reddio.com"); err != nil {
 							logrus.Errorf("checkStep1 for L2 withdraw failed: %v", err)
 						}
 					}
@@ -310,7 +310,7 @@ func (c *Checker) processL1Gap(gap orm.Gap, client *ethclient.Client) error {
 		}
 	}
 	logrus.Infof("QueueTransaction event count: %d", queueEventCount)
-	err = c.rawBridgeEventOrm.InsertRawBridgeEvents(context.Background(), orm.TableRawBridgeEvents11155111, allBridgeEvents)
+	err = c.rawBridgeEventOrm.InsertRawBridgeEventsFromCheckStep1(context.Background(), orm.TableRawBridgeEvents11155111, allBridgeEvents)
 	if err != nil {
 		return fmt.Errorf("failed to insert bridge events: %v", err)
 	}
@@ -324,7 +324,7 @@ func (c *Checker) processL2Gap(gap orm.Gap, client *ethclient.Client) error {
 		FromBlock: big.NewInt(int64(gap.StartBlockNumber)),
 		ToBlock:   big.NewInt(int64(gap.EndBlockNumber)),
 	}
-
+	logrus.Infof("processL2Gap,start block number:%d,end block number:%d", gap.StartBlockNumber, gap.EndBlockNumber)
 	logs, err := client.FilterLogs(context.Background(), query)
 	if err != nil {
 		return fmt.Errorf("failed to filter logs: %v", err)
@@ -334,14 +334,14 @@ func (c *Checker) processL2Gap(gap orm.Gap, client *ethclient.Client) error {
 		return fmt.Errorf("failed to parse L2 event: %v", err)
 	}
 	logrus.Infof("L2 withdraw messages count: %d", len(l2WithdrawMessages))
-	err = c.rawBridgeEventOrm.InsertRawBridgeEvents(context.Background(), orm.TableRawBridgeEvents50341, l2WithdrawMessages)
+	err = c.rawBridgeEventOrm.InsertRawBridgeEventsFromCheckStep1(context.Background(), orm.TableRawBridgeEvents50341, l2WithdrawMessages)
 	if err != nil {
 		return fmt.Errorf("failed to insert bridge l2WithdrawMessages: %v", err)
 	}
 
 	logrus.Infof("L2RelayedMessages messages count: %d", len(l2RelayedMessages))
 
-	err = c.rawBridgeEventOrm.InsertRawBridgeEvents(context.Background(), orm.TableRawBridgeEvents50341, l2RelayedMessages)
+	err = c.rawBridgeEventOrm.InsertRawBridgeEventsFromCheckStep1(context.Background(), orm.TableRawBridgeEvents50341, l2RelayedMessages)
 	if err != nil {
 		return fmt.Errorf("failed to insert bridge l2RelayedMessages: %v", err)
 	}
