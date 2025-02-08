@@ -70,7 +70,7 @@ func (c *Checker) StartChecking() {
 				go func() {
 					defer func() { <-c.l1CheckingSemaphore }()
 					if c.cfg.BridgeCheckerConfig.EnableL1CheckStep1 {
-						if err := c.checkStep1(orm.TableRawBridgeEvents11155111, int(btypes.QueueTransaction), "wss://eth-sepolia-wss.reddio.com/"); err != nil {
+						if err := c.checkStep1(orm.TableRawBridgeEvents11155111, int(btypes.QueueTransaction), c.cfg.L1ClientAddress); err != nil {
 							logrus.Errorf("checkStep1 for Sepolia deposit failed: %v", err)
 						}
 					}
@@ -90,7 +90,7 @@ func (c *Checker) StartChecking() {
 				go func() {
 					defer func() { <-c.l2CheckingSemaphore }()
 					if c.cfg.BridgeCheckerConfig.EnableL2CheckStep1 {
-						if err := c.checkStep1(orm.TableRawBridgeEvents50341, int(btypes.SentMessage), "https://reddio-dev.reddio.com"); err != nil {
+						if err := c.checkStep1(orm.TableRawBridgeEvents50341, int(btypes.SentMessage), c.cfg.L2ClientAddress); err != nil {
 							logrus.Errorf("checkStep1 for L2 withdraw failed: %v", err)
 						}
 					}
