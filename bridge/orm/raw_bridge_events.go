@@ -292,6 +292,7 @@ func (b *RawBridgeEvent) InsertRawBridgeEventsFromCheckStep1(ctx context.Context
 		return nil
 	})
 }
+
 func isDuplicateEntryError(err error) bool {
 	return strings.Contains(err.Error(), "Error 1062")
 }
