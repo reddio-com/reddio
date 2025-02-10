@@ -4,7 +4,9 @@ import (
 	"context"
 	"math/big"
 	"sync"
+
 	"time"
+
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
@@ -30,6 +32,7 @@ type L1FilterResult struct {
 	RelayedMessages []*orm.RawBridgeEvent
 }
 type L1EventsWatcher struct {
+
 	ctx                 context.Context
 	cfg                 *evm.GethConfig
 	l1Client            *ethclient.Client
@@ -38,6 +41,7 @@ type L1EventsWatcher struct {
 	l1SyncHeight        uint64
 	l1LastSyncBlockHash common.Hash
 	contractAddressList []common.Address
+
 
 	rawBridgeEventsOrm *orm.RawBridgeEvent
 }
@@ -56,11 +60,13 @@ func NewL1EventsWatcher(ctx context.Context, cfg *evm.GethConfig, ethClient *eth
 	return c, nil
 }
 
+
 // Start starts the L1 message fetching process.
 func (w *L1EventsWatcher) Start() {
 	messageSyncedHeight, dbErr := w.GetL1SyncHeight(w.ctx)
 	if dbErr != nil {
 		logrus.Error("failed to get L1 cross message synced height", "error", dbErr)
+
 	}
 	l1SyncHeight := messageSyncedHeight
 
@@ -187,6 +193,7 @@ func (w *L1EventsWatcher) L1Fetcher(ctx context.Context, from, to uint64, lastBl
 	}
 
 	eventLogs, err := w.l1FetcherLogs(ctx, from, to)
+
 	if err != nil {
 		log.Error("L1Fetcher l1FetcherLogs failed", "from", from, "to", to, "error", err)
 		return false, 0, common.Hash{}, nil, err
@@ -206,8 +213,10 @@ func (w *L1EventsWatcher) L1Fetcher(ctx context.Context, from, to uint64, lastBl
 	return false, 0, blockHash, &res, nil
 }
 
+
 func (w *L1EventsWatcher) getBlocksAndDetectReorg(ctx context.Context, from, to uint64, lastBlockHash common.Hash) (bool, uint64, common.Hash, []*types.Block, error) {
 	blocks, err := utils.GetBlocksInRange(ctx, w.l1Client, from, to)
+
 	if err != nil {
 		logrus.Error("failed to get L1 blocks in range", "from", from, "to", to, "err", err)
 		return false, 0, common.Hash{}, nil, err
