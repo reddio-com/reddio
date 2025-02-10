@@ -263,31 +263,29 @@ func (c *CrossMessage) UpdateL1Message(ctx context.Context, message_hash string,
 	return nil
 }
 
-func (c *CrossMessage) UpdateL1MessageConsumedStatus(ctx context.Context, l2RelayedMessage *CrossMessage) error {
+func (c *CrossMessage) UpdateL1MessageConsumedStatus(ctx context.Context, l2RelayedMessage *CrossMessage) (int64, error) {
 	db := c.db.WithContext(ctx)
-	err := db.Model(&CrossMessage{}).Where("message_hash = ? AND message_type = ?", l2RelayedMessage.MessageHash, btypes.MessageTypeL1SentMessage).Updates(map[string]interface{}{
+	result := db.Model(&CrossMessage{}).Where("message_hash = ? AND message_type = ?", l2RelayedMessage.MessageHash, btypes.MessageTypeL1SentMessage).Updates(map[string]interface{}{
 		"tx_status":       btypes.TxStatusTypeConsumed,
 		"l2_block_number": l2RelayedMessage.L2BlockNumber,
 		"l2_tx_hash":      l2RelayedMessage.L2TxHash,
 		"updated_at":      time.Now(),
-	}).Error
-	if err != nil {
-		return fmt.Errorf("failed to update L2 message, id: %s, error: %v", l2RelayedMessage.MessageHash, err)
+	})
+	if result.Error != nil {
+		return 0, fmt.Errorf("failed to UpdateL1MessageConsumedStatus, message_hash: %s, error: %v", l2RelayedMessage.MessageHash, result.Error)
 	}
-
-	return nil
+	return result.RowsAffected, nil
 }
-func (c *CrossMessage) UpdateL2MessageConsumedStatus(ctx context.Context, l1RelayedMessage *CrossMessage) error {
-	// just have 1 message right now
+func (c *CrossMessage) UpdateL2MessageConsumedStatus(ctx context.Context, l1RelayedMessage *CrossMessage) (int64, error) {
 	db := c.db.WithContext(ctx)
-	err := db.Model(&CrossMessage{}).Where("message_hash = ? AND message_type = ?", l1RelayedMessage.MessageHash, btypes.MessageTypeL2SentMessage).Updates(map[string]interface{}{
+	result := db.Model(&CrossMessage{}).Where("message_hash = ? AND message_type = ?", l1RelayedMessage.MessageHash, btypes.MessageTypeL2SentMessage).Updates(map[string]interface{}{
 		"tx_status":       btypes.TxStatusTypeConsumed,
 		"l1_block_number": l1RelayedMessage.L1BlockNumber,
 		"l1_tx_hash":      l1RelayedMessage.L1TxHash,
 		"updated_at":      time.Now(),
-	}).Error
-	if err != nil {
-		return fmt.Errorf("failed to update L1 message, message_hash: %s, error: %v", l1RelayedMessage.MessageHash, err)
+	})
+	if result.Error != nil {
+		return 0, fmt.Errorf("failed to UpdateL2MessageConsumedStatus, message_hash: %s, error: %v", l1RelayedMessage.MessageHash, result.Error)
 	}
-	return nil
+	return result.RowsAffected, nil
 }

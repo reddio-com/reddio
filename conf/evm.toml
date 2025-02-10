@@ -11,6 +11,10 @@ l1_client_address = ""
 l2_client_address = "http://localhost:9092"
 parentlayer_contract_address = "0x9F7e49fcAB7eD379451e8422D20908bF439011A5"
 childlayer_contract_address = "0xeC054c6ee2DbbeBC9EbCA50CdBF94A94B02B2E40"
+confirmation = 5
+fetch_limit = 16
+start_height = 7548231
+block_time = 12                                                             # seconds l1 block time
 # Used to collect L2->L1 cross-chain messages from L2 blocks. 'n' indicates collecting once every 'n' L2 blocks, collecting cross-chain messages from 'n' L2 blocks at a time.
 l2_block_collection_depth = 5
 

@@ -11,9 +11,11 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/sirupsen/logrus"
 
+	backendabi "github.com/reddio-com/reddio/bridge/abi"
 	"github.com/reddio-com/reddio/bridge/contract"
 	"github.com/reddio-com/reddio/bridge/orm"
 	btypes "github.com/reddio-com/reddio/bridge/types"
+	"github.com/reddio-com/reddio/bridge/utils"
 	"github.com/reddio-com/reddio/evm"
 )
 
@@ -376,6 +378,169 @@ func decodeERC20TokenLocked(payloadHex string) (*ParentERC20TokenLocked, error) 
 /*****************************
  *    [RawBridgeEvent]       *
  *****************************/
+func (e *L1EventParser) ParseL1EventToRawBridgeEvents(ctx context.Context, logs []types.Log) ([]*orm.RawBridgeEvent, []*orm.RawBridgeEvent, error) {
+	var l1DepositMessages []*orm.RawBridgeEvent
+	var l1RelayedMessages []*orm.RawBridgeEvent
+
+	for _, vlog := range logs {
+		// vlogJson, err := json.MarshalIndent(vlog, "", "  ")
+		// if err != nil {
+		// 	logrus.Errorf("json.MarshalIndent(vlog) failed: %v", err)
+		// 	return nil, nil, err
+		// }
+		//fmt.Printf("vlog: %s\n", vlogJson)
+		if vlog.Topics[0] == backendabi.L1QueueTransactionEventSig {
+			event := new(contract.ParentBridgeCoreFacetQueueTransaction)
+			err := utils.UnpackLog(backendabi.IL1ParentBridgeCoreFacetABI, event, "QueueTransaction", vlog)
+			if err != nil {
+				logrus.Error("Failed to unpack UpwardMessage event", "err", err)
+				return nil, nil, err
+			}
+			switch btypes.MessagePayloadType(event.PayloadType) {
+			case btypes.PayloadTypeETH:
+				payloadHex := hex.EncodeToString(event.Payload)
+				ethLocked, err := decodeETHLocked(payloadHex)
+				if err != nil {
+					logrus.Error("Failed to decode ETHLocked", "err", err)
+					return nil, nil, err
+				}
+				l1DepositMessages = append(l1DepositMessages, &orm.RawBridgeEvent{
+					EventType:       int(btypes.QueueTransaction),
+					ChainID:         btypes.Sepolia,
+					ContractAddress: e.cfg.ParentLayerContractAddress,
+					TokenType:       int(btypes.ETH),
+					TxHash:          vlog.TxHash.String(),
+					//GasPriced:
+					//GasUsed:
+					//MsgValue:           msg.Raw
+					Timestamp:          uint64(time.Now().Unix()),
+					BlockNumber:        vlog.BlockNumber,
+					Sender:             ethLocked.ParentSender.String(),
+					Receiver:           ethLocked.ChildRecipient.String(),
+					MessagePayloadType: int(btypes.ETH),
+					MessagePayload:     payloadHex,
+					MessageNonce:       int(event.QueueIndex),
+					MessageFrom:        ethLocked.ParentSender.String(),
+					MessageTo:          ethLocked.ChildRecipient.String(),
+					MessageValue:       ethLocked.Amount.String(),
+					MessageHash:        common.BytesToHash(event.Hash[:]).String(),
+					CreatedAt:          time.Now().UTC(),
+					UpdatedAt:          time.Now().UTC(),
+					ProcessStatus:      int(btypes.UnProcessed),
+				})
+
+			case btypes.PayloadTypeRED:
+				payloadHex := hex.EncodeToString(event.Payload)
+
+				redLocked, err := decodeREDTokenLocked(payloadHex)
+				if err != nil {
+					logrus.Error("Failed to decode REDTokenBurnt", "err", err)
+					return nil, nil, err
+				}
+				l1DepositMessages = append(l1DepositMessages, &orm.RawBridgeEvent{
+					EventType:       int(btypes.QueueTransaction),
+					ChainID:         btypes.Sepolia,
+					ContractAddress: e.cfg.ParentLayerContractAddress,
+					TokenType:       int(btypes.RED),
+					TxHash:          vlog.TxHash.String(),
+					//GasPriced:
+					//GasUsed:
+					//MsgValue:           msg.Raw
+					Timestamp:          uint64(time.Now().Unix()),
+					BlockNumber:        vlog.BlockNumber,
+					Sender:             redLocked.ParentSender.String(),
+					Receiver:           redLocked.ChildRecipient.String(),
+					MessagePayloadType: int(btypes.RED),
+					MessagePayload:     payloadHex,
+					MessageNonce:       int(event.QueueIndex),
+					MessageFrom:        redLocked.ParentSender.String(),
+					MessageTo:          redLocked.ChildRecipient.String(),
+					MessageValue:       redLocked.Amount.String(),
+					MessageHash:        common.BytesToHash(event.Hash[:]).String(),
+					CreatedAt:          time.Now().UTC(),
+					UpdatedAt:          time.Now().UTC(),
+					ProcessStatus:      int(btypes.UnProcessed),
+				})
+			}
+		} else if vlog.Topics[0] == backendabi.L1RelayedMessageEventSig {
+			//fmt.Println("find RelayedMessage!")
+			event := new(contract.UpwardMessageDispatcherFacetRelayedMessage)
+			err := utils.UnpackLog(backendabi.UpwardMessageDispatcherFacetABI, event, "RelayedMessage", vlog)
+			if err != nil {
+				logrus.Error("Failed to unpack event event", "err", err)
+				return nil, nil, err
+			}
+
+			switch btypes.MessagePayloadType(event.PayloadType) {
+			case btypes.PayloadTypeETH:
+				payloadHex := hex.EncodeToString(event.Payload)
+
+				ethLocked, err := decodeETHLocked(payloadHex)
+				if err != nil {
+					fmt.Errorf("Failed to decode ETHLocked: %v", err)
+					return nil, nil, err
+				}
+				l1RelayedMessages = append(l1RelayedMessages, &orm.RawBridgeEvent{
+					EventType:       int(btypes.L1RelayedMessage),
+					ChainID:         btypes.Sepolia,
+					ContractAddress: e.cfg.ParentLayerContractAddress,
+					TokenType:       int(btypes.PayloadTypeETH),
+					TxHash:          vlog.TxHash.String(),
+					//GasPriced:
+					//GasUsed:
+					//MsgValue:           msg.Raw
+					Timestamp:          uint64(time.Now().Unix()),
+					BlockNumber:        vlog.BlockNumber,
+					Sender:             ethLocked.ParentSender.String(),
+					Receiver:           ethLocked.ChildRecipient.String(),
+					MessagePayloadType: int(btypes.PayloadTypeETH),
+					MessagePayload:     payloadHex,
+					MessageNonce:       int(event.Nonce.Int64()),
+					MessageFrom:        ethLocked.ParentSender.String(),
+					MessageTo:          ethLocked.ChildRecipient.String(),
+					MessageValue:       ethLocked.Amount.String(),
+					MessageHash:        common.BytesToHash(event.MessageHash[:]).String(),
+					CreatedAt:          time.Now().UTC(),
+					UpdatedAt:          time.Now().UTC(),
+					ProcessStatus:      int(btypes.UnProcessed),
+				})
+			case btypes.PayloadTypeRED:
+				payloadHex := hex.EncodeToString(event.Payload)
+
+				redLocked, err := decodeREDTokenLocked(payloadHex)
+				if err != nil {
+					fmt.Errorf("Failed to decode ETHLocked: %v", err)
+					return nil, nil, err
+				}
+				l1RelayedMessages = append(l1RelayedMessages, &orm.RawBridgeEvent{
+					EventType:       int(btypes.L1RelayedMessage),
+					ChainID:         btypes.Sepolia,
+					ContractAddress: e.cfg.ParentLayerContractAddress,
+					TokenType:       int(btypes.PayloadTypeRED),
+					TxHash:          vlog.TxHash.String(),
+					//GasPriced:
+					//GasUsed:
+					//MsgValue:           msg.Raw
+					Timestamp:          uint64(time.Now().Unix()),
+					BlockNumber:        vlog.BlockNumber,
+					Sender:             redLocked.ParentSender.String(),
+					Receiver:           redLocked.ChildRecipient.String(),
+					MessagePayloadType: int(btypes.PayloadTypeRED),
+					MessagePayload:     payloadHex,
+					MessageNonce:       int(event.Nonce.Int64()),
+					MessageFrom:        redLocked.ParentSender.String(),
+					MessageTo:          redLocked.ChildRecipient.String(),
+					MessageValue:       redLocked.Amount.String(),
+					MessageHash:        common.BytesToHash(event.MessageHash[:]).String(),
+					CreatedAt:          time.Now().UTC(),
+					UpdatedAt:          time.Now().UTC(),
+					ProcessStatus:      int(btypes.UnProcessed),
+				})
+			}
+		}
+	}
+	return l1DepositMessages, l1RelayedMessages, nil
+}
 func (e *L1EventParser) ParseDepositEventToRawBridgeEvents(ctx context.Context, msg *contract.ParentBridgeCoreFacetQueueTransaction) ([]*orm.RawBridgeEvent, error) {
 	var l1DepositMessages []*orm.RawBridgeEvent
 
@@ -450,7 +615,7 @@ func (e *L1EventParser) ParseDepositEventToRawBridgeEvents(ctx context.Context, 
 }
 
 func (e *L1EventParser) ParseL1RelayedMessageToRawBridgeEvents(ctx context.Context, msg *contract.UpwardMessageDispatcherFacetRelayedMessage) ([]*orm.RawBridgeEvent, error) {
-	var l1DepositMessages []*orm.RawBridgeEvent
+	var l1RelayedMessages []*orm.RawBridgeEvent
 
 	switch btypes.MessagePayloadType(msg.PayloadType) {
 	case btypes.PayloadTypeETH:
@@ -461,7 +626,7 @@ func (e *L1EventParser) ParseL1RelayedMessageToRawBridgeEvents(ctx context.Conte
 			fmt.Errorf("Failed to decode ETHLocked: %v", err)
 			return nil, err
 		}
-		l1DepositMessages = append(l1DepositMessages, &orm.RawBridgeEvent{
+		l1RelayedMessages = append(l1RelayedMessages, &orm.RawBridgeEvent{
 			EventType:       int(btypes.L1RelayedMessage),
 			ChainID:         btypes.Sepolia,
 			ContractAddress: e.cfg.ParentLayerContractAddress,
@@ -493,7 +658,7 @@ func (e *L1EventParser) ParseL1RelayedMessageToRawBridgeEvents(ctx context.Conte
 			fmt.Errorf("Failed to decode redLocked: %v", err)
 			return nil, err
 		}
-		l1DepositMessages = append(l1DepositMessages, &orm.RawBridgeEvent{
+		l1RelayedMessages = append(l1RelayedMessages, &orm.RawBridgeEvent{
 			EventType:       int(btypes.L1RelayedMessage),
 			ChainID:         btypes.Sepolia,
 			ContractAddress: e.cfg.ParentLayerContractAddress,
@@ -519,5 +684,5 @@ func (e *L1EventParser) ParseL1RelayedMessageToRawBridgeEvents(ctx context.Conte
 		})
 
 	}
-	return l1DepositMessages, nil
+	return l1RelayedMessages, nil
 }

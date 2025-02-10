@@ -63,11 +63,11 @@ type RawBridgeEvent struct {
 
 // NewBridgeEvents creates a new instance of BridgeEvents.
 func NewRawBridgeEvent(db *gorm.DB) *RawBridgeEvent {
-	err := db.Table("raw_bridge_events_11155111").AutoMigrate(&RawBridgeEvent{})
+	err := db.Table(TableRawBridgeEvents11155111).AutoMigrate(&RawBridgeEvent{})
 	if err != nil {
 		log.Fatal("failed to AutoMigrate db", "err", err)
 	}
-	err = db.Table("raw_bridge_events_50341").AutoMigrate(&RawBridgeEvent{})
+	err = db.Table(TableRawBridgeEvents50341).AutoMigrate(&RawBridgeEvent{})
 	if err != nil {
 		log.Fatal("failed to AutoMigrate db", "err", err)
 	}
@@ -82,10 +82,9 @@ func (b *RawBridgeEvent) QueryUnProcessedBridgeEventsByEventType(ctx context.Con
 	db = db.WithContext(ctx)
 	db = db.Model(&RawBridgeEvent{})
 	db = db.Table(tableName)
-	timeRange := time.Now().Add(-2 * time.Hour).Unix()
 
 	var bridgeEvents []*RawBridgeEvent
-	if err := db.Where("process_status = ? AND event_type = ? AND timestamp < ?", btypes.UnProcessed, eventType, timeRange).
+	if err := db.Where("process_status = ? AND event_type = ? ", btypes.UnProcessed, eventType).
 		Order("block_number ASC, message_nonce ASC").
 		Limit(limit).
 		Find(&bridgeEvents).Error; err != nil {
@@ -216,8 +215,18 @@ func (r *RawBridgeEvent) GetMaxNonceByCheckStatus(tableName string, eventType, c
 // GetEventsByMessageNonceRange gets events by message nonce range.
 func (r *RawBridgeEvent) GetEventsByMessageNonceRange(tableName string, eventType, startNonce, endNonce int) ([]RawBridgeEvent, error) {
 	var events []RawBridgeEvent
-	err := r.db.Table(tableName).Where("event_type = ? AND message_nonce BETWEEN ? AND ?", eventType, startNonce, endNonce).Find(&events).Error
+	err := r.db.Table(tableName).Where(" event_type = ? AND message_nonce BETWEEN ? AND ?", eventType, startNonce, endNonce).Find(&events).Error
 	return events, err
+}
+
+func (r *RawBridgeEvent) GetMaxBlockNumber(ctx context.Context, tableName string) (uint64, error) {
+	var maxBlockNumber uint64
+	db := r.db.WithContext(ctx)
+	err := db.Table(tableName).Select("COALESCE(MAX(block_number), 0)").Scan(&maxBlockNumber).Error
+	if err != nil {
+		return 0, err
+	}
+	return maxBlockNumber, nil
 }
 
 /****************
@@ -264,6 +273,7 @@ func (b *RawBridgeEvent) InsertRawBridgeEvents(ctx context.Context, tableName st
 	logrus.Infof("Transaction committed successfully for table %s", tableName)
 	return nil
 }
+
 func (b *RawBridgeEvent) InsertRawBridgeEventsFromCheckStep1(ctx context.Context, tableName string, bridgeEvents []*RawBridgeEvent) error {
 	if len(bridgeEvents) == 0 {
 		return nil

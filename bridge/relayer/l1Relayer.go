@@ -153,11 +153,15 @@ func (b *L1Relayer) HandleL1RelayerMessage(msg *orm.RawBridgeEvent) error {
 		b.rawBridgeEventOrm.UpdateProcessFail(orm.TableRawBridgeEvents11155111, msg.ID, err.Error())
 		return err
 	}
-	err = b.crossMessageOrm.UpdateL2MessageConsumedStatus(b.ctx, relayedMessage)
+	rowsAffected, err := b.crossMessageOrm.UpdateL2MessageConsumedStatus(b.ctx, relayedMessage)
 	if err != nil {
 		logrus.Infof("Failed to update L2 message consumed status: %v", err)
 		b.rawBridgeEventOrm.UpdateProcessFail(orm.TableRawBridgeEvents11155111, msg.ID, err.Error())
 		return err
+	}
+	if rowsAffected == 0 {
+		logrus.Warn("L2 message cant be found: ", relayedMessage.MessageHash)
+		return nil
 	}
 	b.rawBridgeEventOrm.UpdateProcessStatus(orm.TableRawBridgeEvents11155111, msg.ID, int(btypes.Processed))
 	return nil
