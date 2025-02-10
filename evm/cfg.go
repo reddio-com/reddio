@@ -60,6 +60,10 @@ type GethConfig struct {
 	BridgeHost                 string           `toml:"bridge_host"`
 	BridgePort                 string           `toml:"bridge_port"`
 	BridgeDBConfig             *database.Config `toml:"bridge_db_config"`
+	Confirmation               uint64           `toml:"confirmation"`
+	FetchLimit                 uint64           `toml:"fetch_limit"`
+	StartHeight                uint64           `toml:"start_height"`
+	BlockTime                  uint64           `toml:"block_time"`
 	// relayer config
 	RelayerBatchSize int `toml:"relayer_batch_size"`
 	// checker config

@@ -116,10 +116,7 @@ func StartupL1Watcher(cfg *evm.GethConfig, db *gorm.DB) {
 	if err != nil {
 		logrus.Fatal("init L1 client failed: ", err)
 	}
-	err = l1Watcher.Run(ctx)
-	if err != nil {
-		logrus.Fatal("l1 client run failed: ", err)
-	}
+	l1Watcher.Start()
 
 }
 

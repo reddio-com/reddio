@@ -14,10 +14,13 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/holiman/uint256"
 	"github.com/joho/godotenv"
 	"github.com/sirupsen/logrus"
 	yu_common "github.com/yu-org/yu/common"
+	"golang.org/x/sync/errgroup"
 )
 
 // Loop Run the f func periodically.
@@ -128,4 +131,45 @@ func ComputeMessageHash(payloadType uint32, payload []byte, nonce *big.Int) (com
 
 	dataHash := crypto.Keccak256Hash(packedData)
 	return dataHash, nil
+}
+
+func GetBlockNumber(ctx context.Context, client *ethclient.Client, confirmations uint64) (uint64, error) {
+	number, err := client.BlockNumber(ctx)
+	if err != nil || number <= confirmations {
+		return 0, err
+	}
+	number = number - confirmations
+	return number, nil
+}
+
+// GetBlocksInRange gets a batch of blocks for a block range [start, end] inclusive.
+func GetBlocksInRange(ctx context.Context, cli *ethclient.Client, start, end uint64) ([]*types.Block, error) {
+	var (
+		eg          errgroup.Group
+		blocks      = make([]*types.Block, end-start+1)
+		concurrency = 32
+		sem         = make(chan struct{}, concurrency)
+	)
+
+	for i := start; i <= end; i++ {
+		sem <- struct{}{} // Acquire a slot in the semaphore
+		blockNum := int64(i)
+		index := i - start
+		eg.Go(func() error {
+			defer func() { <-sem }() // Release the slot when done
+			block, err := cli.BlockByNumber(ctx, big.NewInt(blockNum))
+			if err != nil {
+				log.Error("Failed to fetch block number", "number", blockNum, "error", err)
+				return err
+			}
+			blocks[index] = block
+			return nil
+		})
+	}
+
+	if err := eg.Wait(); err != nil {
+		log.Error("Error waiting for block fetching routines", "error", err)
+		return nil, err
+	}
+	return blocks, nil
 }
