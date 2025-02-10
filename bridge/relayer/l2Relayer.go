@@ -193,9 +193,8 @@ func (b *L2Relayer) HandleL2RelayerMessage(ctx context.Context, bridgeEvent *orm
 		return err
 	}
 	if rowsAffected == 0 {
-		logrus.Infof("l1 Message can not be found: %v", err)
-		b.rawBridgeEventOrm.UpdateProcessFail(orm.TableRawBridgeEvents50341, bridgeEvent.ID, "l1 Message can not be found")
-		return err
+		logrus.Warn("L1 message cant be found: ", relayedMessage.MessageHash)
+		return nil
 	}
 
 	b.rawBridgeEventOrm.UpdateProcessStatus(orm.TableRawBridgeEvents50341, bridgeEvent.ID, int(btypes.Processed))

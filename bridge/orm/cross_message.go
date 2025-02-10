@@ -277,7 +277,6 @@ func (c *CrossMessage) UpdateL1MessageConsumedStatus(ctx context.Context, l2Rela
 	return result.RowsAffected, nil
 }
 func (c *CrossMessage) UpdateL2MessageConsumedStatus(ctx context.Context, l1RelayedMessage *CrossMessage) (int64, error) {
-	// just have 1 message right now
 	db := c.db.WithContext(ctx)
 	result := db.Model(&CrossMessage{}).Where("message_hash = ? AND message_type = ?", l1RelayedMessage.MessageHash, btypes.MessageTypeL2SentMessage).Updates(map[string]interface{}{
 		"tx_status":       btypes.TxStatusTypeConsumed,
