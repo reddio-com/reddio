@@ -73,10 +73,10 @@ func (s *EthereumAPI) GetLogs(ctx context.Context, crit FilterCriteria) (results
 	start := time.Now()
 	defer func() {
 		if err != nil {
-			metrics.EthereumAPICounterHist.WithLabelValues(getLogsLbl, statusErr).Observe(time.Since(start).Seconds())
+			metrics.EthereumAPICounterHist.WithLabelValues(getLogsLbl, statusErr).Observe(float64(time.Since(start).Microseconds()))
 			metrics.EthereumAPICounter.WithLabelValues(getLogsLbl, statusErr).Inc()
 		} else {
-			metrics.EthereumAPICounterHist.WithLabelValues(getLogsLbl, statusSuccess).Observe(time.Since(start).Seconds())
+			metrics.EthereumAPICounterHist.WithLabelValues(getLogsLbl, statusSuccess).Observe(float64(time.Since(start).Microseconds()))
 			metrics.EthereumAPICounter.WithLabelValues(getLogsLbl, statusSuccess).Inc()
 		}
 	}()
@@ -107,10 +107,10 @@ func (s *EthereumAPI) GasPrice(ctx context.Context) (result *hexutil.Big, err er
 	start := time.Now()
 	defer func() {
 		if err != nil {
-			metrics.EthereumAPICounterHist.WithLabelValues(gasPriceLbl, statusErr).Observe(time.Since(start).Seconds())
+			metrics.EthereumAPICounterHist.WithLabelValues(gasPriceLbl, statusErr).Observe(float64(time.Since(start).Microseconds()))
 			metrics.EthereumAPICounter.WithLabelValues(gasPriceLbl, statusErr).Inc()
 		} else {
-			metrics.EthereumAPICounterHist.WithLabelValues(gasPriceLbl, statusSuccess).Observe(time.Since(start).Seconds())
+			metrics.EthereumAPICounterHist.WithLabelValues(gasPriceLbl, statusSuccess).Observe(float64(time.Since(start).Microseconds()))
 			metrics.EthereumAPICounter.WithLabelValues(gasPriceLbl, statusSuccess).Inc()
 		}
 	}()
@@ -147,10 +147,10 @@ func (s *EthereumAPI) FeeHistory(ctx context.Context, blockCount math.HexOrDecim
 	start := time.Now()
 	defer func() {
 		if err != nil {
-			metrics.EthereumAPICounterHist.WithLabelValues(feeHistoryLbl, statusErr).Observe(time.Since(start).Seconds())
+			metrics.EthereumAPICounterHist.WithLabelValues(feeHistoryLbl, statusErr).Observe(float64(time.Since(start).Microseconds()))
 			metrics.EthereumAPICounter.WithLabelValues(feeHistoryLbl, statusErr).Inc()
 		} else {
-			metrics.EthereumAPICounterHist.WithLabelValues(feeHistoryLbl, statusSuccess).Observe(time.Since(start).Seconds())
+			metrics.EthereumAPICounterHist.WithLabelValues(feeHistoryLbl, statusSuccess).Observe(float64(time.Since(start).Microseconds()))
 			metrics.EthereumAPICounter.WithLabelValues(feeHistoryLbl, statusSuccess).Inc()
 		}
 	}()

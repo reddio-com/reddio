@@ -75,7 +75,7 @@ func (s *Solidity) FinaliseStateDB(deleteEmptyObjects bool) {
 	start := time.Now()
 	defer func() {
 		s.RUnlock()
-		metrics.SolidityHist.WithLabelValues(finaliseLbl).Observe(time.Since(start).Seconds())
+		metrics.SolidityHist.WithLabelValues(finaliseLbl).Observe(float64(time.Since(start).Microseconds()))
 	}()
 	s.ethState.StateDB().Finalise(deleteEmptyObjects)
 }
@@ -200,7 +200,7 @@ func (s *Solidity) StartBlock(block *yu_types.Block) {
 	start := time.Now()
 	defer func() {
 		s.Unlock()
-		metrics.SolidityHist.WithLabelValues(startBlockLbl).Observe(time.Since(start).Seconds())
+		metrics.SolidityHist.WithLabelValues(startBlockLbl).Observe(float64(time.Since(start).Microseconds()))
 	}()
 	s.cfg.BlockNumber = big.NewInt(int64(block.Height))
 	// s.gasPool = new(core.GasPool).AddGas(block.LeiLimit)
@@ -257,7 +257,7 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 	start := time.Now()
 	defer func() {
 		s.RUnlock()
-		metrics.SolidityHist.WithLabelValues(executeTxnLbl).Observe(time.Since(start).Seconds())
+		metrics.SolidityHist.WithLabelValues(executeTxnLbl).Observe(float64(time.Since(start).Microseconds()))
 		if err == nil {
 			metrics.SolidityCounter.WithLabelValues(executeTxnLbl, statusSuccess).Inc()
 		} else {
@@ -337,7 +337,7 @@ func (s *Solidity) Call(ctx *context.ReadContext) {
 	start := time.Now()
 	defer func() {
 		s.Unlock()
-		metrics.SolidityHist.WithLabelValues(callTxnLbl).Observe(time.Since(start).Seconds())
+		metrics.SolidityHist.WithLabelValues(callTxnLbl).Observe(float64(time.Since(start).Microseconds()))
 	}()
 
 	callReq := new(CallRequest)
@@ -400,7 +400,7 @@ func (s *Solidity) Commit(block *yu_types.Block) {
 	start := time.Now()
 	defer func() {
 		s.RUnlock()
-		metrics.SolidityHist.WithLabelValues(commitLbl).Observe(time.Since(start).Seconds())
+		metrics.SolidityHist.WithLabelValues(commitLbl).Observe(float64(time.Since(start).Microseconds()))
 	}()
 
 	// reward coinbase
@@ -657,7 +657,7 @@ func (s *Solidity) GetReceipt(ctx *context.ReadContext) {
 	}
 	start := time.Now()
 	defer func() {
-		metrics.SolidityHist.WithLabelValues(getReceiptLbl).Observe(time.Since(start).Seconds())
+		metrics.SolidityHist.WithLabelValues(getReceiptLbl).Observe(float64(time.Since(start).Microseconds()))
 	}()
 	var rq ReceiptRequest
 	err := ctx.BindJson(&rq)
@@ -679,7 +679,7 @@ func (s *Solidity) GetReceipt(ctx *context.ReadContext) {
 func (s *Solidity) GetReceipts(ctx *context.ReadContext) {
 	start := time.Now()
 	defer func() {
-		metrics.SolidityHist.WithLabelValues(getReceiptsLbl).Observe(time.Since(start).Seconds())
+		metrics.SolidityHist.WithLabelValues(getReceiptsLbl).Observe(float64(time.Since(start).Microseconds()))
 	}()
 	var rq ReceiptsRequest
 	err := ctx.BindJson(&rq)
