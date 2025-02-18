@@ -83,6 +83,10 @@ func (e *EthAPIBackend) SetHead(number uint64) {
 }
 
 func (e *EthAPIBackend) HeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Header, *yutypes.Header, error) {
+	start := time.Now()
+	defer func() {
+		EthApiBackendDuration.WithLabelValues("headerByNumber").Observe(float64(time.Since(start).Microseconds()))
+	}()
 	EthApiBackendCounter.WithLabelValues("headerByNumber").Inc()
 	var (
 		yuBlock *yutypes.CompactBlock
@@ -106,6 +110,10 @@ func (e *EthAPIBackend) HeaderByNumber(ctx context.Context, number rpc.BlockNumb
 }
 
 func (e *EthAPIBackend) HeaderByHash(ctx context.Context, hash common.Hash) (*types.Header, *yutypes.Header, error) {
+	start := time.Now()
+	defer func() {
+		EthApiBackendDuration.WithLabelValues("headerByHash").Observe(float64(time.Since(start).Microseconds()))
+	}()
 	EthApiBackendCounter.WithLabelValues("headerByHash").Inc()
 	yuBlock, err := e.chain.Chain.GetCompactBlock(yucommon.Hash(hash))
 	if err != nil {
@@ -117,6 +125,10 @@ func (e *EthAPIBackend) HeaderByHash(ctx context.Context, hash common.Hash) (*ty
 }
 
 func (e *EthAPIBackend) HeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Header, *yutypes.Header, error) {
+	start := time.Now()
+	defer func() {
+		EthApiBackendDuration.WithLabelValues("headerByNumberOrHash").Observe(float64(time.Since(start).Microseconds()))
+	}()
 	EthApiBackendCounter.WithLabelValues("headerByNumberOrHash").Inc()
 	if blockNr, ok := blockNrOrHash.Number(); ok {
 		return e.HeaderByNumber(ctx, blockNr)
@@ -130,6 +142,10 @@ func (e *EthAPIBackend) HeaderByNumberOrHash(ctx context.Context, blockNrOrHash 
 }
 
 func (e *EthAPIBackend) CurrentHeader() *types.Header {
+	start := time.Now()
+	defer func() {
+		EthApiBackendDuration.WithLabelValues("currentHeader").Observe(float64(time.Since(start).Microseconds()))
+	}()
 	EthApiBackendCounter.WithLabelValues("currentHeader").Inc()
 	yuBlock, err := e.chain.Chain.GetEndCompactBlock()
 	if err != nil {
@@ -141,6 +157,10 @@ func (e *EthAPIBackend) CurrentHeader() *types.Header {
 }
 
 func (e *EthAPIBackend) CurrentBlock() *types.Header {
+	start := time.Now()
+	defer func() {
+		EthApiBackendDuration.WithLabelValues("currentBlock").Observe(float64(time.Since(start).Microseconds()))
+	}()
 	EthApiBackendCounter.WithLabelValues("currentBlock").Inc()
 	yuBlock, err := e.chain.Chain.GetEndCompactBlock()
 	if err != nil {
@@ -152,6 +172,10 @@ func (e *EthAPIBackend) CurrentBlock() *types.Header {
 }
 
 func (e *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Block, *yutypes.Block, error) {
+	start := time.Now()
+	defer func() {
+		EthApiBackendDuration.WithLabelValues("blockByNumber").Observe(float64(time.Since(start).Microseconds()))
+	}()
 	EthApiBackendCounter.WithLabelValues("blockByNumber").Inc()
 	var (
 		yuBlock *yutypes.Block
@@ -179,6 +203,10 @@ func (e *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumbe
 }
 
 func (e *EthAPIBackend) BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, *yutypes.Block, error) {
+	start := time.Now()
+	defer func() {
+		EthApiBackendDuration.WithLabelValues("blockByHash").Observe(float64(time.Since(start).Microseconds()))
+	}()
 	EthApiBackendCounter.WithLabelValues("blockByHash").Inc()
 	yuBlock, err := e.chain.Chain.GetBlock(yucommon.Hash(hash))
 	if err != nil {
@@ -192,6 +220,10 @@ func (e *EthAPIBackend) BlockByHash(ctx context.Context, hash common.Hash) (*typ
 }
 
 func (e *EthAPIBackend) BlockByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Block, *yutypes.Block, error) {
+	start := time.Now()
+	defer func() {
+		EthApiBackendDuration.WithLabelValues("blockByNumberOrHash").Observe(float64(time.Since(start).Microseconds()))
+	}()
 	EthApiBackendCounter.WithLabelValues("blockByNumberOrHash").Inc()
 	if blockNr, ok := blockNrOrHash.Number(); ok {
 		return e.BlockByNumber(ctx, blockNr)
@@ -205,6 +237,10 @@ func (e *EthAPIBackend) BlockByNumberOrHash(ctx context.Context, blockNrOrHash r
 }
 
 func (e *EthAPIBackend) StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*state.StateDB, *types.Header, error) {
+	start := time.Now()
+	defer func() {
+		EthApiBackendDuration.WithLabelValues("stateAndHeaderByNumber").Observe(float64(time.Since(start).Microseconds()))
+	}()
 	EthApiBackendCounter.WithLabelValues("stateAndHeaderByNumber").Inc()
 	header, _, err := e.HeaderByNumber(ctx, number)
 	if err != nil {
@@ -223,6 +259,10 @@ func (e *EthAPIBackend) StateAndHeaderByNumber(ctx context.Context, number rpc.B
 }
 
 func (e *EthAPIBackend) StateAndHeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*state.StateDB, *types.Header, error) {
+	start := time.Now()
+	defer func() {
+		EthApiBackendDuration.WithLabelValues("stateAndHeaderByNumberOrHash").Observe(float64(time.Since(start).Microseconds()))
+	}()
 	EthApiBackendCounter.WithLabelValues("stateAndHeaderByNumberOrHash").Inc()
 	if blockNr, ok := blockNrOrHash.Number(); ok {
 		return e.StateAndHeaderByNumber(ctx, blockNr)
@@ -301,6 +341,10 @@ func (e *EthAPIBackend) SubscribeChainSideEvent(ch chan<- core.ChainSideEvent) e
 }
 
 func (e *EthAPIBackend) Call(ctx context.Context, args TransactionArgs, blockNrOrHash *rpc.BlockNumberOrHash, overrides *StateOverride, blockOverrides *BlockOverrides) (hexutil.Bytes, error) {
+	start := time.Now()
+	defer func() {
+		EthApiBackendDuration.WithLabelValues("call").Observe(float64(time.Since(start).Microseconds()))
+	}()
 	EthApiBackendCounter.WithLabelValues("call").Inc()
 	globalGasCap := e.RPCGasCap()
 	if blockNrOrHash == nil {
@@ -345,6 +389,10 @@ func (e *EthAPIBackend) Call(ctx context.Context, args TransactionArgs, blockNrO
 }
 
 func (e *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction) error {
+	start := time.Now()
+	defer func() {
+		EthApiBackendDuration.WithLabelValues("sendTx").Observe(float64(time.Since(start).Microseconds()))
+	}()
 	EthApiBackendCounter.WithLabelValues("sendTx").Inc()
 	// Check if this tx has been created
 	signedTxHash := signedTx.Hash()
@@ -422,6 +470,10 @@ func YuTxn2EthTxn(yuSignedTxn *yutypes.SignedTxn) (*types.Transaction, error) {
 }
 
 func (e *EthAPIBackend) GetTransaction(ctx context.Context, txHash common.Hash) (bool, *types.Transaction, common.Hash, uint64, uint64, error) {
+	start := time.Now()
+	defer func() {
+		EthApiBackendDuration.WithLabelValues("getTransaction").Observe(float64(time.Since(start).Microseconds()))
+	}()
 	EthApiBackendCounter.WithLabelValues("getTransaction").Inc()
 	// Used to get txn from either txdb & txpool:
 	stxn, err := e.chain.GetTxn(yucommon.Hash(txHash))
@@ -477,6 +529,10 @@ func (e *EthAPIBackend) GetTransaction(ctx context.Context, txHash common.Hash) 
 }
 
 func (e *EthAPIBackend) GetReceiptsForLog(ctx context.Context, blockHash common.Hash) (types.Receipts, error) {
+	start := time.Now()
+	defer func() {
+		EthApiBackendDuration.WithLabelValues("getReceiptsForLog").Observe(float64(time.Since(start).Microseconds()))
+	}()
 	EthApiBackendCounter.WithLabelValues("getReceiptsForLog").Inc()
 	compactBlock, err := e.chain.Chain.GetCompactBlock(yucommon.Hash(blockHash))
 	if err != nil {
@@ -502,6 +558,11 @@ func (e *EthAPIBackend) GetReceiptsForLog(ctx context.Context, blockHash common.
 }
 
 func (e *EthAPIBackend) GetReceipts(ctx context.Context, blockHash common.Hash) (types.Receipts, error) {
+	start := time.Now()
+	defer func() {
+		EthApiBackendDuration.WithLabelValues("getReceipts").Observe(float64(time.Since(start).Microseconds()))
+	}()
+	EthApiBackendCounter.WithLabelValues("getReceipts").Inc()
 	compactBlock, err := e.chain.Chain.GetCompactBlock(yucommon.Hash(blockHash))
 	if err != nil {
 		return nil, err
@@ -531,6 +592,10 @@ func (e *EthAPIBackend) GetReceipts(ctx context.Context, blockHash common.Hash) 
 }
 
 func (e *EthAPIBackend) GetPoolTransactions() (types.Transactions, error) {
+	start := time.Now()
+	defer func() {
+		EthApiBackendDuration.WithLabelValues("getPoolTransactions").Observe(float64(time.Since(start).Microseconds()))
+	}()
 	EthApiBackendCounter.WithLabelValues("getPoolTransactions").Inc()
 	// Similar to: e.chain.ChainEnv.Pool.GetTxn - ChainEnv can be ignored b/c txpool has index based on hxHash, therefore it's unique
 	stxn, _ := e.chain.Pool.GetAllTxns() // will not return error here
@@ -559,6 +624,11 @@ func (e *EthAPIBackend) GetPoolTransaction(txHash common.Hash) (*types.Transacti
 }
 
 func (e *EthAPIBackend) GetPoolNonce(ctx context.Context, addr common.Address) (uint64, error) {
+	start := time.Now()
+	defer func() {
+		EthApiBackendDuration.WithLabelValues("getPoolNonce").Observe(float64(time.Since(start).Microseconds()))
+	}()
+	EthApiBackendCounter.WithLabelValues("getPoolNonce").Inc()
 	// Loop through all transactions to find matching Account Address, and return it's nonce (if have)
 	allEthTxns, _ := e.GetPoolTransactions()
 
@@ -611,6 +681,10 @@ func (e *EthAPIBackend) GetBody(ctx context.Context, hash common.Hash, number rp
 }
 
 func (e *EthAPIBackend) GetLogs(ctx context.Context, blockHash common.Hash, number uint64) ([][]*types.Log, error) {
+	start := time.Now()
+	defer func() {
+		EthApiBackendDuration.WithLabelValues("getLogs").Observe(float64(time.Since(start).Microseconds()))
+	}()
 	EthApiBackendCounter.WithLabelValues("getLogs").Inc()
 	if blockHash == (common.Hash{}) {
 		_, yuHeader, _ := e.HeaderByNumber(ctx, rpc.BlockNumber(number))
