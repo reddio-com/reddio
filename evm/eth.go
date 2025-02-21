@@ -634,6 +634,7 @@ func (s *Solidity) GetEthReceipt(hash common.Hash) (*types.Receipt, error) {
 	// logrus.Printf("yuReceipt body is %s", yuReceipt.String())
 
 	if yuReceipt == nil {
+		logrus.Warnf("[GetEthReceipt] Receipt not found for txHash(%s)", yuHash.String())
 		return nil, ErrNotFoundReceipt
 	}
 
