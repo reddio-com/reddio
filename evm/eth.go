@@ -622,6 +622,7 @@ func checkGetReceipt() (checkResult bool) {
 func (s *Solidity) GetEthReceipt(hash common.Hash) (*types.Receipt, error) {
 	yuHash, err := ConvertHashToYuHash(hash)
 	if err != nil {
+		logrus.Warnf("[GetEthReceipt] Receipt not found for txHash(%s)", yuHash.String())
 		return nil, err
 	}
 	yuReceipt, err := s.TxDB.GetReceipt(yuHash)
