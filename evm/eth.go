@@ -622,7 +622,6 @@ func checkGetReceipt() (checkResult bool) {
 func (s *Solidity) GetEthReceipt(hash common.Hash) (*types.Receipt, error) {
 	yuHash, err := ConvertHashToYuHash(hash)
 	if err != nil {
-		logrus.Warnf("[GetEthReceipt] Receipt not found for txHash(%s)", yuHash.String())
 		return nil, err
 	}
 	yuReceipt, err := s.TxDB.GetReceipt(yuHash)
@@ -634,7 +633,7 @@ func (s *Solidity) GetEthReceipt(hash common.Hash) (*types.Receipt, error) {
 	// logrus.Printf("yuReceipt body is %s", yuReceipt.String())
 
 	if yuReceipt == nil {
-		logrus.Warnf("[GetEthReceipt] Receipt not found for txHash(%s)", yuHash.String())
+		logrus.Warnf("getReceipt() TxDB.GetReceipt, txHash(%s) not found，hash(%s)", yuHash.String(), hash.String())
 		return nil, ErrNotFoundReceipt
 	}
 
@@ -668,6 +667,11 @@ func (s *Solidity) GetReceipt(ctx *context.ReadContext) {
 		ctx.Json(http.StatusBadRequest, &ReceiptResponse{Err: fmt.Errorf("Solidity.GetReceipt parse json error:%v", err)})
 		return
 	}
+	if !ValidateTxHash(rq.Hash.Hex()) {
+		metrics.SolidityCounter.WithLabelValues(getReceiptLbl, statusErr).Inc()
+		ctx.Json(http.StatusBadRequest, &ReceiptResponse{Err: fmt.Errorf("Solidity.GetReceipt ValidateTxHash json error:%v", err)})
+		return
+	}
 	receipt, err := s.GetEthReceipt(rq.Hash)
 	if err != nil {
 		metrics.SolidityCounter.WithLabelValues(getReceiptLbl, statusErr).Inc()
@@ -693,6 +697,10 @@ func (s *Solidity) GetReceipts(ctx *context.ReadContext) {
 
 	receipts := make([]*types.Receipt, 0, len(rq.Hashes))
 	for _, hash := range rq.Hashes {
+		if !ValidateTxHash(hash.Hex()) {
+			metrics.SolidityCounter.WithLabelValues(getReceiptsLbl, statusErr).Inc()
+			continue
+		}
 		receipt, err := s.GetEthReceipt(hash)
 		if err != nil {
 			metrics.SolidityCounter.WithLabelValues(getReceiptsLbl, statusErr).Inc()
