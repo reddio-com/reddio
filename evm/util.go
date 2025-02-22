@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/holiman/uint256"
@@ -35,4 +36,40 @@ func ObjToJson(obj interface{}) string {
 		return ""
 	}
 	return string(byt)
+}
+
+func ValidateTxHash(hash string) bool {
+	if len(hash) != 66 || !strings.HasPrefix(hash, "0x") {
+		return false
+	}
+
+	if isAllZero(hash) {
+		return false
+	}
+
+	if countLeadingZeros(hash) > 16 {
+		return false
+	}
+
+	return true
+}
+
+func isAllZero(hash string) bool {
+	for _, c := range hash[2:] {
+		if c != '0' {
+			return false
+		}
+	}
+	return true
+}
+
+func countLeadingZeros(hash string) int {
+	count := 0
+	for _, c := range hash[2:] {
+		if c != '0' {
+			break
+		}
+		count++
+	}
+	return count
 }
