@@ -694,23 +694,36 @@ func (s *Solidity) GetReceipts(ctx *context.ReadContext) {
 		ctx.Json(http.StatusBadRequest, &ReceiptsResponse{Err: fmt.Errorf("Solidity.GetReceipts parse json error:%v", err)})
 		return
 	}
-
-	receipts := make([]*types.Receipt, 0, len(rq.Hashes))
+	yuHashList := make([]yu_common.Hash, 0)
 	for _, hash := range rq.Hashes {
 		if !ValidateTxHash(hash.Hex()) {
 			metrics.SolidityCounter.WithLabelValues(getReceiptsLbl, statusErr).Inc()
 			continue
 		}
-		receipt, err := s.GetEthReceipt(hash)
+		yuHash, err := ConvertHashToYuHash(hash)
 		if err != nil {
 			metrics.SolidityCounter.WithLabelValues(getReceiptsLbl, statusErr).Inc()
-			ctx.Json(http.StatusInternalServerError, &ReceiptsResponse{Err: err})
+			ctx.Json(http.StatusBadRequest, &ReceiptsResponse{Err: fmt.Errorf("Solidity.GetReceipts parse json error:%v", err)})
 			return
 		}
-		receipts = append(receipts, receipt)
+		yuHashList = append(yuHashList, yuHash)
+	}
+	yuReceipts, err := s.TxDB.GetReceipts(yuHashList)
+	if err != nil {
+		metrics.SolidityCounter.WithLabelValues(getReceiptsLbl, statusErr).Inc()
+		ctx.Json(http.StatusBadRequest, &ReceiptsResponse{Err: fmt.Errorf("Solidity.GetReceipts parse json error:%v", err)})
+		return
+	}
+	want := make([]*types.Receipt, 0)
+	for _, yuRecipt := range yuReceipts {
+		receipt := new(types.Receipt)
+		if yuRecipt.Extra != nil {
+			json.NewDecoder(bytes.NewBuffer(yuRecipt.Extra)).Decode(receipt)
+		}
+		want = append(want, receipt)
 	}
 	metrics.SolidityCounter.WithLabelValues(getReceiptsLbl, statusSuccess).Inc()
-	ctx.JsonOk(&ReceiptsResponse{Receipts: receipts})
+	ctx.JsonOk(&ReceiptsResponse{Receipts: want})
 }
 
 func (s *Solidity) GetCopiedStateDB() *state.StateDB {
