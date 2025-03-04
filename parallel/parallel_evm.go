@@ -94,7 +94,7 @@ func (e *ParallelEvmExecutor) executeTxnCtxListInParallel(list []*txnCtx) []*txn
 		e.cpdb.Finalise(true)
 		if config.GetGlobalConfig().AsyncCommit {
 			e.k.updateTxnObjSub(list)
-			e.cpdb.PendingCommit(true, e.k.objectInc)
+			//e.cpdb.PendingCommit(true, e.k.objectInc)
 		}
 	}()
 	metrics.BatchTxnSplitCounter.WithLabelValues(strconv.FormatInt(int64(len(list)), 10)).Inc()
@@ -168,7 +168,9 @@ func (e *ParallelEvmExecutor) CopyStateDb(list []*txnCtx) []*pending_state.Pendi
 			needCopy[*list[i].req.Address] = struct{}{}
 		}
 		needCopy[list[i].req.Origin] = struct{}{}
-		copiedStateDBList = append(copiedStateDBList, pending_state.NewPendingStateWrapper(pending_state.NewStateDBWrapper(e.cpdb.SimpleCopy(needCopy)), pending_state.NewStateContext(false), int64(i)))
+		//copiedStateDBList = append(copiedStateDBList, pending_state.NewPendingStateWrapper(pending_state.NewStateDBWrapper(e.cpdb.SimpleCopy(needCopy)), pending_state.NewStateContext(false), int64(i)))
+		copiedStateDBList = append(copiedStateDBList, pending_state.NewPendingStateWrapper(pending_state.NewStateDBWrapper(e.cpdb.Copy()), pending_state.NewStateContext(false), int64(i)))
+
 	}
 	return copiedStateDBList
 }
