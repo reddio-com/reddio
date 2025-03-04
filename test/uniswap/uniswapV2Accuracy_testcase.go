@@ -225,7 +225,7 @@ func (ca *UniswapV2AccuracyTestCase) prepareDeployerContract(deployerUser *pkg.E
 		return [20]byte{}, nil, fmt.Errorf("Failed to confirm approve transaction: %v", err)
 	}
 	if !isConfirmed {
-		return [20]byte{}, nil, fmt.Errorf("transaction was not confirmed")
+		return [20]byte{}, nil, errors.New("transaction was not confirmed")
 	}
 	err = dispatchTestToken(client, depolyerAuth, ERC20DeployedContracts, testUsers, big.NewInt(accountInitialERC20Token))
 	if err != nil {
