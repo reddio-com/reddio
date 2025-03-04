@@ -70,7 +70,7 @@ func (k *ParallelEVM) handleTxnEvent(ctx *context.WriteContext, block *types.Blo
 
 func (k *ParallelEVM) prepareExecute() {
 	if config.GetGlobalConfig().AsyncCommit {
-		k.cpdb.ClearPendingCommitMark()
+		//k.cpdb.ClearPendingCommitMark()
 		k.clearObjInc()
 	}
 }

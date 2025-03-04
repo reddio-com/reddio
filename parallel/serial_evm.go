@@ -50,7 +50,7 @@ func (s *SerialEvmExecutor) executeTxnCtxListInSerial(list []*txnCtx) []*txnCtx 
 	defer func() {
 		if config.GetGlobalConfig().AsyncCommit {
 			s.k.updateTxnObjSub(list)
-			s.cpdb.PendingCommit(true, s.k.objectInc)
+			//s.cpdb.PendingCommit(true, s.k.objectInc)
 		}
 	}()
 	return s.k.executeTxnCtxListInOrder(s.cpdb, list, false)
