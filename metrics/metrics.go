@@ -173,6 +173,16 @@ var (
 			Help:      "Total number of L1 event watcher retries",
 		},
 	)
+
+	WithdrawMessageNonceGauge = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "reddio",
+			Subsystem: "bridge",
+			Name:      "withdraw_message_nonce",
+			Help:      "The current value of the bridge event nonce.",
+		},
+		[]string{"table"},
+	)
 )
 
 func init() {
@@ -197,6 +207,7 @@ func init() {
 
 	prometheus.MustRegister(L1EventWatcherFailureCounter)
 	prometheus.MustRegister(L1EventWatcherRetryCounter)
+	prometheus.MustRegister(WithdrawMessageNonceGauge)
 }
 
 var TxnBuckets = []float64{.00005, .0001, .00025, .0005, .001, .0025, .005, 0.01, 0.025, 0.05, 0.1}

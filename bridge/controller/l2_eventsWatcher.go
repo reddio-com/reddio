@@ -13,6 +13,7 @@ import (
 	"github.com/reddio-com/reddio/bridge/logic"
 	"github.com/reddio-com/reddio/bridge/orm"
 	"github.com/reddio-com/reddio/evm"
+	"github.com/reddio-com/reddio/metrics"
 )
 
 type L2EventsWatcher struct {
@@ -99,6 +100,9 @@ func (w *L2EventsWatcher) savel2BridgeEvents(
 	err := w.rawBridgeEventsOrm.InsertRawBridgeEvents(context.Background(), orm.TableRawBridgeEvents50341, rawBridgeEvents)
 	if err != nil {
 		return err
+	}
+	for _, event := range rawBridgeEvents {
+		metrics.WithdrawMessageNonceGauge.WithLabelValues("50341").Set(float64(event.MessageNonce))
 	}
 	return nil
 }
