@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 
+	btypes "github.com/reddio-com/reddio/bridge/types"
 	"github.com/sirupsen/logrus"
 	"github.com/yu-org/yu/core/tripod"
 	yutypes "github.com/yu-org/yu/core/types"
@@ -55,6 +56,12 @@ func (w *L2EventsWatcher) WatchL2BridgeEvent(ctx context.Context, block *yutypes
 			return fmt.Errorf("failed to save l2RelayedMessages: %v", err)
 		}
 	}
+
+	for _, event := range l2WithdrawMessages {
+		if event.EventType == int(btypes.SentMessage) {
+			metrics.WithdrawMessageNonceGauge.WithLabelValues("withdrawMessageNonce").Set(float64(event.MessageNonce))
+		}
+	}
 	return nil
 }
 
@@ -101,8 +108,6 @@ func (w *L2EventsWatcher) savel2BridgeEvents(
 	if err != nil {
 		return err
 	}
-	for _, event := range rawBridgeEvents {
-		metrics.WithdrawMessageNonceGauge.WithLabelValues("50341").Set(float64(event.MessageNonce))
-	}
+
 	return nil
 }
