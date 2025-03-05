@@ -5,6 +5,7 @@ import (
 
 	common2 "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/sirupsen/logrus"
 	"github.com/yu-org/yu/core/tripod"
 
 	"github.com/yu-org/yu/common"
@@ -21,6 +22,8 @@ const (
 
 	batchTxnLabelSuccess = "success"
 	batchTxnLabelRedo    = "redo"
+
+	blockTxnReceiptsNotEqual = "receipts-not-equal"
 )
 
 type ParallelEVM struct {
@@ -59,6 +62,10 @@ func (k *ParallelEVM) Execute(block *types.Block) error {
 	k.processor.Prepare(block)
 	k.processor.Execute(block)
 	receipts := k.processor.Receipts(block)
+	if len(receipts) < len(block.Txns) {
+		logrus.Errorf("block:%v recipts:%v, txn:%v", int64(block.Height), len(receipts), len(block.Txns))
+		BlockTxnCounter.WithLabelValues(blockTxnReceiptsNotEqual).Inc()
+	}
 	return k.Commit(block, receipts)
 }
 
