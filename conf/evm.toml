@@ -4,7 +4,7 @@ eth_port = "9092"
 
 
 # [Module:Watcher]
-enable_bridge = false
+enable_bridge = true
 # note: need websocket rpc to listen to the L1 event
 ## use your own node address
 l1_client_address = ""

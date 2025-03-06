@@ -183,6 +183,16 @@ var (
 		},
 		[]string{"table"},
 	)
+
+	WithdrawMessageNonceGap = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "reddio",
+			Subsystem: "bridge",
+			Name:      "withdraw_message_nonce_gap",
+			Help:      "The gap between the current value of the bridge event nonce and the expected value.",
+		},
+		[]string{TypeLbl},
+	)
 )
 
 func init() {

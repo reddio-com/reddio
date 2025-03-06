@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math/big"
 
-	btypes "github.com/reddio-com/reddio/bridge/types"
 	"github.com/sirupsen/logrus"
 	"github.com/yu-org/yu/core/tripod"
 	yutypes "github.com/yu-org/yu/core/types"
@@ -14,7 +13,6 @@ import (
 	"github.com/reddio-com/reddio/bridge/logic"
 	"github.com/reddio-com/reddio/bridge/orm"
 	"github.com/reddio-com/reddio/evm"
-	"github.com/reddio-com/reddio/metrics"
 )
 
 type L2EventsWatcher struct {
@@ -57,11 +55,6 @@ func (w *L2EventsWatcher) WatchL2BridgeEvent(ctx context.Context, block *yutypes
 		}
 	}
 
-	for _, event := range l2WithdrawMessages {
-		if event.EventType == int(btypes.SentMessage) {
-			metrics.WithdrawMessageNonceGauge.WithLabelValues("withdrawMessageNonce").Set(float64(event.MessageNonce))
-		}
-	}
 	return nil
 }
 

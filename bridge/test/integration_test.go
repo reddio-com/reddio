@@ -5,6 +5,7 @@ import (
 	"crypto/ecdsa"
 	"fmt"
 	"math/big"
+	"sync"
 	"testing"
 	"time"
 
@@ -900,6 +901,178 @@ func TestWithdrawERC1155Batch(t *testing.T) {
 	})
 }
 
+func TestMultipleWithdrawETH(t *testing.T) {
+	t.Run("MultipleWithdrawETH", func(t *testing.T) {
+		fmt.Println("MultipleWithdrawETH")
+
+		withdrawAmount := big.NewInt(1)
+		numWithdrawals := 3
+
+		// Arrange
+		l1Client, err := ethclient.Dial(sepoliaHelpConfig.L1ClientAddress)
+		require.NoError(t, err)
+		defer l1Client.Close()
+
+		l2Client, err := ethclient.Dial(sepoliaHelpConfig.L2ClientAddress)
+		require.NoError(t, err)
+		defer l2Client.Close()
+
+		callOpts := &bind.CallOpts{
+			Context: context.Background(),
+		}
+		ChildBridgeCoreFacet, err := bindings.NewChildBridgeCoreFacet(common.HexToAddress(sepoliaHelpConfig.ChildlayerContractAddress), l2Client)
+		require.NoError(t, err)
+
+		// get L2BridgeTokenAddress
+		L2BridgeTokenAddress, err := ChildBridgeCoreFacet.GetBridgedERC20TokenChild(callOpts, common.HexToAddress(sepoliaHelpConfig.L1ETHAddress))
+		require.NoError(t, err)
+
+		l2BridgeERC20Token, err := bindings.NewERC20Token(L2BridgeTokenAddress, l2Client)
+		require.NoError(t, err)
+
+		startBalance, err := l2BridgeERC20Token.BalanceOf(callOpts, common.HexToAddress(sepoliaHelpConfig.testPublicKey1))
+		require.NoError(t, err)
+
+		privateKeyStr, err := utils.LoadPrivateKey("../test/.sepolia.env")
+		require.NoError(t, err)
+		privateKey, err := crypto.HexToECDSA(privateKeyStr)
+		require.NoError(t, err)
+
+		for i := 0; i < numWithdrawals; i++ {
+			// Action
+			gasPrice, err := l2Client.SuggestGasPrice(context.Background())
+			require.NoError(t, err)
+			chainid, err := l2Client.ChainID(context.Background())
+			require.NoError(t, err)
+			t.Log("gas price", "price", gasPrice)
+			fmt.Println("gasPrice", gasPrice)
+
+			auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainid)
+			require.NoError(t, err)
+			auth.GasPrice = gasPrice
+			auth.GasLimit = 3000000
+
+			ChildTokenMessageTransmitterFacet, err := bindings.NewChildTokenMessageTransmitterFacet(common.HexToAddress(sepoliaHelpConfig.ChildlayerContractAddress), l2Client)
+			require.NoError(t, err)
+
+			tx, err := ChildTokenMessageTransmitterFacet.WithdrawETH(auth, common.HexToAddress(sepoliaHelpConfig.testPublicKey1), withdrawAmount)
+			require.NoError(t, err)
+			fmt.Println("Transaction sent: ", tx.Hash().Hex())
+
+			success, err := waitForConfirmation(l2Client, tx.Hash())
+			require.NoError(t, err)
+			assert.True(t, success)
+
+			// check testPublicKey L2eth balance
+			balance, err := l2BridgeERC20Token.BalanceOf(callOpts, common.HexToAddress(sepoliaHelpConfig.testPublicKey1))
+			require.NoError(t, err)
+			fmt.Println("Balance of testPublicKey after withdrawal", i+1, ":", balance)
+			expectedBalance := new(big.Int).Sub(startBalance, new(big.Int).Mul(withdrawAmount, big.NewInt(int64(i+1))))
+
+			assert.Equal(t, expectedBalance, balance)
+		}
+	})
+}
+func TestDistributeETHAndWithdraw(t *testing.T) {
+	t.Run("DistributeETHAndWithdraw", func(t *testing.T) {
+		fmt.Println("DistributeETHAndWithdraw")
+		//check the balance of the adminPrivateKey
+
+		distributeL2EthAmount := big.NewInt(1e18)
+		distributeBridgeTokenAmount := big.NewInt(3)
+
+		testWithdrawBridgeTokenAmount := big.NewInt(1)
+
+		// random 3 addresses
+		privateKeys := make([]*ecdsa.PrivateKey, 3)
+		addresses := make([]common.Address, 3)
+		for i := 0; i < 3; i++ {
+			privateKey, err := crypto.GenerateKey()
+			require.NoError(t, err)
+			privateKeys[i] = privateKey
+			addresses[i] = crypto.PubkeyToAddress(privateKey.PublicKey)
+			fmt.Printf("test Address %d: %s\n", i+1, addresses[i].String())
+		}
+
+		// Arrange
+		l2Client, err := ethclient.Dial(sepoliaHelpConfig.L2ClientAddress)
+		require.NoError(t, err)
+		defer l2Client.Close()
+
+		adminPrivateKeyStr, err := utils.LoadPrivateKey("../test/.sepolia.env")
+		require.NoError(t, err)
+		// adminPrivateKey, err := crypto.HexToECDSA(adminPrivateKeyStr)
+		// require.NoError(t, err)
+		adminRdoBalance, err := l2Client.BalanceAt(context.Background(), common.HexToAddress(sepoliaHelpConfig.adminPublicKey), nil)
+		fmt.Printf("Admin l2ETH Balance: %s\n", adminRdoBalance)
+		L2BridgeTokenAddress, err := GetL2BridgeTokenAddress(l2Client, sepoliaHelpConfig.ChildlayerContractAddress, sepoliaHelpConfig.L1ETHAddress)
+		require.NoError(t, err)
+		fmt.Println("L2BridgeTokenAddress: ", L2BridgeTokenAddress)
+		L2BridgeToken, err := bindings.NewERC20Token(L2BridgeTokenAddress, l2Client)
+		L2BridgeTokenBalance, err := L2BridgeToken.BalanceOf(nil, common.HexToAddress(sepoliaHelpConfig.adminPublicKey))
+		fmt.Printf("Admin l2ETH Balance: %s\n", L2BridgeTokenBalance)
+
+		for _, address := range addresses {
+			TransferL2ETH(t, l2Client, adminPrivateKeyStr, address, distributeL2EthAmount)
+			//ApproveERC20(t, l2Client, adminPrivateKeyStr, L2BridgeTokenAddress, address, distributeL1EthAmount)
+			TransferERC20(t, l2Client, adminPrivateKeyStr, L2BridgeTokenAddress, address, distributeBridgeTokenAmount)
+			l2EthBalance, err := l2Client.BalanceAt(context.Background(), address, nil)
+			require.NoError(t, err)
+			fmt.Printf("l2Eth Balance of address %s after distribution: %s\n", address, l2EthBalance.String())
+			assert.Equal(t, distributeL2EthAmount, l2EthBalance)
+			l1EthBalance, err := L2BridgeToken.BalanceOf(nil, address)
+			require.NoError(t, err)
+			fmt.Printf("l1Eth Balance of address %s after distribution: %s\n", address, l1EthBalance.String())
+			assert.Equal(t, distributeBridgeTokenAmount, l1EthBalance)
+
+		}
+
+		callOpts := &bind.CallOpts{
+			Context: context.Background(),
+		}
+
+		var wg sync.WaitGroup
+		for i := 0; i < len(privateKeys); i++ {
+			wg.Add(1)
+			go func(i int) {
+				defer wg.Done()
+				// Action
+				gasPrice, err := l2Client.SuggestGasPrice(context.Background())
+				require.NoError(t, err)
+				chainid, err := l2Client.ChainID(context.Background())
+				require.NoError(t, err)
+				fmt.Println("gasPrice", gasPrice)
+
+				privateKey := privateKeys[i]
+				require.NoError(t, err)
+
+				auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainid)
+				require.NoError(t, err)
+				auth.GasPrice = gasPrice
+				auth.GasLimit = 3000000
+
+				ChildTokenMessageTransmitterFacet, err := bindings.NewChildTokenMessageTransmitterFacet(common.HexToAddress(sepoliaHelpConfig.ChildlayerContractAddress), l2Client)
+				require.NoError(t, err)
+
+				tx, err := ChildTokenMessageTransmitterFacet.WithdrawETH(auth, addresses[i], testWithdrawBridgeTokenAmount)
+				require.NoError(t, err)
+				fmt.Println("Transaction sent: ", tx.Hash().Hex())
+
+				success, err := waitForConfirmation(l2Client, tx.Hash())
+				require.NoError(t, err)
+				assert.True(t, success)
+
+				balance, err := L2BridgeToken.BalanceOf(callOpts, addresses[i])
+				require.NoError(t, err)
+				fmt.Println("Balance of address after withdrawal", i+1, ":", balance)
+				expectedBalance := new(big.Int).Sub(distributeBridgeTokenAmount, testWithdrawBridgeTokenAmount)
+
+				assert.Equal(t, expectedBalance, balance)
+			}(i)
+		}
+		wg.Wait()
+	})
+}
 func waitForConfirmation(client *ethclient.Client, txHash common.Hash) (bool, error) {
 	for i := 0; i < sepoliaHelpConfig.maxRetries; i++ {
 		receipt, err := client.TransactionReceipt(context.Background(), txHash)
@@ -940,9 +1113,101 @@ func TransferL2ETH(t *testing.T, l2Client *ethclient.Client, fromPrivateKey stri
 	err = l2Client.SendTransaction(context.Background(), signedTx)
 	require.NoError(t, err)
 
-	fmt.Printf("Transaction sent: %s\n", signedTx.Hash().Hex())
+	fmt.Printf("TransferL2ETH Transaction sent: %s\n", signedTx.Hash().Hex())
 
 	success, err := waitForConfirmation(l2Client, signedTx.Hash())
 	require.NoError(t, err)
 	assert.True(t, success, "L2 transaction was not confirmed")
+}
+
+func TransferERC20(t *testing.T, client *ethclient.Client, fromPrivateKey string, tokenAddress common.Address, toAddress common.Address, amount *big.Int) {
+	privateKey, err := crypto.HexToECDSA(fromPrivateKey)
+	require.NoError(t, err)
+
+	publicKey := privateKey.Public()
+	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
+	require.True(t, ok)
+
+	fromAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
+	fmt.Println("fromAddress: ", fromAddress)
+	nonce, err := client.PendingNonceAt(context.Background(), fromAddress)
+	require.NoError(t, err)
+
+	gasPrice, err := client.SuggestGasPrice(context.Background())
+	require.NoError(t, err)
+
+	chainID, err := client.ChainID(context.Background())
+	require.NoError(t, err)
+
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+	require.NoError(t, err)
+	auth.Nonce = big.NewInt(int64(nonce))
+	auth.GasPrice = gasPrice
+	auth.GasLimit = uint64(300000)
+
+	erc20Token, err := bindings.NewERC20Token(tokenAddress, client)
+	require.NoError(t, err)
+
+	tx, err := erc20Token.Transfer(auth, toAddress, amount)
+	require.NoError(t, err)
+
+	fmt.Printf("TransferERC20 Transaction sent: %s\n", tx.Hash().Hex())
+
+	success, err := waitForConfirmation(client, tx.Hash())
+	require.NoError(t, err)
+	assert.True(t, success, "ERC20 transaction was not confirmed")
+
+}
+
+func GetL2BridgeTokenAddress(l2Client *ethclient.Client, childLayerContractAddress, l1TokenAddress string) (common.Address, error) {
+	callOpts := &bind.CallOpts{
+		Context: context.Background(),
+	}
+	ChildBridgeCoreFacet, err := bindings.NewChildBridgeCoreFacet(common.HexToAddress(childLayerContractAddress), l2Client)
+	if err != nil {
+		return common.Address{}, fmt.Errorf("failed to create ChildBridgeCoreFacet contract: %v", err)
+	}
+
+	L2BridgeTokenAddress, err := ChildBridgeCoreFacet.GetBridgedERC20TokenChild(callOpts, common.HexToAddress(l1TokenAddress))
+	if err != nil {
+		return common.Address{}, fmt.Errorf("failed to get bridged token address: %v", err)
+	}
+
+	return L2BridgeTokenAddress, nil
+}
+func ApproveERC20(t *testing.T, client *ethclient.Client, fromPrivateKey string, tokenAddress common.Address, spenderAddress common.Address, amount *big.Int) {
+	privateKey, err := crypto.HexToECDSA(fromPrivateKey)
+	require.NoError(t, err)
+
+	publicKey := privateKey.Public()
+	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
+	require.True(t, ok)
+
+	fromAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
+	nonce, err := client.PendingNonceAt(context.Background(), fromAddress)
+	require.NoError(t, err)
+
+	gasPrice, err := client.SuggestGasPrice(context.Background())
+	require.NoError(t, err)
+
+	chainID, err := client.ChainID(context.Background())
+	require.NoError(t, err)
+
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+	require.NoError(t, err)
+	auth.Nonce = big.NewInt(int64(nonce))
+	auth.GasPrice = gasPrice
+	auth.GasLimit = uint64(300000)
+
+	erc20Token, err := bindings.NewERC20Token(tokenAddress, client)
+	require.NoError(t, err)
+
+	tx, err := erc20Token.Approve(auth, spenderAddress, amount)
+	require.NoError(t, err)
+
+	fmt.Printf("Approve transaction sent: %s\n", tx.Hash().Hex())
+
+	success, err := waitForConfirmation(client, tx.Hash())
+	require.NoError(t, err)
+	assert.True(t, success, "ERC20 approve transaction was not confirmed")
 }
