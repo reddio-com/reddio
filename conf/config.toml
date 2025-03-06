@@ -1,4 +1,4 @@
-isParallel = false
+isParallel = true
 enableAsyncCommit = false
 maxConcurrency = 4
 isBenchmarkMode = false
