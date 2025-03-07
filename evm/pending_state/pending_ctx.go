@@ -2,7 +2,6 @@ package pending_state
 
 import (
 	"errors"
-	"fmt"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -144,7 +143,7 @@ func (sctx *StateContext) SelfDestruct(addr common.Address, txnID int64) error {
 	}
 	if sctx.needCheck && sctx.WriteConflict(addr, txnID) {
 		sctx.meetConflict = true
-		return fmt.Errorf("conflict")
+		return errors.New("conflict")
 	}
 	sctx.Write.VisitDestruct(addr, txnID)
 	return nil
@@ -158,7 +157,7 @@ func (sctx *StateContext) WriteAccount(addr common.Address, txnID int64) error {
 	}
 	if sctx.needCheck && sctx.WriteConflict(addr, txnID) {
 		sctx.meetConflict = true
-		return fmt.Errorf("conflict")
+		return errors.New("conflict")
 	}
 	sctx.Write.VisitAccount(addr, txnID)
 	return nil
@@ -172,7 +171,7 @@ func (sctx *StateContext) WriteBalance(addr common.Address, txnID int64) error {
 	}
 	if sctx.needCheck && sctx.WriteConflict(addr, txnID) {
 		sctx.meetConflict = true
-		return fmt.Errorf("conflict")
+		return errors.New("conflict")
 	}
 	sctx.Write.VisitBalance(addr, txnID)
 	return nil
@@ -186,7 +185,7 @@ func (sctx *StateContext) ReadBalance(addr common.Address, txnID int64) error {
 	}
 	if sctx.needCheck && sctx.ReadConflict(addr, txnID) {
 		sctx.meetConflict = true
-		return fmt.Errorf("conflict")
+		return errors.New("conflict")
 	}
 	sctx.Read.VisitBalance(addr, txnID)
 	return nil
@@ -200,7 +199,7 @@ func (sctx *StateContext) WriteCode(addr common.Address, txnID int64) error {
 	}
 	if sctx.needCheck && sctx.WriteConflict(addr, txnID) {
 		sctx.meetConflict = true
-		return fmt.Errorf("conflict")
+		return errors.New("conflict")
 	}
 	sctx.Write.VisitCode(addr, txnID)
 	return nil
@@ -214,7 +213,7 @@ func (sctx *StateContext) ReadCode(addr common.Address, txnID int64) error {
 	}
 	if sctx.needCheck && sctx.ReadConflict(addr, txnID) {
 		sctx.meetConflict = true
-		return fmt.Errorf("conflict")
+		return errors.New("conflict")
 	}
 	sctx.Read.VisitCode(addr, txnID)
 	return nil
@@ -228,7 +227,7 @@ func (sctx *StateContext) WriteState(addr common.Address, key common.Hash, txnID
 	}
 	if sctx.needCheck && sctx.WriteConflict(addr, txnID) {
 		sctx.meetConflict = true
-		return fmt.Errorf("conflict")
+		return errors.New("conflict")
 	}
 	sctx.Write.VisitState(addr, key, txnID)
 	return nil
@@ -242,7 +241,7 @@ func (sctx *StateContext) ReadState(addr common.Address, key common.Hash, txnID 
 	}
 	if sctx.needCheck && sctx.ReadConflict(addr, txnID) {
 		sctx.meetConflict = true
-		return fmt.Errorf("conflict")
+		return errors.New("conflict")
 	}
 	sctx.Read.VisitState(addr, key, txnID)
 	return nil
