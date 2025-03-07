@@ -1,10 +1,12 @@
 package parallel
 
 import (
+	"math/big"
 	"time"
 
 	common2 "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/sirupsen/logrus"
 	"github.com/yu-org/yu/common"
 	"github.com/yu-org/yu/core/context"
 	"github.com/yu-org/yu/core/tripod/dev"
@@ -14,6 +16,13 @@ import (
 	"github.com/reddio-com/reddio/evm"
 	"github.com/reddio-com/reddio/evm/pending_state"
 	"github.com/reddio-com/reddio/metrics"
+)
+
+var (
+	//0xeC054c6ee2DbbeBC9EbCA50CdBF94A94B02B2E40
+	testBridgeContractAddress = common2.HexToAddress("0xA3ED8915aE346bF85E56B6BB6b723091716f58b4")
+	testStorageSlotHash       = common2.HexToHash("0x65d63ba7ddf496eb3f7a10c642f6d20487aee1873bcad4890f640b167eab1069")
+	lastMessageNonceSlot      = big.NewInt(0)
 )
 
 func checkAddressConflict(curTxn *txnCtx, curList []*txnCtx) bool {
@@ -174,6 +183,22 @@ func (k *ParallelEVM) executeTxnCtxListInOrder(sdb *state.StateDB, list []*txnCt
 		tctx.ps = tctx.ctx.ExtraInterface.(*pending_state.PendingStateWrapper)
 		sdb = tctx.ps.GetStateDB()
 		list[index] = tctx
+		if tctx.req.Address != nil && *tctx.req.Address == testBridgeContractAddress {
+			messageNonceSlot := sdb.GetState(testBridgeContractAddress, testStorageSlotHash)
+			// logrus.Infof("testStorageSlotHash %s", testStorageSlotHash.String())
+			// logrus.Infof("executeTxnCtxListInOrder index %d, messageNonceSlot %s", index, messageNonceSlot.String())
+			currentMessageNonceSlot := new(big.Int).SetBytes(messageNonceSlot.Bytes())
+			//logrus.Infof("lastMessageNonceSlot %s", lastMessageNonceSlot.String())
+			if lastMessageNonceSlot.Cmp(big.NewInt(0)) != 0 {
+				diff := new(big.Int).Sub(currentMessageNonceSlot, lastMessageNonceSlot)
+				if diff.Cmp(big.NewInt(1)) > 0 {
+					logrus.Warnf("Message nonce slot increased by more than 1: txhash %s, before %s, after %s, index %d ,diff %s,tctx.ctx.Block.Height %d", tctx.txn.TxnHash.String(), lastMessageNonceSlot.String(), currentMessageNonceSlot.String(), index, diff.String(), tctx.ctx.Block.Height)
+					metrics.WithdrawMessageNonceGap.WithLabelValues("bridge").Inc()
+				}
+			}
+			lastMessageNonceSlot.Set(currentMessageNonceSlot)
+
+		}
 	}
 	k.gcCopiedStateDB(nil, list)
 	return list
