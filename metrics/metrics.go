@@ -218,6 +218,8 @@ func init() {
 	prometheus.MustRegister(L1EventWatcherFailureCounter)
 	prometheus.MustRegister(L1EventWatcherRetryCounter)
 	prometheus.MustRegister(WithdrawMessageNonceGauge)
+	prometheus.MustRegister(WithdrawMessageNonceGap)
+
 }
 
 var TxnBuckets = []float64{.00005, .0001, .00025, .0005, .001, .0025, .005, 0.01, 0.025, 0.05, 0.1}
