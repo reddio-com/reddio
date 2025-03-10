@@ -172,9 +172,11 @@ func (k *ParallelEVM) executeTxnCtxListInOrder(sdb *state.StateDB, list []*txnCt
 			list[index] = tctx
 			continue
 		}
+		hasError := false
 		tctx.ctx.ExtraInterface = pending_state.NewPendingStateWrapper(pending_state.NewStateDBWrapper(sdb), pending_state.NewStateContext(false), int64(index))
 		err := tctx.writing(tctx.ctx)
 		if err != nil {
+			hasError = true
 			tctx.err = err
 			tctx.receipt = k.handleTxnError(err, tctx.ctx, tctx.ctx.Block, tctx.txn)
 		} else {
@@ -192,12 +194,11 @@ func (k *ParallelEVM) executeTxnCtxListInOrder(sdb *state.StateDB, list []*txnCt
 			if lastMessageNonceSlot.Cmp(big.NewInt(0)) != 0 {
 				diff := new(big.Int).Sub(currentMessageNonceSlot, lastMessageNonceSlot)
 				if diff.Cmp(big.NewInt(1)) > 0 {
-					logrus.Warnf("Message nonce slot increased by more than 1: txhash %s, before %s, after %s, index %d ,diff %s,tctx.ctx.Block.Height %d", tctx.txn.TxnHash.String(), lastMessageNonceSlot.String(), currentMessageNonceSlot.String(), index, diff.String(), tctx.ctx.Block.Height)
+					logrus.Warnf("Message nonce slot increased by more than 1: txhash %s, before %s, after %s, index %d ,diff %s,tctx.ctx.Block.Height %d, hasErr:%v", tctx.txn.TxnHash.String(), lastMessageNonceSlot.String(), currentMessageNonceSlot.String(), index, diff.String(), tctx.ctx.Block.Height, hasError)
 					metrics.WithdrawMessageNonceGap.WithLabelValues("bridge").Inc()
 				}
 			}
 			lastMessageNonceSlot.Set(currentMessageNonceSlot)
-
 		}
 	}
 	k.gcCopiedStateDB(nil, list)
