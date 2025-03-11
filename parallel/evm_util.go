@@ -168,6 +168,7 @@ func (k *ParallelEVM) prepareTxnList(block *types.Block) ([]*txnCtx, map[common.
 
 func (k *ParallelEVM) executeTxnCtxListInOrder(sdb *state.StateDB, list []*txnCtx, isRedo bool) []*txnCtx {
 	for index, tctx := range list {
+		nonExecuteSDB := sdb.Copy()
 		if tctx.err != nil {
 			list[index] = tctx
 			continue
@@ -177,12 +178,16 @@ func (k *ParallelEVM) executeTxnCtxListInOrder(sdb *state.StateDB, list []*txnCt
 		if err != nil {
 			tctx.err = err
 			tctx.receipt = k.handleTxnError(err, tctx.ctx, tctx.ctx.Block, tctx.txn)
+			list[index] = tctx
+			sdb = nonExecuteSDB
+			continue
 		} else {
 			tctx.receipt = k.handleTxnEvent(tctx.ctx, tctx.ctx.Block, tctx.txn, isRedo)
+			tctx.ps = tctx.ctx.ExtraInterface.(*pending_state.PendingStateWrapper)
+			sdb = tctx.ps.GetStateDB()
 		}
-		tctx.ps = tctx.ctx.ExtraInterface.(*pending_state.PendingStateWrapper)
-		sdb = tctx.ps.GetStateDB()
 		list[index] = tctx
+		// only for check message nonce
 		if tctx.req.Address != nil && *tctx.req.Address == testBridgeContractAddress {
 			messageNonceSlot := sdb.GetState(testBridgeContractAddress, testStorageSlotHash)
 			// logrus.Infof("testStorageSlotHash %s", testStorageSlotHash.String())
@@ -197,7 +202,6 @@ func (k *ParallelEVM) executeTxnCtxListInOrder(sdb *state.StateDB, list []*txnCt
 				}
 			}
 			lastMessageNonceSlot.Set(currentMessageNonceSlot)
-
 		}
 	}
 	k.gcCopiedStateDB(nil, list)
