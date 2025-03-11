@@ -9,6 +9,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/crypto/sha3"
 )
 
 // TestLoadPrivateKey tests the loadPrivateKey function
@@ -65,5 +66,19 @@ func TestComputeMessageHash(t *testing.T) {
 	fmt.Println("hash:", hash)
 	if hash != expectedHash {
 		t.Errorf("Expected hash %s, got %s", expectedHash.Hex(), hash.Hex())
+	}
+}
+func TestStorage(t *testing.T) {
+	key := "child.bridge.core.storage"
+
+	hash := sha3.NewLegacyKeccak256()
+	hash.Write([]byte(key))
+	result := hash.Sum(nil)
+
+	address := fmt.Sprintf("%x", result)
+	t.Logf("Address: %s", address)
+	expectedAddress := "some_incorrect_address"
+	if address != expectedAddress {
+		t.Errorf("Expected address %s, but got %s", expectedAddress, address)
 	}
 }

@@ -54,6 +54,7 @@ func (w *L2EventsWatcher) WatchL2BridgeEvent(ctx context.Context, block *yutypes
 			return fmt.Errorf("failed to save l2RelayedMessages: %v", err)
 		}
 	}
+
 	return nil
 }
 
@@ -100,5 +101,6 @@ func (w *L2EventsWatcher) savel2BridgeEvents(
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
