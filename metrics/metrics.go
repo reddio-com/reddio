@@ -191,7 +191,7 @@ var (
 			Name:      "withdraw_message_nonce_gap",
 			Help:      "The gap between the current value of the bridge event nonce and the expected value.",
 		},
-		[]string{TypeLbl},
+		[]string{TypeLbl, TypeStatusLbl},
 	)
 )
 

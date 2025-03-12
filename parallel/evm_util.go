@@ -168,7 +168,6 @@ func (k *ParallelEVM) prepareTxnList(block *types.Block) ([]*txnCtx, map[common.
 
 func (k *ParallelEVM) executeTxnCtxListInOrder(sdb *state.StateDB, list []*txnCtx, isRedo bool) []*txnCtx {
 	for index, tctx := range list {
-		nonExecuteSDB := sdb.Copy()
 		if tctx.err != nil {
 			list[index] = tctx
 			continue
@@ -178,16 +177,11 @@ func (k *ParallelEVM) executeTxnCtxListInOrder(sdb *state.StateDB, list []*txnCt
 		if err != nil {
 			tctx.err = err
 			tctx.receipt = k.handleTxnError(err, tctx.ctx, tctx.ctx.Block, tctx.txn)
-			list[index] = tctx
-			sdb = nonExecuteSDB
-			continue
 		} else {
 			tctx.receipt = k.handleTxnEvent(tctx.ctx, tctx.ctx.Block, tctx.txn, isRedo)
-			tctx.ps = tctx.ctx.ExtraInterface.(*pending_state.PendingStateWrapper)
-			sdb = tctx.ps.GetStateDB()
 		}
+		tctx.ps = tctx.ctx.ExtraInterface.(*pending_state.PendingStateWrapper)
 		list[index] = tctx
-		// only for check message nonce
 		if tctx.req.Address != nil && *tctx.req.Address == testBridgeContractAddress {
 			messageNonceSlot := sdb.GetState(testBridgeContractAddress, testStorageSlotHash)
 			// logrus.Infof("testStorageSlotHash %s", testStorageSlotHash.String())
@@ -198,7 +192,11 @@ func (k *ParallelEVM) executeTxnCtxListInOrder(sdb *state.StateDB, list []*txnCt
 				diff := new(big.Int).Sub(currentMessageNonceSlot, lastMessageNonceSlot)
 				if diff.Cmp(big.NewInt(1)) > 0 {
 					logrus.Warnf("Message nonce slot increased by more than 1: txhash %s, before %s, after %s, index %d ,diff %s,tctx.ctx.Block.Height %d", tctx.txn.TxnHash.String(), lastMessageNonceSlot.String(), currentMessageNonceSlot.String(), index, diff.String(), tctx.ctx.Block.Height)
-					metrics.WithdrawMessageNonceGap.WithLabelValues("bridge").Inc()
+					metrics.WithdrawMessageNonceGap.WithLabelValues("bridge", "more_increase").Inc()
+				}
+				if diff.Cmp(big.NewInt(0)) == 0 {
+					logrus.Warnf("Message nonce slot not changed: txhash %s, before %s, after %s, index %d ,diff %s,tctx.ctx.Block.Height %d", tctx.txn.TxnHash.String(), lastMessageNonceSlot.String(), currentMessageNonceSlot.String(), index, diff.String(), tctx.ctx.Block.Height)
+					metrics.WithdrawMessageNonceGap.WithLabelValues("bridge", "no_change").Inc()
 				}
 			}
 			lastMessageNonceSlot.Set(currentMessageNonceSlot)
