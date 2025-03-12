@@ -64,7 +64,7 @@ func StartUpChain(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm
 
 	ethrpc.StartupEthRPC(chain, evmCfg)
 	if evmCfg.EnableBridge {
-		StartupL1Watcher(evmCfg, db)
+		//	StartupL1Watcher(evmCfg, db)
 		StartupRelayer(chain, evmCfg, db)
 		StartupBridgeRpc(evmCfg, db)
 	}
@@ -123,12 +123,12 @@ func StartupL1Watcher(cfg *evm.GethConfig, db *gorm.DB) {
 func StartupRelayer(chain *kernel.Kernel, cfg *evm.GethConfig, db *gorm.DB) {
 	ctx := context.Background()
 
-	l1Client, err := ethclient.Dial(cfg.L1ClientAddress)
+	l2Client, err := ethclient.Dial(cfg.L2ClientAddress)
 	if err != nil {
 		logrus.Fatal("failed to connect to L1 geth", "endpoint", cfg.L1ClientAddress, "err", err)
 	}
 
-	l1Relayer, err := relayer.NewL1Relayer(ctx, cfg, l1Client, chain, db)
+	l1Relayer, err := relayer.NewL1Relayer(ctx, cfg, l2Client, chain, db)
 	if err != nil {
 		logrus.Fatal("init bridge relayer failed: ", err)
 	}
