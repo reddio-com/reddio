@@ -203,11 +203,10 @@ func (k *ParallelEVM) executeTxnCtxListInOrder(sdb *state.StateDB, list []*txnCt
 						metrics.WithdrawMessageNonceGap.WithLabelValues("bridge", "more_increase").Inc()
 						for i := 0; i <= index; i++ {
 							txn := list[i]
-							if txn.req.Address != nil && *txn.req.Address == testBridgeContractAddress {
-								slot := sdb.GetState(testBridgeContractAddress, testStorageSlotHash)
-								nonce := new(big.Int).SetBytes(slot.Bytes())
-								logrus.Infof("Transaction index %d, txhash %s, message nonce %s", i, txn.txn.TxnHash.String(), nonce.String())
-							}
+							slot := sdb.GetState(testBridgeContractAddress, testStorageSlotHash)
+							nonce := new(big.Int).SetBytes(slot.Bytes())
+							logrus.Infof("Transaction index %d, txhash %s, message nonce %s", i, txn.txn.TxnHash.String(), nonce.String())
+
 						}
 					} else if diff.Cmp(big.NewInt(0)) == 0 {
 						logrus.Warnf("Message nonce slot not changed: txhash %s, before %s, after %s, index %d ,diff %s,tctx.ctx.Block.Height %d", tctx.txn.TxnHash.String(), lastMessageNonceSlot.String(), currentMessageNonceSlot.String(), index, diff.String(), tctx.ctx.Block.Height)
