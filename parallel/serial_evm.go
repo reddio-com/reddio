@@ -27,6 +27,7 @@ func NewSerialEvmExecutor(evm *ParallelEVM) *SerialEvmExecutor {
 func (s *SerialEvmExecutor) Prepare(block *types.Block) {
 	s.k.prepareExecute()
 	s.txnCtxList, s.receipts = s.k.prepareTxnList(block)
+	s.k.blockTxnCtxList = s.txnCtxList
 	s.k.updateTxnObjInc(s.txnCtxList)
 }
 

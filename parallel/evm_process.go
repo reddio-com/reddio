@@ -25,11 +25,12 @@ const (
 
 type ParallelEVM struct {
 	*tripod.Tripod
-	cpdb        *state.StateDB
-	Solidity    *evm.Solidity `tripod:"solidity"`
-	statManager *BlockTxnStatManager
-	objectInc   map[common2.Address]int
-	processor   EvmProcessor
+	cpdb            *state.StateDB
+	Solidity        *evm.Solidity `tripod:"solidity"`
+	statManager     *BlockTxnStatManager
+	objectInc       map[common2.Address]int
+	processor       EvmProcessor
+	blockTxnCtxList []*txnCtx
 }
 
 func NewParallelEVM() *ParallelEVM {

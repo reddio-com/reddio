@@ -184,38 +184,7 @@ func (k *ParallelEVM) executeTxnCtxListInOrder(sdb *state.StateDB, list []*txnCt
 		}
 		tctx.ps = tctx.ctx.ExtraInterface.(*pending_state.PendingStateWrapper)
 		list[index] = tctx
-		if tctx.req.Address != nil && *tctx.req.Address == testBridgeContractAddress {
-			messageNonceSlot := sdb.GetState(testBridgeContractAddress, testStorageSlotHash)
-			// logrus.Infof("testStorageSlotHash %s", testStorageSlotHash.String())
-			// logrus.Infof("executeTxnCtxListInOrder index %d, messageNonceSlot %s", index, messageNonceSlot.String())
-			currentMessageNonceSlot := new(big.Int).SetBytes(messageNonceSlot.Bytes())
-			//logrus.Infof("lastMessageNonceSlot %s", lastMessageNonceSlot.String())
-			if lastMessageNonceSlot.Cmp(big.NewInt(0)) != 0 {
-				diff := new(big.Int).Sub(currentMessageNonceSlot, lastMessageNonceSlot)
-				if hasErr {
-					if diff.Cmp(big.NewInt(0)) != 0 {
-						logrus.Warnf("Message nonce changed when error: txhash %s, before %s, after %s, index %d ,diff %s,tctx.ctx.Block.Height %d", tctx.txn.TxnHash.String(), lastMessageNonceSlot.String(), currentMessageNonceSlot.String(), index, diff.String(), tctx.ctx.Block.Height)
-						metrics.WithdrawMessageNonceGap.WithLabelValues("bridge", "err_increased").Inc()
-					}
-				} else {
-					if diff.Cmp(big.NewInt(1)) > 0 {
-						logrus.Warnf("Message nonce slot increased by more than 1: txhash %s, before %s, after %s, index %d ,diff %s,tctx.ctx.Block.Height %d", tctx.txn.TxnHash.String(), lastMessageNonceSlot.String(), currentMessageNonceSlot.String(), index, diff.String(), tctx.ctx.Block.Height)
-						metrics.WithdrawMessageNonceGap.WithLabelValues("bridge", "more_increase").Inc()
-						for i := 0; i <= index; i++ {
-							txn := list[i]
-							slot := sdb.GetState(testBridgeContractAddress, testStorageSlotHash)
-							nonce := new(big.Int).SetBytes(slot.Bytes())
-							logrus.Infof("Transaction index %d, txhash %s, message nonce %s", i, txn.txn.TxnHash.String(), nonce.String())
-
-						}
-					} else if diff.Cmp(big.NewInt(0)) == 0 {
-						logrus.Warnf("Message nonce slot not changed: txhash %s, before %s, after %s, index %d ,diff %s,tctx.ctx.Block.Height %d", tctx.txn.TxnHash.String(), lastMessageNonceSlot.String(), currentMessageNonceSlot.String(), index, diff.String(), tctx.ctx.Block.Height)
-						metrics.WithdrawMessageNonceGap.WithLabelValues("bridge", "no_change").Inc()
-					}
-				}
-			}
-			lastMessageNonceSlot.Set(currentMessageNonceSlot)
-		}
+		k.checkNonce(sdb, tctx, hasErr)
 	}
 	k.gcCopiedStateDB(nil, list)
 	return list
@@ -226,5 +195,38 @@ func (k *ParallelEVM) gcCopiedStateDB(copiedStateDBList []*pending_state.Pending
 	for _, ctx := range list {
 		ctx.ctx.ExtraInterface = nil
 		ctx.ps = nil
+	}
+}
+
+func (k *ParallelEVM) checkNonce(sdb *state.StateDB, tctx *txnCtx, hasErr bool) {
+	if tctx.req.Address != nil && *tctx.req.Address == testBridgeContractAddress {
+		messageNonceSlot := sdb.GetState(testBridgeContractAddress, testStorageSlotHash)
+		currentMessageNonceSlot := new(big.Int).SetBytes(messageNonceSlot.Bytes())
+		if lastMessageNonceSlot.Cmp(big.NewInt(0)) != 0 {
+			diff := new(big.Int).Sub(currentMessageNonceSlot, lastMessageNonceSlot)
+			if hasErr {
+				if diff.Cmp(big.NewInt(0)) != 0 {
+					logrus.Warnf("message nonce changed when error: txhash %s, before %s, after %s,diff %s,tctx.ctx.Block.Height %d", tctx.txn.TxnHash.String(), lastMessageNonceSlot.String(), currentMessageNonceSlot.String(), diff.String(), tctx.ctx.Block.Height)
+					metrics.WithdrawMessageNonceGap.WithLabelValues("bridge", "err_increased").Inc()
+				}
+			} else {
+				if diff.Cmp(big.NewInt(1)) > 0 {
+					logrus.Warnf("message nonce slot increased by more than 1: txhash %s, before %s, after %s, diff %s,tctx.ctx.Block.Height %d", tctx.txn.TxnHash.String(), lastMessageNonceSlot.String(), currentMessageNonceSlot.String(), diff.String(), tctx.ctx.Block.Height)
+					metrics.WithdrawMessageNonceGap.WithLabelValues("bridge", "more_increase").Inc()
+					for _, eachTctx := range k.blockTxnCtxList {
+						slot := sdb.GetState(testBridgeContractAddress, testStorageSlotHash)
+						nonce := new(big.Int).SetBytes(slot.Bytes())
+						logrus.Infof("txhash %s, message nonce %s", eachTctx.txn.TxnHash.String(), nonce.String())
+						if eachTctx.txn.TxnHash == tctx.txn.TxnHash {
+							break
+						}
+					}
+				} else if diff.Cmp(big.NewInt(0)) == 0 {
+					logrus.Warnf("message nonce slot not changed: txhash %s, before %s, after %s, diff %s,tctx.ctx.Block.Height %d", tctx.txn.TxnHash.String(), lastMessageNonceSlot.String(), currentMessageNonceSlot.String(), diff.String(), tctx.ctx.Block.Height)
+					metrics.WithdrawMessageNonceGap.WithLabelValues("bridge", "no_change").Inc()
+				}
+			}
+		}
+		lastMessageNonceSlot.Set(currentMessageNonceSlot)
 	}
 }
