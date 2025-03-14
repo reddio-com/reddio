@@ -216,14 +216,11 @@ func (k *ParallelEVM) checkNonce(sdb *state.StateDB, tctx *txnCtx, hasErr bool) 
 					for _, eachTctx := range k.blockTxnCtxList {
 						slot := sdb.GetState(testBridgeContractAddress, testStorageSlotHash)
 						nonce := new(big.Int).SetBytes(slot.Bytes())
-						logrus.Infof("txhash %s, message nonce %s", eachTctx.txn.TxnHash.String(), nonce.String())
+						logrus.Infof("txhash %s, message nonce %s, hasErr:%v", eachTctx.txn.TxnHash.String(), nonce.String(), eachTctx.err != nil)
 						if eachTctx.txn.TxnHash == tctx.txn.TxnHash {
 							break
 						}
 					}
-				} else if diff.Cmp(big.NewInt(0)) == 0 {
-					logrus.Warnf("message nonce slot not changed: txhash %s, before %s, after %s, diff %s,tctx.ctx.Block.Height %d", tctx.txn.TxnHash.String(), lastMessageNonceSlot.String(), currentMessageNonceSlot.String(), diff.String(), tctx.ctx.Block.Height)
-					metrics.WithdrawMessageNonceGap.WithLabelValues("bridge", "no_change").Inc()
 				}
 			}
 		}
