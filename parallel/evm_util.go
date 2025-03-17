@@ -1,6 +1,7 @@
 package parallel
 
 import (
+	"fmt"
 	"math/big"
 	"time"
 
@@ -172,6 +173,7 @@ func (k *ParallelEVM) executeTxnCtxListInOrder(sdb *state.StateDB, list []*txnCt
 			list[index] = tctx
 			continue
 		}
+		snpshotID := sdb.Snapshot()
 		hasErr := false
 		tctx.ctx.ExtraInterface = pending_state.NewPendingStateWrapper(pending_state.NewStateDBWrapper(sdb), pending_state.NewStateContext(false), int64(index))
 		err := tctx.writing(tctx.ctx)
@@ -184,9 +186,10 @@ func (k *ParallelEVM) executeTxnCtxListInOrder(sdb *state.StateDB, list []*txnCt
 		}
 		tctx.ps = tctx.ctx.ExtraInterface.(*pending_state.PendingStateWrapper)
 		list[index] = tctx
-		k.checkNonce(sdb, tctx, hasErr)
+		k.checkNonce(sdb, tctx, hasErr, snpshotID)
 	}
 	k.gcCopiedStateDB(nil, list)
+	sdb.Finalise(false)
 	return list
 }
 
@@ -198,7 +201,7 @@ func (k *ParallelEVM) gcCopiedStateDB(copiedStateDBList []*pending_state.Pending
 	}
 }
 
-func (k *ParallelEVM) checkNonce(sdb *state.StateDB, tctx *txnCtx, hasErr bool) {
+func (k *ParallelEVM) checkNonce(sdb *state.StateDB, tctx *txnCtx, hasErr bool, revid int) {
 	if tctx.req.Address != nil && *tctx.req.Address == testBridgeContractAddress {
 		messageNonceSlot := sdb.GetState(testBridgeContractAddress, testStorageSlotHash)
 		currentMessageNonceSlot := new(big.Int).SetBytes(messageNonceSlot.Bytes())
@@ -221,6 +224,8 @@ func (k *ParallelEVM) checkNonce(sdb *state.StateDB, tctx *txnCtx, hasErr bool) 
 							break
 						}
 					}
+					tctx.receipt = k.handleTxnError(fmt.Errorf("message nonce slot increased by more than 1"), tctx.ctx, tctx.ctx.Block, tctx.txn)
+					sdb.RevertToSnapshot(revid)
 				}
 			}
 		}
