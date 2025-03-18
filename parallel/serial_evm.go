@@ -11,7 +11,7 @@ import (
 )
 
 type SerialEvmExecutor struct {
-	cpdb       *state.StateDB
+	db         *state.StateDB
 	k          *ParallelEVM
 	receipts   map[common.Hash]*types.Receipt
 	txnCtxList []*txnCtx
@@ -19,15 +19,14 @@ type SerialEvmExecutor struct {
 
 func NewSerialEvmExecutor(evm *ParallelEVM) *SerialEvmExecutor {
 	return &SerialEvmExecutor{
-		k:    evm,
-		cpdb: evm.cpdb,
+		k:  evm,
+		db: evm.db,
 	}
 }
 
 func (s *SerialEvmExecutor) Prepare(block *types.Block) {
 	s.k.prepareExecute()
 	s.txnCtxList, s.receipts = s.k.prepareTxnList(block)
-	s.k.blockTxnCtxList = s.txnCtxList
 	s.k.updateTxnObjInc(s.txnCtxList)
 }
 
@@ -36,11 +35,12 @@ func (s *SerialEvmExecutor) Execute(block *types.Block) {
 	defer func() {
 		s.k.statManager.ExecuteTxnDuration = time.Since(start)
 	}()
+	checkCurrentNonce(s.db, block)
 	got := s.executeTxnCtxListInSerial(s.txnCtxList)
 	for _, c := range got {
 		s.receipts[c.txn.TxnHash] = c.receipt
 	}
-	s.k.Solidity.SetStateDB(s.cpdb)
+	s.k.Solidity.SetStateDB(s.db)
 }
 
 func (s *SerialEvmExecutor) Receipts(block *types.Block) map[common.Hash]*types.Receipt {
@@ -54,5 +54,5 @@ func (s *SerialEvmExecutor) executeTxnCtxListInSerial(list []*txnCtx) []*txnCtx 
 			//s.cpdb.PendingCommit(true, s.k.objectInc)
 		}
 	}()
-	return s.k.executeTxnCtxListInOrder(s.cpdb, list, false)
+	return s.k.executeTxnCtxListInOrder(s.db, list, false)
 }
