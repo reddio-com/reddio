@@ -228,16 +228,3 @@ func (k *ParallelEVM) checkNonce(sdb *state.StateDB, tctx *txnCtx, hasErr bool, 
 		lastMessageNonceSlot.Set(currentMessageNonceSlot)
 	}
 }
-
-func checkCurrentNonce(sdb *state.StateDB, block *types.Block) {
-	messageNonceSlot := sdb.GetState(testBridgeContractAddress, testStorageSlotHash)
-	currentMessageNonceSlot := new(big.Int).SetBytes(messageNonceSlot.Bytes())
-	if lastMessageNonceSlot.Cmp(big.NewInt(0)) != 0 {
-		diff := new(big.Int).Sub(currentMessageNonceSlot, lastMessageNonceSlot)
-		if diff.Cmp(big.NewInt(1)) > 0 {
-			logrus.Warnf("message nonce slot increased by more than 1: before %s, after %s, diff %s,tctx.ctx.Block.Height %d", lastMessageNonceSlot.String(), currentMessageNonceSlot.String(), diff.String(), block.Height)
-			metrics.WithdrawMessageNonceGap.WithLabelValues("block", "more_increase").Inc()
-		}
-	}
-	lastMessageNonceSlot.Set(currentMessageNonceSlot)
-}
