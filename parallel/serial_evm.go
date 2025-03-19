@@ -45,7 +45,7 @@ func (s *SerialEvmExecutor) Execute(block *types.Block) {
 		s.receipts[c.txn.TxnHash] = c.receipt
 	}
 	s.endNonce = s.getCurrentNonce(s.db)
-	logrus.Infof("block: %d, startNonce: %v, endNonce: %v, nonceTxnHash: %v", block.Height, s.startNonce.String(), s.endNonce.String(), s.getNonceTxnCtxHash())
+	logrus.Infof("block: %d, startNonce: %v, endNonce: %v", block.Height, s.startNonce.String(), s.endNonce.String())
 }
 
 func (s *SerialEvmExecutor) Receipts(block *types.Block) map[common.Hash]*types.Receipt {
