@@ -131,9 +131,9 @@ func (e *ParallelEvmExecutor) executeTxnCtxListInConcurrency(list []*txnCtx) []*
 		}(i, c, copiedStateDBList[i])
 	}
 	wg.Wait()
-	curtCtx := pending_state.NewStateContext(false)
+	curCtx := pending_state.NewStateContext(false)
 	for _, tctx := range list {
-		if curtCtx.IsConflict(tctx.ps.GetCtx()) {
+		if curCtx.IsConflict(tctx.ps.GetCtx()) {
 			conflict = true
 			e.k.statManager.ConflictCount++
 			break
