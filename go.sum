@@ -20,8 +20,8 @@ github.com/HyperService-Consortium/go-hexutil v1.0.1 h1:pThbi0a+9z7Oq7s3AcRgRsGK
 github.com/HyperService-Consortium/go-hexutil v1.0.1/go.mod h1:vYaJbDud2oEPXokgziTQJQ4gA7GwIHCMu0F804fLKkE=
 github.com/Microsoft/go-winio v0.6.1 h1:9/kr64B9VUZrLm5YYwbGtUJnMgqWVOdUAXu6Migciow=
 github.com/Microsoft/go-winio v0.6.1/go.mod h1:LRdKpFKfdobln8UmuiYcKPot9D2v6svN5+sAH+4kjUM=
-github.com/ReyisaRuby/yu v1.2.27-0.20250324114300-fc6ee3b22b9d h1:eKbliq6h2YkxuDxqTFTPbctSq9xlT+LZvjLI+yixe9s=
-github.com/ReyisaRuby/yu v1.2.27-0.20250324114300-fc6ee3b22b9d/go.mod h1:XnpTtzRPKuHYWLpDberVZr8RalMjviZu4ClJRZAvWII=
+github.com/ReyisaRuby/yu v1.2.27-0.20250324115557-ed9ab18a9680 h1:2hqVyD/gzKWQ8tzLLJ7zg+7Lb9ODF/PV6YVN+L2Y3g4=
+github.com/ReyisaRuby/yu v1.2.27-0.20250324115557-ed9ab18a9680/go.mod h1:XnpTtzRPKuHYWLpDberVZr8RalMjviZu4ClJRZAvWII=
 github.com/VictoriaMetrics/fastcache v1.12.1 h1:i0mICQuojGDL3KblA7wUNlY5lOK6a4bwt3uRKnkZU40=
 github.com/VictoriaMetrics/fastcache v1.12.1/go.mod h1:tX04vaqcNoQeGLD+ra5pU5sWkuxnzWhEzLwhP9w653o=
 github.com/allegro/bigcache v1.2.1-0.20190218064605-e24eb225f156 h1:eMwmnE/GDgah4HI848JfFxHt+iPb26b4zyfspmqY0/8=
