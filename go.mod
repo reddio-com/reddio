@@ -230,3 +230,5 @@ require (
 )
 
 //replace github.com/ethereum/go-ethereum => github.com/reddio-com/go-ethereum v1.10.19-0.20241203030429-cc7ffb6f4ed2
+
+replace github.com/yu-org/yu => github.com/ReyisaRuby/yu v1.2.27-0.20250324095815-4781dd03dd70

@@ -20,6 +20,8 @@ github.com/HyperService-Consortium/go-hexutil v1.0.1 h1:pThbi0a+9z7Oq7s3AcRgRsGK
 github.com/HyperService-Consortium/go-hexutil v1.0.1/go.mod h1:vYaJbDud2oEPXokgziTQJQ4gA7GwIHCMu0F804fLKkE=
 github.com/Microsoft/go-winio v0.6.1 h1:9/kr64B9VUZrLm5YYwbGtUJnMgqWVOdUAXu6Migciow=
 github.com/Microsoft/go-winio v0.6.1/go.mod h1:LRdKpFKfdobln8UmuiYcKPot9D2v6svN5+sAH+4kjUM=
+github.com/ReyisaRuby/yu v1.2.27-0.20250324095815-4781dd03dd70 h1:HSRooCr0Qd7TxnPQKrE15sMBmIgHDENEeCYrvGKKHOI=
+github.com/ReyisaRuby/yu v1.2.27-0.20250324095815-4781dd03dd70/go.mod h1:XnpTtzRPKuHYWLpDberVZr8RalMjviZu4ClJRZAvWII=
 github.com/VictoriaMetrics/fastcache v1.12.1 h1:i0mICQuojGDL3KblA7wUNlY5lOK6a4bwt3uRKnkZU40=
 github.com/VictoriaMetrics/fastcache v1.12.1/go.mod h1:tX04vaqcNoQeGLD+ra5pU5sWkuxnzWhEzLwhP9w653o=
 github.com/allegro/bigcache v1.2.1-0.20190218064605-e24eb225f156 h1:eMwmnE/GDgah4HI848JfFxHt+iPb26b4zyfspmqY0/8=
@@ -691,8 +693,6 @@ github.com/wlynxg/anet v0.0.3 h1:PvR53psxFXstc12jelG6f1Lv4MWqE0tI76/hHGjh9rg=
 github.com/wlynxg/anet v0.0.3/go.mod h1:eay5PRQr7fIVAMbTbchTnO9gG65Hg/uYGdc7mguHxoA=
 github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 h1:bAn7/zixMGCfxrRTfdpNzjtPYqr8smhKouy9mxVdGPU=
 github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673/go.mod h1:N3UwUGtsrSj3ccvlPHLoLsHnpR27oXr4ZE984MbSER8=
-github.com/yu-org/yu v1.2.34-0.20250324093702-7955482ea478 h1:U+sC5d2aKjGntBz9++VpqKXf7zjJq3MEgWVohmUzKxk=
-github.com/yu-org/yu v1.2.34-0.20250324093702-7955482ea478/go.mod h1:XnpTtzRPKuHYWLpDberVZr8RalMjviZu4ClJRZAvWII=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.3.5/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1Zlc8k=
