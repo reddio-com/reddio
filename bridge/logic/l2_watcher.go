@@ -198,6 +198,7 @@ func (f *L2WatcherLogic) GetEthReceiptWithRetry(txHash common.Hash, retries int,
 	}
 	return nil, err
 }
+
 func (f *L2WatcherLogic) HandleRead(rdCall *yucommon.RdCall) (*yucontext.ResponseData, error) {
 	ctx, err := yucontext.NewReadContext(rdCall)
 	if err != nil {
@@ -208,6 +209,7 @@ func (f *L2WatcherLogic) HandleRead(rdCall *yucommon.RdCall) (*yucontext.Respons
 	if err != nil {
 		return nil, err
 	}
+	L2WatchCounterCounter.WithLabelValues(rdCall.TripodName, rdCall.FuncName).Inc()
 	rd(ctx)
 	return ctx.Response(), nil
 }
