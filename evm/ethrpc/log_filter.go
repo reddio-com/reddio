@@ -180,8 +180,6 @@ func newLogFilter(ctx context.Context, b Backend, crit FilterCriteria) (*LogFilt
 			topics:    crit.Topics,
 		}
 	} else {
-		fmt.Println("crit.FromBlock", crit.FromBlock)
-		fmt.Println("crit.ToBlock", crit.ToBlock)
 		begin := rpc.LatestBlockNumber.Int64()
 		if crit.FromBlock != nil {
 			begin = crit.FromBlock.Int64()
