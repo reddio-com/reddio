@@ -55,7 +55,6 @@ var (
 // estimateGasErrorRatio is the amount of overestimation eth_estimateGas is
 // allowed to produce in order to speed up calculations.
 const estimateGasErrorRatio = 0.015
-const getLogsLimitBlocks = 100
 
 var errBlobTxNotSupported = errors.New("signing blob transactions not supported")
 
@@ -85,13 +84,7 @@ func (s *EthereumAPI) GetLogs(ctx context.Context, crit FilterCriteria) (results
 	if len(crit.Topics) > maxTopics {
 		return nil, errExceedMaxTopics
 	}
-	if crit.FromBlock != nil && crit.ToBlock != nil {
-		fromBlock := crit.FromBlock.Int64()
-		toBlock := crit.ToBlock.Int64()
-		if toBlock-fromBlock > 100 {
-			return nil, errors.New("the difference between FromBlock and ToBlock cannot be greater than limit")
-		}
-	}
+
 	filter, err := newLogFilter(ctx, s.b, crit)
 	if err != nil {
 		return nil, err

@@ -27,8 +27,9 @@ var (
 )
 
 const (
-	maxTopics    = 100
-	maxSubTopics = 1000
+	maxTopics          = 100
+	maxSubTopics       = 1000
+	getLogsLimitBlocks = 100
 )
 
 // FilterCriteria represents a request to create a new filter.
@@ -204,6 +205,9 @@ func newLogFilter(ctx context.Context, b Backend, crit FilterCriteria) (*LogFilt
 
 		if begin > 0 && end > 0 && begin > end {
 			return nil, errInvalidBlockRange
+		}
+		if end-begin > getLogsLimitBlocks {
+			return nil, errors.New("the difference between FromBlock and ToBlock cannot be greater than limit")
 		}
 
 		filter = &LogFilter{
