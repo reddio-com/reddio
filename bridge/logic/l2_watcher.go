@@ -11,7 +11,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/sirupsen/logrus"
 	yucommon "github.com/yu-org/yu/common"
-	yucontext "github.com/yu-org/yu/core/context"
 	yutypes "github.com/yu-org/yu/core/types"
 
 	backendabi "github.com/reddio-com/reddio/bridge/abi"
@@ -193,19 +192,4 @@ func (f *L2WatcherLogic) GetEthReceiptWithRetry(txHash common.Hash, retries int,
 		return receipt, nil
 	}
 	return nil, err
-}
-
-func (f *L2WatcherLogic) HandleRead(rdCall *yucommon.RdCall) (*yucontext.ResponseData, error) {
-	ctx, err := yucontext.NewReadContext(rdCall)
-	if err != nil {
-		return nil, err
-	}
-
-	rd, err := f.solidity.Land.GetReading(rdCall.TripodName, rdCall.FuncName)
-	if err != nil {
-		return nil, err
-	}
-	L2WatchCounterCounter.WithLabelValues(rdCall.TripodName, rdCall.FuncName).Inc()
-	rd(ctx)
-	return ctx.Response(), nil
 }
