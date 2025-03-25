@@ -1116,6 +1116,7 @@ func NewTransactionAPI(b Backend, nonceLock *AddrLocker) *TransactionAPI {
 
 // GetBlockTransactionCountByNumber returns the number of transactions in the block with the given block number.
 func (s *TransactionAPI) GetBlockTransactionCountByNumber(ctx context.Context, blockNr rpc.BlockNumber) *hexutil.Uint {
+	TransactionAPICounter.WithLabelValues("GetBlockTransactionCountByNumber").Inc()
 	if block, _, _ := s.b.BlockByNumber(ctx, blockNr); block != nil {
 		n := hexutil.Uint(len(block.Transactions()))
 		return &n
@@ -1125,6 +1126,7 @@ func (s *TransactionAPI) GetBlockTransactionCountByNumber(ctx context.Context, b
 
 // GetBlockTransactionCountByHash returns the number of transactions in the block with the given hash.
 func (s *TransactionAPI) GetBlockTransactionCountByHash(ctx context.Context, blockHash common.Hash) *hexutil.Uint {
+	TransactionAPICounter.WithLabelValues("GetBlockTransactionCountByHash").Inc()
 	if block, _, _ := s.b.BlockByHash(ctx, blockHash); block != nil {
 		n := hexutil.Uint(len(block.Transactions()))
 		return &n
@@ -1134,6 +1136,7 @@ func (s *TransactionAPI) GetBlockTransactionCountByHash(ctx context.Context, blo
 
 // GetTransactionByBlockNumberAndIndex returns the transaction for the given block number and index.
 func (s *TransactionAPI) GetTransactionByBlockNumberAndIndex(ctx context.Context, blockNr rpc.BlockNumber, index hexutil.Uint) *RPCTransaction {
+	TransactionAPICounter.WithLabelValues("GetTransactionByBlockNumberAndIndex").Inc()
 	if block, yuBlock, _ := s.b.BlockByNumber(ctx, blockNr); block != nil {
 		return newRPCTransactionFromBlockIndex(block, yuBlock, uint64(index), s.b.ChainConfig())
 	}
@@ -1142,6 +1145,7 @@ func (s *TransactionAPI) GetTransactionByBlockNumberAndIndex(ctx context.Context
 
 // GetTransactionByBlockHashAndIndex returns the transaction for the given block hash and index.
 func (s *TransactionAPI) GetTransactionByBlockHashAndIndex(ctx context.Context, blockHash common.Hash, index hexutil.Uint) *RPCTransaction {
+	TransactionAPICounter.WithLabelValues("GetTransactionByBlockHashAndIndex").Inc()
 	if block, yuBlock, _ := s.b.BlockByHash(ctx, blockHash); block != nil {
 		return newRPCTransactionFromBlockIndex(block, yuBlock, uint64(index), s.b.ChainConfig())
 	}
@@ -1150,6 +1154,7 @@ func (s *TransactionAPI) GetTransactionByBlockHashAndIndex(ctx context.Context, 
 
 // GetRawTransactionByBlockNumberAndIndex returns the bytes of the transaction for the given block number and index.
 func (s *TransactionAPI) GetRawTransactionByBlockNumberAndIndex(ctx context.Context, blockNr rpc.BlockNumber, index hexutil.Uint) hexutil.Bytes {
+	TransactionAPICounter.WithLabelValues("GetRawTransactionByBlockNumberAndIndex").Inc()
 	if block, _, _ := s.b.BlockByNumber(ctx, blockNr); block != nil {
 		return newRPCRawTransactionFromBlockIndex(block, uint64(index))
 	}
@@ -1158,6 +1163,7 @@ func (s *TransactionAPI) GetRawTransactionByBlockNumberAndIndex(ctx context.Cont
 
 // GetRawTransactionByBlockHashAndIndex returns the bytes of the transaction for the given block hash and index.
 func (s *TransactionAPI) GetRawTransactionByBlockHashAndIndex(ctx context.Context, blockHash common.Hash, index hexutil.Uint) hexutil.Bytes {
+	TransactionAPICounter.WithLabelValues("GetRawTransactionByBlockHashAndIndex").Inc()
 	if block, _, _ := s.b.BlockByHash(ctx, blockHash); block != nil {
 		return newRPCRawTransactionFromBlockIndex(block, uint64(index))
 	}
@@ -1166,6 +1172,7 @@ func (s *TransactionAPI) GetRawTransactionByBlockHashAndIndex(ctx context.Contex
 
 // GetTransactionCount returns the number of transactions the given address has sent for the given block number
 func (s *TransactionAPI) GetTransactionCount(ctx context.Context, address common.Address, blockNrOrHash rpc.BlockNumberOrHash) (*hexutil.Uint64, error) {
+	TransactionAPICounter.WithLabelValues("GetTransactionCount").Inc()
 	// Ask transaction pool for the nonce which includes pending transactions
 	nonce := uint64(0)
 	if blockNr, ok := blockNrOrHash.Number(); ok && blockNr == rpc.PendingBlockNumber {
@@ -1186,6 +1193,7 @@ func (s *TransactionAPI) GetTransactionCount(ctx context.Context, address common
 
 // GetTransactionByHash returns the transaction for the given hash
 func (s *TransactionAPI) GetTransactionByHash(ctx context.Context, hash common.Hash) (*RPCTransaction, error) {
+	TransactionAPICounter.WithLabelValues("GetTransactionByHash").Inc()
 	// Try to return an already finalized transaction
 	found, tx, blockHash, blockNumber, index, err := s.b.GetTransaction(ctx, hash)
 	if !found {
@@ -1221,6 +1229,7 @@ func (s *TransactionAPI) GetTransactionByHash(ctx context.Context, hash common.H
 
 // GetRawTransactionByHash returns the bytes of the transaction for the given hash.
 func (s *TransactionAPI) GetRawTransactionByHash(ctx context.Context, hash common.Hash) (hexutil.Bytes, error) {
+	TransactionAPICounter.WithLabelValues("GetRawTransactionByHash").Inc()
 	// Retrieve a finalized transaction, or a pooled otherwise
 	found, tx, _, _, _, err := s.b.GetTransaction(ctx, hash)
 	if !found {
@@ -1250,6 +1259,7 @@ func (s *TransactionAPI) GetRawTransactionByHash(ctx context.Context, hash commo
 
 // GetTransactionReceipt returns the transaction receipt for the given transaction hash.
 func (s *TransactionAPI) GetTransactionReceipt(ctx context.Context, hash common.Hash) (map[string]interface{}, error) {
+	TransactionAPICounter.WithLabelValues("GetTransactionReceipt").Inc()
 	found, tx, blockHash, blockNumber, index, err := s.b.GetTransaction(ctx, hash)
 	if err != nil {
 		// Only when err==nil should it return nil, and when err!=nil, it should return NewTxIndexingError.
@@ -1382,6 +1392,7 @@ func (s *TransactionAPI) FillTransaction(ctx context.Context, args TransactionAr
 // SendRawTransaction will add the signed transaction to the transaction pool.
 // The sender is responsible for signing the transaction and using the correct nonce.
 func (s *TransactionAPI) SendRawTransaction(ctx context.Context, input hexutil.Bytes) (txHash common.Hash, err error) {
+	TransactionAPICounter.WithLabelValues("SendRawTransaction").Inc()
 	defer func() {
 		if err != nil {
 			if !config.GetGlobalConfig().IsBenchmarkMode {
@@ -1402,6 +1413,7 @@ type BatchTx struct {
 }
 
 func (s *TransactionAPI) SendBatchRawTransactions(ctx context.Context, inputs hexutil.Bytes) (txHashes []common.Hash, err error) {
+	TransactionAPICounter.WithLabelValues("SendBatchRawTransactions").Inc()
 	batchTx := new(BatchTx)
 	err = json.Unmarshal(inputs, batchTx)
 	if err != nil {
@@ -1459,6 +1471,7 @@ func (s *TransactionAPI) SignTransaction(ctx context.Context, args TransactionAr
 // PendingTransactions returns the transactions that are in the transaction pool
 // and have a from address that is one of the accounts this node manages.
 func (s *TransactionAPI) PendingTransactions() ([]*RPCTransaction, error) {
+	TransactionAPICounter.WithLabelValues("PendingTransactions").Inc()
 	pending, err := s.b.GetPoolTransactions()
 	if err != nil {
 		return nil, err
