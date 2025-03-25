@@ -5,9 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"math/big"
 	"slices"
+
+	"github.com/sirupsen/logrus"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
@@ -179,6 +180,8 @@ func newLogFilter(ctx context.Context, b Backend, crit FilterCriteria) (*LogFilt
 			topics:    crit.Topics,
 		}
 	} else {
+		fmt.Println("crit.FromBlock", crit.FromBlock)
+		fmt.Println("crit.ToBlock", crit.ToBlock)
 		begin := rpc.LatestBlockNumber.Int64()
 		if crit.FromBlock != nil {
 			begin = crit.FromBlock.Int64()
@@ -223,7 +226,9 @@ func (f *LogFilter) Logs(ctx context.Context) ([]*types.Log, error) {
 		if err != nil {
 			return nil, err
 		}
-
+		if yuHeader == nil {
+			return nil, errors.New("unknown block")
+		}
 		return f.FilterLogs(ctx, yuHeader)
 	} else {
 		var result []*types.Log
@@ -289,4 +294,145 @@ func (f *LogFilter) checkMatches(ctx context.Context, vLog *types.Log) bool {
 	// }
 
 	return true
+}
+
+// rangeLogsAsync retrieves block-range logs that match the filter criteria asynchronously,
+// it creates and returns two channels: one for delivering log data, and one for reporting errors.
+func (f *LogFilter) rangeLogsAsync(ctx context.Context) (chan *types.Log, chan error) {
+	var (
+		logChan = make(chan *types.Log)
+		errChan = make(chan error)
+	)
+
+	go func() {
+		defer func() {
+			close(errChan)
+			close(logChan)
+		}()
+
+		// Gather all indexed logs, and finish with non indexed ones
+		var (
+			end = uint64(f.end)
+			// size, sections = f.sys.backend.BloomStatus()
+			// err            error
+		)
+		// if indexed := sections * size; indexed > uint64(f.begin) {
+		// 	if indexed > end {
+		// 		indexed = end + 1
+		// 	}
+		// 	if err = f.indexedLogs(ctx, indexed-1, logChan); err != nil {
+		// 		errChan <- err
+		// 		return
+		// 	}
+		// }
+
+		if err := f.unindexedLogs(ctx, end, logChan); err != nil {
+			errChan <- err
+			return
+		}
+
+		errChan <- nil
+	}()
+
+	return logChan, errChan
+}
+
+// unindexedLogs returns the logs matching the filter criteria based on raw block
+// iteration and bloom matching.
+func (f *LogFilter) unindexedLogs(ctx context.Context, end uint64, logChan chan *types.Log) error {
+	for ; f.begin <= int64(end); f.begin++ {
+		header, _, err := f.b.HeaderByNumber(ctx, rpc.BlockNumber(f.begin))
+		if header == nil || err != nil {
+			return err
+		}
+		found, err := f.blockLogs(ctx, header)
+		if err != nil {
+			return err
+		}
+		for _, log := range found {
+			select {
+			case logChan <- log:
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+	}
+	return nil
+}
+func (f *LogFilter) blockLogs(ctx context.Context, header *types.Header) ([]*types.Log, error) {
+	//if bloomFilter(header.Bloom, f.addresses, f.topics) {
+	return f.checkMatchesFromHeader(ctx, header)
+	//}
+	//return nil, nil
+}
+
+// checkMatches checks if the receipts belonging to the given header contain any log events that
+// match the filter criteria. This function is called when the bloom filter signals a potential match.
+// skipFilter signals all logs of the given block are requested.
+func (f *LogFilter) checkMatchesFromHeader(ctx context.Context, header *types.Header) ([]*types.Log, error) {
+	// hash := header.Hash()
+	// // Logs in cache are partially filled with context data
+	// // such as tx index, block hash, etc.
+	// // Notably tx hash is NOT filled in because it needs
+	// // access to block body data.
+	// cached, err := f.sys.cachedLogElem(ctx, hash, header.Number.Uint64())
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// logs := filterLogs(cached.logs, nil, nil, f.addresses, f.topics)
+	// if len(logs) == 0 {
+	// 	return nil, nil
+	// }
+	// // Most backends will deliver un-derived logs, but check nevertheless.
+	// if len(logs) > 0 && logs[0].TxHash != (common.Hash{}) {
+	// 	return logs, nil
+	// }
+
+	// body, err := f.sys.cachedGetBody(ctx, cached, hash, header.Number.Uint64())
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// for i, log := range logs {
+	// 	// Copy log not to modify cache elements
+	// 	logcopy := *log
+	// 	logcopy.TxHash = body.Transactions[logcopy.TxIndex].Hash()
+	// 	logs[i] = &logcopy
+	// }
+	// return logs, nil
+	return nil, nil
+}
+
+// filterLogs creates a slice of logs matching the given criteria.
+func filterLogs(logs []*types.Log, fromBlock, toBlock *big.Int, addresses []common.Address, topics [][]common.Hash) []*types.Log {
+	var check = func(log *types.Log) bool {
+		if fromBlock != nil && fromBlock.Int64() >= 0 && fromBlock.Uint64() > log.BlockNumber {
+			return false
+		}
+		if toBlock != nil && toBlock.Int64() >= 0 && toBlock.Uint64() < log.BlockNumber {
+			return false
+		}
+		if len(addresses) > 0 && !slices.Contains(addresses, log.Address) {
+			return false
+		}
+		// If the to filtered topics is greater than the amount of topics in logs, skip.
+		if len(topics) > len(log.Topics) {
+			return false
+		}
+		for i, sub := range topics {
+			if len(sub) == 0 {
+				continue // empty rule set == wildcard
+			}
+			if !slices.Contains(sub, log.Topics[i]) {
+				return false
+			}
+		}
+		return true
+	}
+	var ret []*types.Log
+	for _, log := range logs {
+		if check(log) {
+			ret = append(ret, log)
+		}
+	}
+	return ret
 }

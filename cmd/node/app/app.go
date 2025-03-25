@@ -64,7 +64,7 @@ func StartUpChain(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm
 
 	ethrpc.StartupEthRPC(chain, evmCfg)
 	if evmCfg.EnableBridge {
-		//	StartupL1Watcher(evmCfg, db)
+		StartupL1Watcher(evmCfg, db)
 		StartupRelayer(chain, evmCfg, db)
 		StartupBridgeRpc(evmCfg, db)
 	}
