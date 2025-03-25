@@ -1,7 +1,6 @@
 package parallel
 
 import (
-	"fmt"
 	"math/big"
 	"time"
 
@@ -140,7 +139,7 @@ func (k *ParallelEVM) prepareTxnList(block *types.Block) ([]*txnCtx, map[common.
 	}()
 	stxns := block.Txns
 	receipts := make(map[common.Hash]*types.Receipt)
-	txnCtxList := make([]*txnCtx, len(stxns))
+	txnCtxList := make([]*txnCtx, 0)
 	for index, stxn := range stxns {
 		wrCall := stxn.Raw.WrCall
 		ctx, err := context.NewWriteContext(stxn, block, index)
@@ -162,7 +161,7 @@ func (k *ParallelEVM) prepareTxnList(block *types.Block) ([]*txnCtx, map[common.
 			writing: writing,
 			req:     req,
 		}
-		txnCtxList[index] = stxnCtx
+		txnCtxList = append(txnCtxList, stxnCtx)
 	}
 	return txnCtxList, receipts
 }
@@ -170,15 +169,12 @@ func (k *ParallelEVM) prepareTxnList(block *types.Block) ([]*txnCtx, map[common.
 func (k *ParallelEVM) executeTxnCtxListInOrder(sdb *state.StateDB, list []*txnCtx, isRedo bool) []*txnCtx {
 	for index, tctx := range list {
 		if tctx.err != nil {
-			list[index] = tctx
+			tctx.receipt = k.handleTxnError(tctx.err, tctx.ctx, tctx.ctx.Block, tctx.txn)
 			continue
 		}
-		snpshotID := sdb.Snapshot()
-		hasErr := false
 		tctx.ctx.ExtraInterface = pending_state.NewPendingStateWrapper(pending_state.NewStateDBWrapper(sdb), pending_state.NewStateContext(false), int64(index))
 		err := tctx.writing(tctx.ctx)
 		if err != nil {
-			hasErr = true
 			tctx.err = err
 			tctx.receipt = k.handleTxnError(err, tctx.ctx, tctx.ctx.Block, tctx.txn)
 		} else {
@@ -186,7 +182,7 @@ func (k *ParallelEVM) executeTxnCtxListInOrder(sdb *state.StateDB, list []*txnCt
 		}
 		tctx.ps = tctx.ctx.ExtraInterface.(*pending_state.PendingStateWrapper)
 		list[index] = tctx
-		k.checkNonce(sdb, tctx, hasErr, snpshotID)
+		k.checkNonce(sdb, tctx)
 	}
 	k.gcCopiedStateDB(nil, list)
 	sdb.Finalise(false)
@@ -201,34 +197,29 @@ func (k *ParallelEVM) gcCopiedStateDB(copiedStateDBList []*pending_state.Pending
 	}
 }
 
-func (k *ParallelEVM) checkNonce(sdb *state.StateDB, tctx *txnCtx, hasErr bool, revid int) {
+func (k *ParallelEVM) checkNonce(sdb *state.StateDB, tctx *txnCtx) {
+	bridge := false
+	typ := "non-bridge"
 	if tctx.req.Address != nil && *tctx.req.Address == testBridgeContractAddress {
-		messageNonceSlot := sdb.GetState(testBridgeContractAddress, testStorageSlotHash)
-		currentMessageNonceSlot := new(big.Int).SetBytes(messageNonceSlot.Bytes())
-		if lastMessageNonceSlot.Cmp(big.NewInt(0)) != 0 {
-			diff := new(big.Int).Sub(currentMessageNonceSlot, lastMessageNonceSlot)
-			if hasErr {
-				if diff.Cmp(big.NewInt(0)) != 0 {
-					logrus.Warnf("message nonce changed when error: txhash %s, before %s, after %s,diff %s,tctx.ctx.Block.Height %d", tctx.txn.TxnHash.String(), lastMessageNonceSlot.String(), currentMessageNonceSlot.String(), diff.String(), tctx.ctx.Block.Height)
-					metrics.WithdrawMessageNonceGap.WithLabelValues("bridge", "err_increased").Inc()
-				}
-			} else {
-				if diff.Cmp(big.NewInt(1)) > 0 {
-					logrus.Warnf("message nonce slot increased by more than 1: txhash %s, before %s, after %s, diff %s,tctx.ctx.Block.Height %d", tctx.txn.TxnHash.String(), lastMessageNonceSlot.String(), currentMessageNonceSlot.String(), diff.String(), tctx.ctx.Block.Height)
-					metrics.WithdrawMessageNonceGap.WithLabelValues("bridge", "more_increase").Inc()
-					for _, eachTctx := range k.blockTxnCtxList {
-						slot := sdb.GetState(testBridgeContractAddress, testStorageSlotHash)
-						nonce := new(big.Int).SetBytes(slot.Bytes())
-						logrus.Infof("txhash %s, message nonce %s, hasErr:%v", eachTctx.txn.TxnHash.String(), nonce.String(), eachTctx.err != nil)
-						if eachTctx.txn.TxnHash == tctx.txn.TxnHash {
-							break
-						}
-					}
-					tctx.receipt = k.handleTxnError(fmt.Errorf("message nonce slot increased by more than 1"), tctx.ctx, tctx.ctx.Block, tctx.txn)
-					sdb.RevertToSnapshot(revid)
-				}
+		typ = "bridge"
+		bridge = true
+	}
+	messageNonceSlot := sdb.GetState(testBridgeContractAddress, testStorageSlotHash)
+	currentMessageNonceSlot := new(big.Int).SetBytes(messageNonceSlot.Bytes())
+	if lastMessageNonceSlot.Cmp(big.NewInt(0)) != 0 {
+		diff := new(big.Int).Sub(currentMessageNonceSlot, lastMessageNonceSlot)
+		if !bridge {
+			if diff.Cmp(big.NewInt(0)) != 0 {
+				logrus.Warnf("message nonce slot changed: txhash %s, before %s, after %s, diff %s,tctx.ctx.Block.Height %d", tctx.txn.TxnHash.String(), lastMessageNonceSlot.String(), currentMessageNonceSlot.String(), diff.String(), tctx.ctx.Block.Height)
+				metrics.WithdrawMessageNonceGap.WithLabelValues(typ, "changed").Inc()
 			}
 		}
-		lastMessageNonceSlot.Set(currentMessageNonceSlot)
+		if bridge {
+			if diff.Cmp(big.NewInt(1)) > 0 {
+				logrus.Warnf("message nonce slot increased by more than 1: txhash %s, before %s, after %s, diff %s,tctx.ctx.Block.Height %d", tctx.txn.TxnHash.String(), lastMessageNonceSlot.String(), currentMessageNonceSlot.String(), diff.String(), tctx.ctx.Block.Height)
+				metrics.WithdrawMessageNonceGap.WithLabelValues(typ, "more_increase").Inc()
+			}
+			lastMessageNonceSlot.Set(currentMessageNonceSlot)
+		}
 	}
 }

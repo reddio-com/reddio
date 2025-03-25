@@ -21,7 +21,7 @@ require (
 	github.com/sourcegraph/conc v0.3.0
 	github.com/stretchr/testify v1.9.0
 	github.com/tendermint/tendermint v0.34.24
-	github.com/yu-org/yu v1.2.34-0.20250226130159-33d131b0a84f
+	github.com/yu-org/yu v1.2.34-0.20250324093702-7955482ea478
 	golang.org/x/crypto v0.25.0
 	golang.org/x/sync v0.7.0
 	golang.org/x/time v0.8.0
@@ -230,3 +230,5 @@ require (
 )
 
 //replace github.com/ethereum/go-ethereum => github.com/reddio-com/go-ethereum v1.10.19-0.20241203030429-cc7ffb6f4ed2
+
+replace github.com/yu-org/yu => github.com/ReyisaRuby/yu v1.2.27-0.20250324120634-9b580dc126f2

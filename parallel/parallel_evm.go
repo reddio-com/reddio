@@ -26,7 +26,7 @@ type ParallelEvmExecutor struct {
 func NewParallelEvmExecutor(evm *ParallelEVM) *ParallelEvmExecutor {
 	return &ParallelEvmExecutor{
 		k:    evm,
-		cpdb: evm.cpdb,
+		cpdb: evm.db,
 	}
 }
 

@@ -188,16 +188,13 @@ func (f *L2WatcherLogic) getReceipts(ctx context.Context, block *yutypes.Block) 
 func (f *L2WatcherLogic) GetEthReceiptWithRetry(txHash common.Hash, retries int, delay time.Duration) (*types.Receipt, error) {
 	var receipt *types.Receipt
 	var err error
-	for i := 0; i < retries; i++ {
-		receipt, err = f.solidity.GetEthReceipt(txHash)
-		if err == nil {
-			return receipt, nil
-		}
-		logrus.Warnf("Retrying to get eth receipt, attempt %d/%d, txHash: %s, error: %v", i+1, retries, txHash.Hex(), err)
-		time.Sleep(delay)
+	receipt, err = f.solidity.GetEthReceipt(txHash)
+	if err == nil {
+		return receipt, nil
 	}
 	return nil, err
 }
+
 func (f *L2WatcherLogic) HandleRead(rdCall *yucommon.RdCall) (*yucontext.ResponseData, error) {
 	ctx, err := yucontext.NewReadContext(rdCall)
 	if err != nil {
@@ -208,6 +205,7 @@ func (f *L2WatcherLogic) HandleRead(rdCall *yucommon.RdCall) (*yucontext.Respons
 	if err != nil {
 		return nil, err
 	}
+	L2WatchCounterCounter.WithLabelValues(rdCall.TripodName, rdCall.FuncName).Inc()
 	rd(ctx)
 	return ctx.Response(), nil
 }

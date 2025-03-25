@@ -29,9 +29,20 @@ var (
 		},
 		[]string{TypeLbl},
 	)
+
+	TransactionAPICounter = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "reddio",
+			Subsystem: "transaction_api",
+			Name:      "counter",
+			Help:      "Total Operator number of counter",
+		},
+		[]string{TypeLbl},
+	)
 )
 
 func init() {
 	prometheus.MustRegister(EthApiBackendCounter)
 	prometheus.MustRegister(EthApiBackendDuration)
+	prometheus.MustRegister(TransactionAPICounter)
 }
