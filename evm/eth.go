@@ -507,7 +507,7 @@ func (s *Solidity) executeContractCall(ctx *context.WriteContext, txReq *TxReque
 		return 0, err
 	}
 
-	// logrus.Printf("[Execute Txn] SendTx success. Oringin code = %v, Hex Code = %v, Left Gas = %v", code, hex.EncodeToString(code), leftOverGas)
+	// logrus.Printf("[Execute Txn] SendTx success. Origin code = %v, Hex Code = %v, Left Gas = %v", code, hex.EncodeToString(code), leftOverGas)
 	return txReq.GasLimit - leftOverGas, emitReceipt(ctx, vmenv, txReq, code, common.Address{}, leftOverGas, err)
 }
 

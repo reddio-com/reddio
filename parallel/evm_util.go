@@ -210,13 +210,13 @@ func (k *ParallelEVM) checkNonce(sdb *state.StateDB, tctx *txnCtx) {
 		diff := new(big.Int).Sub(currentMessageNonceSlot, lastMessageNonceSlot)
 		if !bridge {
 			if diff.Cmp(big.NewInt(0)) != 0 {
-				logrus.Warnf("message nonce slot changed: txhash %s, before %s, after %s, diff %s,tctx.ctx.Block.Height %d", tctx.txn.TxnHash.String(), lastMessageNonceSlot.String(), currentMessageNonceSlot.String(), diff.String(), tctx.ctx.Block.Height)
+				logrus.Warnf("message nonce slot changed: txhash %s, before %s, after %s, diff %s, tctx.ctx.Block.Height %d", tctx.txn.TxnHash.String(), lastMessageNonceSlot.String(), currentMessageNonceSlot.String(), diff.String(), tctx.ctx.Block.Height)
 				metrics.WithdrawMessageNonceGap.WithLabelValues(typ, "changed").Inc()
 			}
 		}
 		if bridge {
 			if diff.Cmp(big.NewInt(1)) > 0 {
-				logrus.Warnf("message nonce slot increased by more than 1: txhash %s, before %s, after %s, diff %s,tctx.ctx.Block.Height %d", tctx.txn.TxnHash.String(), lastMessageNonceSlot.String(), currentMessageNonceSlot.String(), diff.String(), tctx.ctx.Block.Height)
+				logrus.Warnf("message nonce slot increased by more than 1: txhash %s, before %s, after %s, diff %s, tctx.ctx.Block.Height %d", tctx.txn.TxnHash.String(), lastMessageNonceSlot.String(), currentMessageNonceSlot.String(), diff.String(), tctx.ctx.Block.Height)
 				metrics.WithdrawMessageNonceGap.WithLabelValues(typ, "more_increase").Inc()
 			}
 			lastMessageNonceSlot.Set(currentMessageNonceSlot)
