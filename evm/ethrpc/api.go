@@ -1268,15 +1268,10 @@ func (s *TransactionAPI) GetTransactionReceipt(ctx context.Context, hash common.
 	if err != nil {
 		return nil, err
 	}
-	receipts, err := s.b.GetReceipts(ctx, blockHash)
+	receipt, err := s.b.GetReceipt(ctx, hash)
 	if err != nil {
 		return nil, err
 	}
-	if uint64(len(receipts)) <= index {
-		return nil, nil
-	}
-	receipt := receipts[index]
-
 	// Derive the sender.
 	signer := types.MakeSigner(s.b.ChainConfig(), header.Number, header.Time)
 	return marshalReceipt(receipt, common.Hash(yuHeader.Hash), blockNumber, signer, tx, int(index)), nil

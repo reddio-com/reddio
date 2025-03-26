@@ -85,6 +85,7 @@ func StartUpChain(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm
 }
 
 func InitReddio(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm.GethConfig, db *gorm.DB) *kernel.Kernel {
+	yuCfg.TxnConf.ReceiptsLimit = int(poaCfg.PackNum)
 	poaTri := poa.NewPoa(poaCfg)
 	solidityTri := evm.NewSolidity(evmCfg)
 	parallelTri := parallel.NewParallelEVM()

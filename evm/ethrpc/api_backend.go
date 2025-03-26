@@ -557,6 +557,24 @@ func (e *EthAPIBackend) GetReceiptsForLog(ctx context.Context, blockHash common.
 	return receipts, nil
 }
 
+func (e *EthAPIBackend) GetReceipt(ctx context.Context, txnHash common.Hash) (*types.Receipt, error) {
+	start := time.Now()
+	defer func() {
+		EthApiBackendDuration.WithLabelValues("GetReceipt").Observe(float64(time.Since(start).Microseconds()))
+	}()
+	EthApiBackendCounter.WithLabelValues("GetReceipt").Inc()
+	rcptReq := &evm.ReceiptRequest{Hash: txnHash}
+	resp, err := e.adaptChainRead(rcptReq, "GetReceipt")
+	if err != nil {
+		return nil, err
+	}
+	receiptsResponse := resp.DataInterface.(*evm.ReceiptResponse)
+	if receiptsResponse.Err != nil {
+		return nil, errors.Errorf("StatusCode: %d, Error: %v", resp.StatusCode, receiptsResponse.Err)
+	}
+	return receiptsResponse.Receipt, nil
+}
+
 func (e *EthAPIBackend) GetReceipts(ctx context.Context, blockHash common.Hash) (types.Receipts, error) {
 	start := time.Now()
 	defer func() {
