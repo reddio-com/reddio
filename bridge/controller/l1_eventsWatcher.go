@@ -72,8 +72,8 @@ func (w *L1EventsWatcher) Start() {
 	} else {
 		l1SyncHeight -= L1ReorgSafeDepth
 	}
-	if w.cfg.StartHeight > l1SyncHeight {
-		l1SyncHeight = w.cfg.StartHeight - 1
+	if w.cfg.L1WatcherConfig.StartHeight > l1SyncHeight {
+		l1SyncHeight = w.cfg.L1WatcherConfig.StartHeight - 1
 	}
 	header, err := w.l1Client.HeaderByNumber(w.ctx, new(big.Int).SetUint64(l1SyncHeight))
 	if err != nil {
@@ -85,11 +85,11 @@ func (w *L1EventsWatcher) Start() {
 
 	logrus.Info("Start L1 message fetcher ",
 		" message synced height", messageSyncedHeight,
-		" config start height", w.cfg.StartHeight,
+		" config start height", w.cfg.L1WatcherConfig.StartHeight,
 		" sync start height", w.l1SyncHeight+1,
 	)
 
-	tick := time.NewTicker(time.Duration(w.cfg.BlockTime) * time.Second)
+	tick := time.NewTicker(time.Duration(w.cfg.L1WatcherConfig.BlockTime) * time.Second)
 	go func() {
 		for {
 			select {
@@ -97,7 +97,7 @@ func (w *L1EventsWatcher) Start() {
 				tick.Stop()
 				return
 			case <-tick.C:
-				w.fetchAndSaveEvents(w.cfg.Confirmation)
+				w.fetchAndSaveEvents(w.cfg.L1WatcherConfig.Confirmation)
 			}
 		}
 	}()
@@ -143,8 +143,8 @@ func (w *L1EventsWatcher) fetchAndSaveEvents(confirmation uint64) {
 
 	logrus.Info("fetch and save missing L1 events", "start height", startHeight, "end height", endHeight, "confirmation", confirmation)
 
-	for from := startHeight; from <= endHeight; from += w.cfg.FetchLimit {
-		to := from + w.cfg.FetchLimit - 1
+	for from := startHeight; from <= endHeight; from += w.cfg.L1WatcherConfig.FetchLimit {
+		to := from + w.cfg.L1WatcherConfig.FetchLimit - 1
 		if to > endHeight {
 			to = endHeight
 		}
@@ -219,7 +219,7 @@ func (w *L1EventsWatcher) getBlocksAndDetectReorg(ctx context.Context, from, to 
 
 	for _, block := range blocks {
 		if block.ParentHash() != lastBlockHash {
-			logrus.Warn("L1 reorg detected", "reorg height", block.NumberU64()-1, "expected hash", block.ParentHash().String(), "local hash", lastBlockHash.String())
+			logrus.Warn("L1 reorg detected", " reorg height", block.NumberU64()-1, "expected hash", block.ParentHash().String(), "local hash", lastBlockHash.String())
 			var resyncHeight uint64
 			if block.NumberU64() > L1ReorgSafeDepth+1 {
 				resyncHeight = block.NumberU64() - L1ReorgSafeDepth - 1

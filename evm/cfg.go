@@ -60,17 +60,21 @@ type GethConfig struct {
 	BridgeHost                 string           `toml:"bridge_host"`
 	BridgePort                 string           `toml:"bridge_port"`
 	BridgeDBConfig             *database.Config `toml:"bridge_db_config"`
-	Confirmation               uint64           `toml:"confirmation"`
-	FetchLimit                 uint64           `toml:"fetch_limit"`
-	StartHeight                uint64           `toml:"start_height"`
-	BlockTime                  uint64           `toml:"block_time"`
+	// watcher config
+	L1WatcherConfig BridgeWatcherConfig `toml:"l1_watcher_config"`
+	L2WatcherConfig BridgeWatcherConfig `toml:"l2_watcher_config"`
 	// relayer config
 	RelayerBatchSize int `toml:"relayer_batch_size"`
 	// checker config
 	EnableBridgeChecker bool                `toml:"enable_bridge_checker"`
 	BridgeCheckerConfig BridgeCheckerConfig `toml:"bridge_checker_config"`
 }
-
+type BridgeWatcherConfig struct {
+	Confirmation uint64 `toml:"confirmation"`
+	FetchLimit   uint64 `toml:"fetch_limit"`
+	StartHeight  uint64 `toml:"start_height"`
+	BlockTime    uint64 `toml:"block_time"`
+}
 type BridgeCheckerConfig struct {
 	CheckerBatchSize       int    `toml:"checker_batch_size"`
 	SepoliaTickerInterval  int    `toml:"sepolia_ticker_interval"`

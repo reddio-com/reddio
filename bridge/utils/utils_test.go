@@ -63,7 +63,6 @@ func TestComputeMessageHash(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ComputeMessageHash failed: %v", err)
 	}
-	fmt.Println("hash:", hash)
 	if hash != expectedHash {
 		t.Errorf("Expected hash %s, got %s", expectedHash.Hex(), hash.Hex())
 	}

@@ -3,22 +3,23 @@ package relayer
 import (
 	"context"
 	"encoding/hex"
-	"encoding/json"
+	"errors"
 	"fmt"
+	"log"
 	"math/big"
 	"strings"
 	"time"
 
 	"github.com/HyperService-Consortium/go-hexutil"
 	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/kzg4844"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/sirupsen/logrus"
-	yucommon "github.com/yu-org/yu/common"
 	"github.com/yu-org/yu/core/kernel"
-	"github.com/yu-org/yu/core/protocol"
 	"gorm.io/gorm"
 
 	"github.com/reddio-com/reddio/bridge/contract"
@@ -138,7 +139,8 @@ func (b *L1Relayer) pollUnProcessedMessages() {
 	for _, bridgeEvent := range bridgeEvents {
 		if bridgeEvent.EventType == int(btypes.QueueTransaction) {
 			//1.1 generate cross message
-			b.HandleDownwardMessageWithSystemCall(bridgeEvent)
+			//b.HandleDownwardMessageWithSystemCall(bridgeEvent)
+			b.HandleDownwardMessage(bridgeEvent)
 		} else if bridgeEvent.EventType == int(btypes.L1RelayedMessage) {
 			b.HandleL1RelayerMessage(bridgeEvent)
 
@@ -228,10 +230,73 @@ func (b *L1Relayer) HandleDownwardMessageWithSystemCall(msg *orm.RawBridgeEvent)
 		return err
 	}
 
-	err = b.systemCall(context.Background(), tx)
+	b.rawBridgeEventOrm.UpdateProcessStatus(orm.TableRawBridgeEvents11155111, msg.ID, int(btypes.Processed))
+
+	return nil
+}
+
+func (b *L1Relayer) HandleDownwardMessage(msg *orm.RawBridgeEvent) error {
+	// 1. parse downward message
+	// 2. setup auth
+	// 3. send downward message to child layer contract by calling downwardMessageDispatcher.ReceiveDownwardMessages
+	payloadBytes, err := hex.DecodeString(msg.MessagePayload)
 	if err != nil {
-		logrus.Errorf("Failed to send downward messages: %v, tx: %v", err, tx.Hash())
+		logrus.Errorf("Failed to decode hex string: %v", err)
+		return err
+	}
+	downwardMessages := []contract.DownwardMessage{
+		{
+			PayloadType: uint32(msg.MessagePayloadType),
+			Payload:     payloadBytes,
+			Nonce:       big.NewInt(int64(msg.MessageNonce)),
+		},
+	}
+	metrics.DownwardMessageReceivedCounter.WithLabelValues(fmt.Sprintf("%d", msg.MessagePayloadType)).Inc()
+
+	relayerPkStr, err := LoadPrivateKey("bridge/relayer/.relayer.env")
+	if err != nil {
+		logrus.Fatalf("Error loading private key: %v", err)
+	}
+	relayerPk, err := crypto.HexToECDSA(relayerPkStr)
+	if err != nil {
+		log.Fatalf("Failed to load private key: %v", err)
+	}
+
+	auth, err := bind.NewKeyedTransactorWithChainID(relayerPk, big.NewInt(50341))
+	if err != nil {
+		log.Fatalf("Failed to create transactor: %v", err)
+	}
+
+	if err != nil {
+		log.Fatal("Failed to estimate gas:", err)
+	}
+
+	contractAddress := common.HexToAddress(b.cfg.ChildLayerContractAddress)
+	downwardMessageDispatcher, err := contract.NewDownwardMessageDispatcherFacet(contractAddress, b.l2Client)
+
+	session := &contract.DownwardMessageDispatcherFacetSession{
+		Contract:     downwardMessageDispatcher,
+		TransactOpts: *auth,
+	}
+
+	tx, err := session.ReceiveDownwardMessages(downwardMessages)
+	if err != nil {
+		logrus.Errorf("Failed to send downward messages: %v", err)
 		b.rawBridgeEventOrm.UpdateProcessFail(orm.TableRawBridgeEvents11155111, msg.ID, err.Error())
+		metrics.DownwardMessageFailureCounter.WithLabelValues(fmt.Sprintf("%d", msg.MessagePayloadType)).Inc()
+		return err
+	}
+
+	crossMessages, err := b.l1EventParser.ParseL1RawBridgeEventToCrossChainMessage(b.ctx, msg, tx)
+	if err != nil {
+		logrus.Errorf("Failed to parse L1 cross chain payload, err: %v, tx: %v", err, tx.Hash())
+		metrics.DownwardMessageFailureCounter.WithLabelValues(fmt.Sprintf("%d", msg.MessagePayloadType)).Inc()
+		return err
+	}
+
+	err = b.insertDepositMessage(crossMessages)
+	if err != nil {
+		logrus.Errorf("Failed to insert deposit: %v, tx: %v", err, tx.Hash())
 		metrics.DownwardMessageFailureCounter.WithLabelValues(fmt.Sprintf("%d", msg.MessagePayloadType)).Inc()
 		return err
 	}
@@ -239,6 +304,19 @@ func (b *L1Relayer) HandleDownwardMessageWithSystemCall(msg *orm.RawBridgeEvent)
 	b.rawBridgeEventOrm.UpdateProcessStatus(orm.TableRawBridgeEvents11155111, msg.ID, int(btypes.Processed))
 
 	return nil
+}
+
+func GetCurrentBaseFee(client *ethclient.Client) (*big.Int, error) {
+	header, err := client.HeaderByNumber(context.Background(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if header.BaseFee == nil {
+		return nil, errors.New("chain does not support EIP-1559")
+	}
+
+	return header.BaseFee, nil
 }
 
 func newTxArgsFromTx(tx *types.Transaction) *TransactionArgs {
@@ -304,52 +382,6 @@ func newTxArgsFromTx(tx *types.Transaction) *TransactionArgs {
 	}
 
 	return &args
-}
-func (b *L1Relayer) systemCall(ctx context.Context, signedTx *types.Transaction) error {
-	// Check if this tx has been created
-	v, r, s := signedTx.RawSignatureValues()
-	txArg := newTxArgsFromTx(signedTx)
-	txArgByte, _ := json.Marshal(txArg)
-	txReq := &evm.TxRequest{
-		Input:          signedTx.Data(),
-		Origin:         common.HexToAddress(ZERO_ADDRESS),
-		Address:        signedTx.To(),
-		GasLimit:       signedTx.Gas(),
-		GasPrice:       signedTx.GasPrice(),
-		Value:          signedTx.Value(),
-		Hash:           signedTx.Hash(),
-		V:              v,
-		R:              r,
-		S:              s,
-		IsInternalCall: true,
-
-		OriginArgs: txArgByte,
-	}
-	txNonce, err := b.l2Client.PendingNonceAt(context.Background(), txReq.Origin)
-	if err != nil {
-		logrus.Infof("Failed to get nonce: %v", err)
-	}
-	txReq.Nonce = txNonce
-
-	byt, err := json.Marshal(txReq)
-	if err != nil {
-		logrus.Infof("json.Marshal(txReq) failed: %v", err)
-		return err
-	}
-	signedWrCall := &protocol.SignedWrCall{
-		Call: &yucommon.WrCall{
-			TripodName: "solidity",
-			FuncName:   "ExecuteTxn",
-			Params:     string(byt),
-		},
-	}
-
-	err = b.chain.HandleTxn(signedWrCall)
-	if err != nil {
-		logrus.Infof("json.Marshal(txReq) failed: %v", err)
-		return err
-	}
-	return nil
 }
 
 func (b *L1Relayer) createRefundMessage(msgs []*orm.CrossMessage) error {
