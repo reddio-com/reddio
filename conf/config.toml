@@ -5,4 +5,4 @@ isBenchmarkMode = false
 ignoreConflict = false
 
 [rateLimitConfig]
-getReceipt = 200000
+getReceipt = 20000
