@@ -105,7 +105,6 @@ func (e *EthAPIBackend) HeaderByNumber(ctx context.Context, number rpc.BlockNumb
 	if yuBlock == nil {
 		return nil, nil, err
 	}
-
 	return yuHeader2EthHeader(yuBlock.Header), yuBlock.Header, err
 }
 
@@ -538,9 +537,7 @@ func (e *EthAPIBackend) GetReceiptsForLog(ctx context.Context, blockHash common.
 	if err != nil {
 		return nil, err
 	}
-
 	var receipts []*types.Receipt
-
 	for _, txHash := range compactBlock.TxnsHashes {
 		rcptReq := &evm.ReceiptRequest{Hash: common.Hash(txHash)}
 		resp, err := e.adaptChainRead(rcptReq, "GetReceipt")
@@ -552,8 +549,10 @@ func (e *EthAPIBackend) GetReceiptsForLog(ctx context.Context, blockHash common.
 			continue
 		}
 		receipts = append(receipts, receiptResponse.Receipt)
+		// if compactBlock.Height == 182 {
+		// 	fmt.Println("receiptResponse.Receipt TxHash: ", receiptResponse.Receipt.TxHash)
+		// }
 	}
-
 	return receipts, nil
 }
 
@@ -708,12 +707,10 @@ func (e *EthAPIBackend) GetLogs(ctx context.Context, blockHash common.Hash, numb
 		_, yuHeader, _ := e.HeaderByNumber(ctx, rpc.BlockNumber(number))
 		blockHash = common.Hash(yuHeader.Hash)
 	}
-
 	receipts, err := e.GetReceiptsForLog(ctx, blockHash)
 	if err != nil {
 		return nil, err
 	}
-
 	result := [][]*types.Log{}
 	for _, receipt := range receipts {
 		logs := []*types.Log{}

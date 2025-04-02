@@ -255,7 +255,6 @@ func (f *LogFilter) FilterLogs(ctx context.Context, yuHeader *yutypes.Header) ([
 	if err != nil {
 		return nil, err
 	}
-
 	result := make([]*types.Log, 0)
 	var logIdx uint
 	for i, txLogs := range logs {
@@ -271,7 +270,6 @@ func (f *LogFilter) FilterLogs(ctx context.Context, yuHeader *yutypes.Header) ([
 			}
 		}
 	}
-
 	return result, nil
 }
 

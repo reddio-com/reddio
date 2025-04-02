@@ -20,6 +20,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/reddio-com/reddio/bridge/checker"
+	rdoclient "github.com/reddio-com/reddio/bridge/client"
 	watcher "github.com/reddio-com/reddio/bridge/controller"
 	"github.com/reddio-com/reddio/bridge/controller/api"
 	"github.com/reddio-com/reddio/bridge/controller/route"
@@ -64,7 +65,8 @@ func StartUpChain(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm
 
 	ethrpc.StartupEthRPC(chain, evmCfg)
 	if evmCfg.EnableBridge {
-		StartupL1Watcher(evmCfg, db)
+		//StartupL1Watcher(evmCfg, db)
+		StartupL2Watcher(evmCfg, db)
 		StartupRelayer(chain, evmCfg, db)
 		StartupBridgeRpc(evmCfg, db)
 	}
@@ -89,9 +91,9 @@ func InitReddio(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm.G
 	poaTri := poa.NewPoa(poaCfg)
 	solidityTri := evm.NewSolidity(evmCfg)
 	parallelTri := parallel.NewParallelEVM()
-	watcherTri := watcher.NewL2EventsWatcher(evmCfg, db)
+	//watcherTri := watcher.NewL2EventsWatcherTripod(evmCfg, db)
 
-	chain := startup.InitDefaultKernel(yuCfg).WithTripods(poaTri, solidityTri, parallelTri, watcherTri)
+	chain := startup.InitDefaultKernel(yuCfg).WithTripods(poaTri, solidityTri, parallelTri)
 	// chain.WithExecuteFn(chain.OrderedExecute)
 	chain.WithExecuteFn(parallelTri.Execute)
 	return chain
@@ -118,7 +120,24 @@ func StartupL1Watcher(cfg *evm.GethConfig, db *gorm.DB) {
 		logrus.Fatal("init L1 client failed: ", err)
 	}
 	l1Watcher.Start()
+}
 
+func StartupL2Watcher(cfg *evm.GethConfig, db *gorm.DB) {
+	ctx := context.Background()
+
+	// l2Client, err := ethclient.Dial(cfg.L2ClientAddress)
+	// if err != nil {
+	// 	logrus.Fatal("failed to connect to L2 geth", "endpoint", cfg.L2ClientAddress, "err", err)
+	// }
+	l2Client, err := rdoclient.NewClient(cfg.L2ClientAddress)
+	if err != nil {
+		logrus.Fatal("failed to connect to L2 geth", "endpoint", cfg.L2ClientAddress, "err", err)
+	}
+	l2Watcher, err := watcher.NewL2EventsWatcher(ctx, cfg, l2Client, db)
+	if err != nil {
+		logrus.Fatal("init L2 client failed: ", err)
+	}
+	l2Watcher.Start()
 }
 
 func StartupRelayer(chain *kernel.Kernel, cfg *evm.GethConfig, db *gorm.DB) {

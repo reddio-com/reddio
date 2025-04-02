@@ -224,13 +224,11 @@ func (s *Solidity) PreHandleTxn(txn *yu_types.SignedTxn) error {
 	if err != nil {
 		return err
 	}
-
 	yuHash, err := ConvertHashToYuHash(txReq.Hash)
 	if err != nil {
 		return err
 	}
 	txn.TxnHash = yuHash
-
 	return nil
 }
 
@@ -418,9 +416,6 @@ func (s *Solidity) Commit(block *yu_types.Block) {
 }
 
 func (s *Solidity) buyGas(state vm.StateDB, req *TxRequest) error {
-	if req.IsInternalCall {
-		return nil
-	}
 	gasFee := new(big.Int).Mul(req.GasPrice, new(big.Int).SetUint64(req.GasLimit))
 	gasFeeU256, _ := uint256.FromBig(gasFee)
 	if state.GetBalance(req.Origin).Cmp(gasFeeU256) < 0 {
@@ -433,9 +428,6 @@ func (s *Solidity) buyGas(state vm.StateDB, req *TxRequest) error {
 }
 
 func (s *Solidity) refundGas(state vm.StateDB, req *TxRequest, gasUsed uint64, refundQuotient uint64) {
-	if req.IsInternalCall {
-		return
-	}
 	refund := gasUsed / refundQuotient
 	if refund > state.GetRefund() {
 		refund = state.GetRefund()
@@ -652,6 +644,7 @@ func (s *Solidity) GetEthReceipt(hash common.Hash) (*types.Receipt, error) {
 
 func (s *Solidity) GetReceipt(ctx *context.ReadContext) {
 	if !checkGetReceipt() {
+		fmt.Println("exceed the limit")
 		metrics.SolidityCounter.WithLabelValues(getReceiptLbl, statusExceed).Inc()
 		ctx.Json(http.StatusBadRequest, &ReceiptResponse{Err: errors.New("exceed the limit")})
 		return

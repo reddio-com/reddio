@@ -27,6 +27,19 @@ relayer_batch_size = 500
 
 #checker
 enable_bridge_checker = false
+
+[l1_watcher_config]
+confirmation = 5
+fetch_limit = 16
+start_height = 7678638
+block_time = 12
+
+[l2_watcher_config]
+confirmation = 5
+fetch_limit = 16
+start_height = 180
+block_time = 12
+
 [bridge_checker_config]
 check_l1_contract_address = "0x9F7e49fcAB7eD379451e8422D20908bF439011A5"
 check_l2_contract_address = "0xeC054c6ee2DbbeBC9EbCA50CdBF94A94B02B2E40"

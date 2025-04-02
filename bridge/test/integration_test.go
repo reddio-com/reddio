@@ -77,6 +77,61 @@ type helpConfig struct {
 func SetupForkedChain() error {
 	return nil
 }
+func TestPrepareSendNativeToken(t *testing.T) {
+	t.Run("PrepareSendNativeToken", func(t *testing.T) {
+		fmt.Println("PrepareSendNativeToken")
+
+		contractAddress := common.HexToAddress(sepoliaHelpConfig.ChildlayerContractAddress)
+
+		sendAmount := big.NewInt(9e18)
+
+		l2Client, err := ethclient.Dial(sepoliaHelpConfig.L2ClientAddress)
+		require.NoError(t, err)
+		defer l2Client.Close()
+
+		privateKeyStr, err := utils.LoadPrivateKey("../test/.sepolia.env")
+		require.NoError(t, err)
+		privateKey, err := crypto.HexToECDSA(privateKeyStr)
+		require.NoError(t, err)
+
+		publicKey := privateKey.Public()
+		publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
+		require.True(t, ok)
+		fromAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
+
+		nonce, err := l2Client.PendingNonceAt(context.Background(), fromAddress)
+		require.NoError(t, err)
+
+		gasPrice, err := l2Client.SuggestGasPrice(context.Background())
+		require.NoError(t, err)
+
+		chainID, err := l2Client.ChainID(context.Background())
+		require.NoError(t, err)
+
+		tx := types.NewTransaction(
+			nonce,
+			contractAddress,
+			sendAmount,
+			21000, // gas limit
+			gasPrice,
+			nil, // data
+		)
+
+		signedTx, err := types.SignTx(tx, types.NewEIP155Signer(chainID), privateKey)
+		require.NoError(t, err)
+
+		err = l2Client.SendTransaction(context.Background(), signedTx)
+		require.NoError(t, err)
+
+		fmt.Printf("Transaction sent: %s\n", signedTx.Hash().Hex())
+
+		success, err := waitForConfirmation(l2Client, signedTx.Hash())
+		require.NoError(t, err)
+		assert.True(t, success, "Transaction was not confirmed")
+
+		fmt.Println("Transaction confirmed: ", signedTx.Hash().Hex())
+	})
+}
 
 // testCaseinfo:
 // 1. deposit ETH to L2

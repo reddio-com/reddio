@@ -747,7 +747,6 @@ func DoEstimateGas(ctx context.Context, b Backend, args TransactionArgs, blockNr
 	if originGasLimit != nil && uint64(*originGasLimit) < estimate {
 		return 0, fmt.Errorf("gas required exceeds allowance (%d)", uint64(*originGasLimit))
 	}
-
 	return hexutil.Uint64(estimate), nil
 }
 
