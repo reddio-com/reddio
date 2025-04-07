@@ -124,9 +124,7 @@ func (e *ParallelEvmExecutor) executeTxnCtxListInConcurrency(list []*txnCtx) []*
 			} else {
 				tctx.receipt = e.k.handleTxnEvent(tctx.ctx, tctx.ctx.Block, tctx.txn, false)
 			}
-
 			tctx.ps = tctx.ctx.ExtraInterface.(*pending_state.PendingStateWrapper)
-
 			list[index] = tctx
 		}(i, c, copiedStateDBList[i])
 	}
