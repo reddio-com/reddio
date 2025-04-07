@@ -6,7 +6,6 @@ import (
 
 	common2 "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
-	"github.com/sirupsen/logrus"
 	"github.com/yu-org/yu/common"
 	"github.com/yu-org/yu/core/context"
 	"github.com/yu-org/yu/core/tripod/dev"
@@ -182,10 +181,8 @@ func (k *ParallelEVM) executeTxnCtxListInOrder(sdb *state.StateDB, list []*txnCt
 		}
 		tctx.ps = tctx.ctx.ExtraInterface.(*pending_state.PendingStateWrapper)
 		list[index] = tctx
-		k.checkNonce(sdb, tctx)
 	}
 	k.gcCopiedStateDB(nil, list)
-	sdb.Finalise(false)
 	return list
 }
 
@@ -194,32 +191,5 @@ func (k *ParallelEVM) gcCopiedStateDB(copiedStateDBList []*pending_state.Pending
 	for _, ctx := range list {
 		ctx.ctx.ExtraInterface = nil
 		ctx.ps = nil
-	}
-}
-
-func (k *ParallelEVM) checkNonce(sdb *state.StateDB, tctx *txnCtx) {
-	bridge := false
-	typ := "non-bridge"
-	if tctx.req.Address != nil && *tctx.req.Address == testBridgeContractAddress {
-		typ = "bridge"
-		bridge = true
-	}
-	messageNonceSlot := sdb.GetState(testBridgeContractAddress, testStorageSlotHash)
-	currentMessageNonceSlot := new(big.Int).SetBytes(messageNonceSlot.Bytes())
-	if lastMessageNonceSlot.Cmp(big.NewInt(0)) != 0 {
-		diff := new(big.Int).Sub(currentMessageNonceSlot, lastMessageNonceSlot)
-		if !bridge {
-			if diff.Cmp(big.NewInt(0)) != 0 {
-				logrus.Warnf("message nonce slot changed: txhash %s, before %s, after %s, diff %s,tctx.ctx.Block.Height %d", tctx.txn.TxnHash.String(), lastMessageNonceSlot.String(), currentMessageNonceSlot.String(), diff.String(), tctx.ctx.Block.Height)
-				metrics.WithdrawMessageNonceGap.WithLabelValues(typ, "changed").Inc()
-			}
-		}
-		if bridge {
-			if diff.Cmp(big.NewInt(1)) > 0 {
-				logrus.Warnf("message nonce slot increased by more than 1: txhash %s, before %s, after %s, diff %s,tctx.ctx.Block.Height %d", tctx.txn.TxnHash.String(), lastMessageNonceSlot.String(), currentMessageNonceSlot.String(), diff.String(), tctx.ctx.Block.Height)
-				metrics.WithdrawMessageNonceGap.WithLabelValues(typ, "more_increase").Inc()
-			}
-			lastMessageNonceSlot.Set(currentMessageNonceSlot)
-		}
 	}
 }
