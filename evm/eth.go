@@ -69,6 +69,12 @@ func (s *Solidity) StateDB() *state.StateDB {
 	return s.ethState.StateDB()
 }
 
+func (s *Solidity) GetStateDBState(addr common.Address, hash common.Hash) common.Hash {
+	s.RLock()
+	defer s.RUnlock()
+	return s.ethState.StateDB().GetState(addr, hash)
+}
+
 func (s *Solidity) FinaliseStateDB(deleteEmptyObjects bool) {
 	metrics.SolidityCounter.WithLabelValues(finaliseLbl, statusSuccess).Inc()
 	s.RLock()
