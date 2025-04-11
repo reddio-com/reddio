@@ -202,6 +202,7 @@ func (k *ParallelEVM) compareLastNonce(tctx *txnCtx) {
 		diff := new(big.Int).Sub(currentMessageNonceSlot, lastMessageNonceSlot)
 		if diff.Cmp(big.NewInt(0)) != 0 {
 			logrus.Infof("message nonce slot changed: txhash %s, before %s, after %s, diff %s,tctx.ctx.Block.Height %d", tctx.txn.TxnHash.String(), lastMessageNonceSlot.String(), currentMessageNonceSlot.String(), diff.String(), tctx.ctx.Block.Height)
+			lastMessageNonceSlot.Set(currentMessageNonceSlot)
 		}
 	}
 }
