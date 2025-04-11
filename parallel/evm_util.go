@@ -6,6 +6,7 @@ import (
 
 	common2 "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/sirupsen/logrus"
 	"github.com/yu-org/yu/common"
 	"github.com/yu-org/yu/core/context"
 	"github.com/yu-org/yu/core/tripod/dev"
@@ -181,6 +182,7 @@ func (k *ParallelEVM) executeTxnCtxListInOrder(sdb *state.StateDB, list []*txnCt
 		}
 		tctx.ps = tctx.ctx.ExtraInterface.(*pending_state.PendingStateWrapper)
 		list[index] = tctx
+		k.compareLastNonce(tctx)
 	}
 	k.gcCopiedStateDB(nil, list)
 	return list
@@ -192,4 +194,20 @@ func (k *ParallelEVM) gcCopiedStateDB(copiedStateDBList []*pending_state.Pending
 		ctx.ctx.ExtraInterface = nil
 		ctx.ps = nil
 	}
+}
+
+func (k *ParallelEVM) compareLastNonce(tctx *txnCtx) {
+	currentMessageNonceSlot := k.getCurrentNonce()
+	if lastMessageNonceSlot.Cmp(big.NewInt(0)) != 0 {
+		diff := new(big.Int).Sub(currentMessageNonceSlot, lastMessageNonceSlot)
+		if diff.Cmp(big.NewInt(0)) != 0 {
+			logrus.Infof("message nonce slot changed: txhash %s, before %s, after %s, diff %s,tctx.ctx.Block.Height %d", tctx.txn.TxnHash.String(), lastMessageNonceSlot.String(), currentMessageNonceSlot.String(), diff.String(), tctx.ctx.Block.Height)
+		}
+	}
+}
+
+func (k *ParallelEVM) getCurrentNonce() *big.Int {
+	messageNonceSlot := k.Solidity.GetStateDBState(testBridgeContractAddress, testStorageSlotHash)
+	currentMessageNonceSlot := new(big.Int).SetBytes(messageNonceSlot.Bytes())
+	return currentMessageNonceSlot
 }
