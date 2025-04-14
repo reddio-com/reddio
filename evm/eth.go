@@ -641,6 +641,9 @@ func (s *Solidity) GetEthReceipt(hash common.Hash) (*types.Receipt, error) {
 	if yuReceipt.Extra == nil {
 		return receipt, nil
 	}
+	if len(yuReceipt.Error) > 0 {
+		return receipt, errors.New(yuReceipt.Error)
+	}
 	err = json.NewDecoder(bytes.NewBuffer(yuReceipt.Extra)).Decode(receipt)
 	if err != nil {
 		logrus.Errorf("json.Unmarshal yuReceipt.Extra(%s) failed: %v", yuHash.String(), err)
