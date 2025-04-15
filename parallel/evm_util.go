@@ -196,6 +196,17 @@ func (k *ParallelEVM) gcCopiedStateDB(copiedStateDBList []*pending_state.Pending
 	}
 }
 
+func (k *ParallelEVM) compareLastNonceByProcess(block *types.Block, process string) {
+	currentMessageNonceSlot := k.getCurrentNonce()
+	if lastMessageNonceSlot.Cmp(big.NewInt(0)) != 0 {
+		diff := new(big.Int).Sub(currentMessageNonceSlot, lastMessageNonceSlot)
+		if diff.Cmp(big.NewInt(0)) != 0 {
+			logrus.Infof("%v message nonce slot changed: before %s, after %s, diff %s,tctx.ctx.Block.Height %d", process, lastMessageNonceSlot.String(), currentMessageNonceSlot.String(), diff.String(), block.Height)
+		}
+	}
+	lastMessageNonceSlot.Set(currentMessageNonceSlot)
+}
+
 func (k *ParallelEVM) compareLastNonce(tctx *txnCtx) {
 	currentMessageNonceSlot := k.getCurrentNonce()
 	if lastMessageNonceSlot.Cmp(big.NewInt(0)) != 0 {
