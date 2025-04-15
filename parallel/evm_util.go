@@ -200,11 +200,8 @@ func (k *ParallelEVM) compareLastNonce(tctx *txnCtx) {
 	currentMessageNonceSlot := k.getCurrentNonce()
 	if lastMessageNonceSlot.Cmp(big.NewInt(0)) != 0 {
 		diff := new(big.Int).Sub(currentMessageNonceSlot, lastMessageNonceSlot)
-		// if diff.Cmp(big.NewInt(0)) != 0 {
-		// 	logrus.Infof("message nonce slot changed: txhash %s, before %s, after %s, diff %s,tctx.ctx.Block.Height %d", tctx.txn.TxnHash.String(), lastMessageNonceSlot.String(), currentMessageNonceSlot.String(), diff.String(), tctx.ctx.Block.Height)
-		// }
-		if diff.Cmp(big.NewInt(1)) > 0 {
-			logrus.Warnf("message nonce slot increased by more than 1: txhash %s, before %s, after %s, diff %s,tctx.ctx.Block.Height %d", tctx.txn.TxnHash.String(), lastMessageNonceSlot.String(), currentMessageNonceSlot.String(), diff.String(), tctx.ctx.Block.Height)
+		if diff.Cmp(big.NewInt(0)) != 0 {
+			logrus.Infof("message nonce slot changed: txhash %s, before %s, after %s, diff %s,tctx.ctx.Block.Height %d, isErr:%v", tctx.txn.TxnHash.String(), lastMessageNonceSlot.String(), currentMessageNonceSlot.String(), diff.String(), tctx.ctx.Block.Height, tctx.err != nil)
 		}
 	}
 	lastMessageNonceSlot.Set(currentMessageNonceSlot)
