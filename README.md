@@ -1,3 +1,5 @@
+[![license](https://img.shields.io/github/license/reddio-com/reddio)](https://github.com/reddio-com/reddio/blob/main/LICENSE)
+
 # Reddio
 [Reddio](https://www.reddio.com/) is a high performance parallel Ethereum-compatible Layer 2, leveraging
 zero-knowledge technology to achieve unrivaled computation scale with
