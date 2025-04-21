@@ -13,16 +13,10 @@ import (
 	"github.com/yu-org/yu/core/types"
 
 	"github.com/reddio-com/reddio/config"
+	"github.com/reddio-com/reddio/contract"
 	"github.com/reddio-com/reddio/evm"
 	"github.com/reddio-com/reddio/evm/pending_state"
 	"github.com/reddio-com/reddio/metrics"
-)
-
-var (
-	//0xeC054c6ee2DbbeBC9EbCA50CdBF94A94B02B2E40
-	testBridgeContractAddress = common2.HexToAddress("0xA3ED8915aE346bF85E56B6BB6b723091716f58b4")
-	testStorageSlotHash       = common2.HexToHash("0x65d63ba7ddf496eb3f7a10c642f6d20487aee1873bcad4890f640b167eab1069")
-	lastMessageNonceSlot      = big.NewInt(0)
 )
 
 func checkAddressConflict(curTxn *txnCtx, curList []*txnCtx) bool {
@@ -198,28 +192,28 @@ func (k *ParallelEVM) gcCopiedStateDB(copiedStateDBList []*pending_state.Pending
 
 func (k *ParallelEVM) compareLastNonceByProcess(block *types.Block, process string) {
 	currentMessageNonceSlot := k.getCurrentNonce()
-	if lastMessageNonceSlot.Cmp(big.NewInt(0)) != 0 {
-		diff := new(big.Int).Sub(currentMessageNonceSlot, lastMessageNonceSlot)
+	if contract.LastMessageNonceSlot.Cmp(big.NewInt(0)) != 0 {
+		diff := new(big.Int).Sub(currentMessageNonceSlot, contract.LastMessageNonceSlot)
 		if diff.Cmp(big.NewInt(0)) != 0 {
-			logrus.Infof("%v message nonce slot changed: before %s, after %s, diff %s,tctx.ctx.Block.Height %d", process, lastMessageNonceSlot.String(), currentMessageNonceSlot.String(), diff.String(), block.Height)
+			logrus.Infof("%v message nonce slot changed: before %s, after %s, diff %s,tctx.ctx.Block.Height %d", process, contract.LastMessageNonceSlot.String(), currentMessageNonceSlot.String(), diff.String(), block.Height)
 		}
 	}
-	lastMessageNonceSlot.Set(currentMessageNonceSlot)
+	contract.LastMessageNonceSlot.Set(currentMessageNonceSlot)
 }
 
 func (k *ParallelEVM) compareLastNonce(tctx *txnCtx) {
 	currentMessageNonceSlot := k.getCurrentNonce()
-	if lastMessageNonceSlot.Cmp(big.NewInt(0)) != 0 {
-		diff := new(big.Int).Sub(currentMessageNonceSlot, lastMessageNonceSlot)
+	if contract.LastMessageNonceSlot.Cmp(big.NewInt(0)) != 0 {
+		diff := new(big.Int).Sub(currentMessageNonceSlot, contract.LastMessageNonceSlot)
 		if diff.Cmp(big.NewInt(0)) != 0 {
-			logrus.Infof("message nonce slot changed: txhash %s, before %s, after %s, diff %s,tctx.ctx.Block.Height %d, isErr:%v", tctx.txn.TxnHash.String(), lastMessageNonceSlot.String(), currentMessageNonceSlot.String(), diff.String(), tctx.ctx.Block.Height, tctx.err != nil)
+			logrus.Infof("message nonce slot changed: txhash %s, before %s, after %s, diff %s,tctx.ctx.Block.Height %d, isErr:%v", tctx.txn.TxnHash.String(), contract.LastMessageNonceSlot.String(), currentMessageNonceSlot.String(), diff.String(), tctx.ctx.Block.Height, tctx.err != nil)
 		}
 	}
-	lastMessageNonceSlot.Set(currentMessageNonceSlot)
+	contract.LastMessageNonceSlot.Set(currentMessageNonceSlot)
 }
 
 func (k *ParallelEVM) getCurrentNonce() *big.Int {
-	messageNonceSlot := k.Solidity.GetStateDBState(testBridgeContractAddress, testStorageSlotHash)
+	messageNonceSlot := k.Solidity.GetStateDBState(contract.TestBridgeContractAddress, contract.TestStorageSlotHash)
 	currentMessageNonceSlot := new(big.Int).SetBytes(messageNonceSlot.Bytes())
 	return currentMessageNonceSlot
 }

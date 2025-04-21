@@ -30,6 +30,7 @@ import (
 	yu_types "github.com/yu-org/yu/core/types"
 
 	"github.com/reddio-com/reddio/config"
+	"github.com/reddio-com/reddio/contract"
 	yuConfig "github.com/reddio-com/reddio/evm/config"
 	"github.com/reddio-com/reddio/evm/pending_state"
 	"github.com/reddio-com/reddio/metrics"
@@ -389,6 +390,18 @@ func (s *Solidity) Call(ctx *context.ReadContext) {
 
 	logrus.Debugf("[Call] Request from = %v, to = %v, gasLimit = %v, value = %v, input = %v", sender.Address().Hex(), address.Hex(), gasLimit, value.Uint64(), hex.EncodeToString(input))
 	logrus.Debugf("[Call] Response: Origin Code = %v, Hex Code = %v, String Code = %v, LeftOverGas = %v", ret, hex.EncodeToString(ret), new(big.Int).SetBytes(ret).String(), leftOverGas)
+
+	defer func() {
+		messageNonceSlot := s.ethState.StateDB().GetState(contract.TestBridgeContractAddress, contract.TestStorageSlotHash)
+		currentMessageNonceSlot := new(big.Int).SetBytes(messageNonceSlot.Bytes())
+		if contract.LastMessageNonceSlot.Cmp(big.NewInt(0)) != 0 {
+			diff := new(big.Int).Sub(currentMessageNonceSlot, contract.LastMessageNonceSlot)
+			if diff.Cmp(big.NewInt(0)) != 0 {
+				logrus.Infof("message nonce slot changed: Call, before %s, after %s, diff %s, isErr:%v", contract.LastMessageNonceSlot.String(), currentMessageNonceSlot.String(), diff.String(), err != nil)
+			}
+		}
+		contract.LastMessageNonceSlot.Set(currentMessageNonceSlot)
+	}()
 
 	if err != nil {
 		ctx.Json(http.StatusInternalServerError, &CallResponse{Err: err})
