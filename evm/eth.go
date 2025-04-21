@@ -53,7 +53,7 @@ var (
 )
 
 type Solidity struct {
-	sync.RWMutex
+	sync.Mutex
 
 	*tripod.Tripod
 	ethState    *EthState
@@ -65,26 +65,15 @@ type Solidity struct {
 }
 
 func (s *Solidity) StateDB() *state.StateDB {
-	s.RLock()
-	defer s.RUnlock()
+	s.Lock()
+	defer s.Unlock()
 	return s.ethState.StateDB()
 }
 
 func (s *Solidity) GetStateDBState(addr common.Address, hash common.Hash) common.Hash {
-	s.RLock()
-	defer s.RUnlock()
+	s.Lock()
+	defer s.Unlock()
 	return s.ethState.StateDB().GetState(addr, hash)
-}
-
-func (s *Solidity) FinaliseStateDB(deleteEmptyObjects bool) {
-	metrics.SolidityCounter.WithLabelValues(finaliseLbl, statusSuccess).Inc()
-	s.RLock()
-	start := time.Now()
-	defer func() {
-		s.RUnlock()
-		metrics.SolidityHist.WithLabelValues(finaliseLbl).Observe(float64(time.Since(start).Microseconds()))
-	}()
-	s.ethState.StateDB().Finalise(deleteEmptyObjects)
 }
 
 func (s *Solidity) SetStateDB(d *state.StateDB) {
@@ -258,10 +247,10 @@ func (s *Solidity) CheckTxn(txn *yu_types.SignedTxn) error {
 // Execute sets up an in-memory, temporary, environment for the execution of
 // the given code. It makes sure that it's restored to its original state afterwards.
 func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
-	s.RLock()
+	s.Lock()
 	start := time.Now()
 	defer func() {
-		s.RUnlock()
+		s.Unlock()
 		metrics.SolidityHist.WithLabelValues(executeTxnLbl).Observe(float64(time.Since(start).Microseconds()))
 		if err == nil {
 			metrics.SolidityCounter.WithLabelValues(executeTxnLbl, statusSuccess).Inc()
@@ -413,10 +402,10 @@ func (s *Solidity) Call(ctx *context.ReadContext) {
 
 func (s *Solidity) Commit(block *yu_types.Block) {
 	metrics.SolidityCounter.WithLabelValues(commitLbl, statusSuccess).Inc()
-	s.RLock()
+	s.Lock()
 	start := time.Now()
 	defer func() {
-		s.RUnlock()
+		s.Unlock()
 		metrics.SolidityHist.WithLabelValues(commitLbl).Observe(float64(time.Since(start).Microseconds()))
 	}()
 
@@ -736,12 +725,6 @@ func (s *Solidity) GetReceipts(ctx *context.ReadContext) {
 	}
 	metrics.SolidityCounter.WithLabelValues(getReceiptsLbl, statusSuccess).Inc()
 	ctx.JsonOk(&ReceiptsResponse{Receipts: want})
-}
-
-func (s *Solidity) GetCopiedStateDB() *state.StateDB {
-	s.RLock()
-	defer s.RUnlock()
-	return s.ethState.StateDB().Copy()
 }
 
 func emitReceipt(ctx *context.WriteContext, vmEmv *vm.EVM, txReq *TxRequest, code []byte, contractAddr common.Address, leftOverGas uint64, err error) error {
