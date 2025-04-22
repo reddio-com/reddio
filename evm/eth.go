@@ -272,6 +272,18 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 		cfg.EVMConfig.Tracer.OnTxStart(vmenv.GetVMContext(), types.NewTx(&types.LegacyTx{To: txReq.Address, Data: txReq.Input, Value: txReq.Value, Gas: txReq.GasLimit}), txReq.Origin)
 	}
 
+	defer func() {
+		messageNonceSlot := s.ethState.StateDB().GetState(contract.TestBridgeContractAddress, contract.TestStorageSlotHash)
+		currentMessageNonceSlot := new(big.Int).SetBytes(messageNonceSlot.Bytes())
+		if contract.LastMessageNonceSlot.Cmp(big.NewInt(0)) != 0 {
+			diff := new(big.Int).Sub(currentMessageNonceSlot, contract.LastMessageNonceSlot)
+			if diff.Cmp(big.NewInt(0)) != 0 {
+				logrus.Infof("nonce changed: ExecuteTxn, txHash:%s before %s, after %s, diff %s, isErr:%v", txReq.Hash.String(), contract.LastMessageNonceSlot.String(), currentMessageNonceSlot.String(), diff.String(), err != nil)
+			}
+		}
+		contract.LastMessageNonceSlot.Set(currentMessageNonceSlot)
+	}()
+
 	err = s.preCheck(txReq, pd)
 	if err != nil {
 		pd.SetNonce(txReq.Origin, pd.GetNonce(txReq.Origin)+1)
@@ -580,7 +592,13 @@ func makeEvmReceipt(ctx *context.WriteContext, vmEvm *vm.EVM, code []byte, signe
 }
 
 func (s *Solidity) StateAt(root common.Hash) (*state.StateDB, error) {
-	return s.ethState.StateAt(root)
+	s.Lock()
+	defer s.Unlock()
+	sdb, err := s.ethState.StateAt(root)
+	if err != nil {
+		return nil, err
+	}
+	return sdb.Copy(), nil
 }
 
 func (s *Solidity) GetEthDB() ethdb.Database {

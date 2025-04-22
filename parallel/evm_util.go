@@ -1,19 +1,16 @@
 package parallel
 
 import (
-	"math/big"
 	"time"
 
 	common2 "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
-	"github.com/sirupsen/logrus"
 	"github.com/yu-org/yu/common"
 	"github.com/yu-org/yu/core/context"
 	"github.com/yu-org/yu/core/tripod/dev"
 	"github.com/yu-org/yu/core/types"
 
 	"github.com/reddio-com/reddio/config"
-	"github.com/reddio-com/reddio/contract"
 	"github.com/reddio-com/reddio/evm"
 	"github.com/reddio-com/reddio/evm/pending_state"
 	"github.com/reddio-com/reddio/metrics"
@@ -176,7 +173,6 @@ func (k *ParallelEVM) executeTxnCtxListInOrder(sdb *state.StateDB, list []*txnCt
 		}
 		tctx.ps = tctx.ctx.ExtraInterface.(*pending_state.PendingStateWrapper)
 		list[index] = tctx
-		k.compareLastNonce(tctx)
 	}
 	k.gcCopiedStateDB(nil, list)
 	return list
@@ -188,32 +184,4 @@ func (k *ParallelEVM) gcCopiedStateDB(copiedStateDBList []*pending_state.Pending
 		ctx.ctx.ExtraInterface = nil
 		ctx.ps = nil
 	}
-}
-
-func (k *ParallelEVM) compareLastNonceByProcess(block *types.Block, process string) {
-	currentMessageNonceSlot := k.getCurrentNonce()
-	if contract.LastMessageNonceSlot.Cmp(big.NewInt(0)) != 0 {
-		diff := new(big.Int).Sub(currentMessageNonceSlot, contract.LastMessageNonceSlot)
-		if diff.Cmp(big.NewInt(0)) != 0 {
-			logrus.Infof("%v message nonce slot changed: before %s, after %s, diff %s,tctx.ctx.Block.Height %d", process, contract.LastMessageNonceSlot.String(), currentMessageNonceSlot.String(), diff.String(), block.Height)
-		}
-	}
-	contract.LastMessageNonceSlot.Set(currentMessageNonceSlot)
-}
-
-func (k *ParallelEVM) compareLastNonce(tctx *txnCtx) {
-	currentMessageNonceSlot := k.getCurrentNonce()
-	if contract.LastMessageNonceSlot.Cmp(big.NewInt(0)) != 0 {
-		diff := new(big.Int).Sub(currentMessageNonceSlot, contract.LastMessageNonceSlot)
-		if diff.Cmp(big.NewInt(0)) != 0 {
-			logrus.Infof("message nonce slot changed: txhash %s, before %s, after %s, diff %s,tctx.ctx.Block.Height %d, isErr:%v", tctx.txn.TxnHash.String(), contract.LastMessageNonceSlot.String(), currentMessageNonceSlot.String(), diff.String(), tctx.ctx.Block.Height, tctx.err != nil)
-		}
-	}
-	contract.LastMessageNonceSlot.Set(currentMessageNonceSlot)
-}
-
-func (k *ParallelEVM) getCurrentNonce() *big.Int {
-	messageNonceSlot := k.Solidity.GetStateDBState(contract.TestBridgeContractAddress, contract.TestStorageSlotHash)
-	currentMessageNonceSlot := new(big.Int).SetBytes(messageNonceSlot.Bytes())
-	return currentMessageNonceSlot
 }

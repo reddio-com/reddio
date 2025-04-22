@@ -48,10 +48,6 @@ func (k *ParallelEVM) setupProcessor() {
 }
 
 func (k *ParallelEVM) Execute(block *types.Block) error {
-	k.compareLastNonceByProcess(block, "start execute block")
-	defer func() {
-		k.compareLastNonceByProcess(block, "after Commit block")
-	}()
 	k.statManager = &BlockTxnStatManager{TxnCount: len(block.Txns)}
 	k.db = k.Solidity.StateDB()
 	k.setupProcessor()
