@@ -248,6 +248,9 @@ func (s *Solidity) CheckTxn(txn *yu_types.SignedTxn) error {
 // the given code. It makes sure that it's restored to its original state afterwards.
 func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 	s.Lock()
+	messageNonceSlot := s.ethState.StateDB().GetState(contract.TestBridgeContractAddress, contract.TestStorageSlotHash)
+	startMessageNonceSlot := new(big.Int).SetBytes(messageNonceSlot.Bytes())
+
 	start := time.Now()
 	defer func() {
 		s.Unlock()
@@ -274,14 +277,11 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 
 	defer func() {
 		messageNonceSlot := s.ethState.StateDB().GetState(contract.TestBridgeContractAddress, contract.TestStorageSlotHash)
-		currentMessageNonceSlot := new(big.Int).SetBytes(messageNonceSlot.Bytes())
-		if contract.LastMessageNonceSlot.Cmp(big.NewInt(0)) != 0 {
-			diff := new(big.Int).Sub(currentMessageNonceSlot, contract.LastMessageNonceSlot)
-			if diff.Cmp(big.NewInt(0)) != 0 {
-				logrus.Infof("nonce changed: ExecuteTxn, txHash:%s before %s, after %s, diff %s, isErr:%v", txReq.Hash.String(), contract.LastMessageNonceSlot.String(), currentMessageNonceSlot.String(), diff.String(), err != nil)
-			}
+		finishMessageNonceSlot := new(big.Int).SetBytes(messageNonceSlot.Bytes())
+		diff := new(big.Int).Sub(finishMessageNonceSlot, startMessageNonceSlot)
+		if diff.Cmp(big.NewInt(0)) != 0 {
+			logrus.Infof("nonce changed: ExecuteTxn, txHash:%s before %s, after %s, diff %s, isErr:%v", txReq.Hash.String(), finishMessageNonceSlot.String(), startMessageNonceSlot.String(), diff.String(), err != nil)
 		}
-		contract.LastMessageNonceSlot.Set(currentMessageNonceSlot)
 	}()
 
 	err = s.preCheck(txReq, pd)
@@ -345,6 +345,8 @@ func (s *Solidity) Call(ctx *context.ReadContext) {
 		s.Unlock()
 		metrics.SolidityHist.WithLabelValues(callTxnLbl).Observe(float64(time.Since(start).Microseconds()))
 	}()
+	messageNonceSlot := s.ethState.StateDB().GetState(contract.TestBridgeContractAddress, contract.TestStorageSlotHash)
+	startMessageNonceSlot := new(big.Int).SetBytes(messageNonceSlot.Bytes())
 
 	callReq := new(CallRequest)
 	err := ctx.BindJson(callReq)
@@ -371,7 +373,7 @@ func (s *Solidity) Call(ctx *context.ReadContext) {
 		sender = vm.AccountRef(origin)
 		rules  = cfg.ChainConfig.Rules(vmenv.Context.BlockNumber, vmenv.Context.Random != nil, vmenv.Context.Time)
 	)
-	vmenv.StateDB = s.ethState.StateDB()
+	vmenv.StateDB = s.ethState.StateDB().Copy()
 	if cfg.EVMConfig.Tracer != nil && cfg.EVMConfig.Tracer.OnTxStart != nil {
 		cfg.EVMConfig.Tracer.OnTxStart(vmenv.GetVMContext(), types.NewTx(&types.LegacyTx{To: &address, Data: input, Value: value, Gas: gasLimit}), origin)
 	}
@@ -394,14 +396,11 @@ func (s *Solidity) Call(ctx *context.ReadContext) {
 
 	defer func() {
 		messageNonceSlot := s.ethState.StateDB().GetState(contract.TestBridgeContractAddress, contract.TestStorageSlotHash)
-		currentMessageNonceSlot := new(big.Int).SetBytes(messageNonceSlot.Bytes())
-		if contract.LastMessageNonceSlot.Cmp(big.NewInt(0)) != 0 {
-			diff := new(big.Int).Sub(currentMessageNonceSlot, contract.LastMessageNonceSlot)
-			if diff.Cmp(big.NewInt(0)) != 0 {
-				logrus.Infof("message nonce slot changed: Call, before %s, after %s, diff %s, isErr:%v", contract.LastMessageNonceSlot.String(), currentMessageNonceSlot.String(), diff.String(), err != nil)
-			}
+		FinishMessageNonceSlot := new(big.Int).SetBytes(messageNonceSlot.Bytes())
+		diff := new(big.Int).Sub(startMessageNonceSlot, startMessageNonceSlot)
+		if diff.Cmp(big.NewInt(0)) != 0 {
+			logrus.Infof("message nonce slot changed: Call, before %s, after %s, diff %s, isErr:%v", startMessageNonceSlot.String(), FinishMessageNonceSlot.String(), diff.String(), err != nil)
 		}
-		contract.LastMessageNonceSlot.Set(currentMessageNonceSlot)
 	}()
 
 	if err != nil {
