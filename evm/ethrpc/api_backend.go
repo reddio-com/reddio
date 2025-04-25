@@ -192,10 +192,12 @@ func (e *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumbe
 		yuBlock, err = e.chain.Chain.GetBlockByHeight(yucommon.BlockNum(number))
 	}
 	if err != nil {
+		logrus.Errorf("rpc BlockByNumber failed: blockNumber=%v, error=%v", number, err)
 		return nil, nil, err
 	}
 	block, err := e.compactBlock2EthBlock(yuBlock)
 	if err != nil {
+		logrus.Errorf("BlockByNumber failed to convert compact block: blockNumber=%v, error=%v", number, err)
 		return nil, nil, err
 	}
 	return block, yuBlock, err
@@ -397,6 +399,7 @@ func (e *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction)
 	signedTxHash := signedTx.Hash()
 	exist, _, _, _, _, err := e.GetTransaction(ctx, signedTxHash)
 	if err != nil {
+		logrus.Errorf("[SendTx] Failed to get transaction, txHash(%s), yuHash(%s), error: %v", signedTxHash.Hex(), yucommon.Hash(signedTxHash).Hex(), err)
 		return err
 	}
 	if exist {
@@ -404,6 +407,7 @@ func (e *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction)
 	}
 	existedTx, err := e.GetPoolTransaction(signedTxHash)
 	if err != nil {
+		logrus.Errorf("[SendTx] Failed to get transaction from txpool, txHash(%s), yuHash(%s), error: %v", signedTxHash.Hex(), yucommon.Hash(signedTxHash).Hex(), err)
 		return err
 	}
 	if existedTx != nil {
@@ -415,6 +419,7 @@ func (e *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction)
 	signer := types.MakeSigner(e.ChainConfig(), head.Number, head.Time)
 	sender, err := types.Sender(signer, signedTx)
 	if err != nil {
+		logrus.Errorf("[SendTx] Failed to get sender, txHash(%s), yuHash(%s), error: %v", signedTxHash.Hex(), yucommon.Hash(signedTxHash).Hex(), err)
 		return err
 	}
 	v, r, s := signedTx.RawSignatureValues()
@@ -437,6 +442,7 @@ func (e *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction)
 	}
 	byt, err := json.Marshal(txReq)
 	if err != nil {
+		logrus.Errorf("[SendTx] Failed to marshal txReq, txHash(%s), yuHash(%s), error: %v", signedTxHash.Hex(), yucommon.Hash(signedTxHash).Hex(), err)
 		return err
 	}
 	signedWrCall := &protocol.SignedWrCall{
