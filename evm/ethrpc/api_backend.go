@@ -40,6 +40,11 @@ type EthAPIBackend struct {
 	gasPriceCache       *EthGasPrice
 }
 
+const (
+	MaxRetries      = 3
+	RetryIntervalMs = 500 * time.Millisecond
+)
+
 func (e *EthAPIBackend) SyncProgress() ethereum.SyncProgress {
 	// TODO implement me
 	panic("implement me")
@@ -180,16 +185,26 @@ func (e *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumbe
 		yuBlock *yutypes.Block
 		err     error
 	)
-	switch number {
-	case rpc.PendingBlockNumber:
-		// FIXME
-		yuBlock, err = e.chain.Chain.GetEndBlock()
-	case rpc.LatestBlockNumber:
-		yuBlock, err = e.chain.Chain.GetEndBlock()
-	case rpc.FinalizedBlockNumber, rpc.SafeBlockNumber:
-		yuBlock, err = e.chain.Chain.LastFinalized()
-	default:
-		yuBlock, err = e.chain.Chain.GetBlockByHeight(yucommon.BlockNum(number))
+	for attempt := 1; attempt <= MaxRetries; attempt++ {
+		switch number {
+		case rpc.PendingBlockNumber:
+			yuBlock, err = e.chain.Chain.GetEndBlock()
+		case rpc.LatestBlockNumber:
+			yuBlock, err = e.chain.Chain.GetEndBlock()
+		case rpc.FinalizedBlockNumber, rpc.SafeBlockNumber:
+			yuBlock, err = e.chain.Chain.LastFinalized()
+		default:
+			yuBlock, err = e.chain.Chain.GetBlockByHeight(yucommon.BlockNum(number))
+		}
+
+		if err == nil {
+			break
+		}
+
+		logrus.Warnf("BlockByNumber attempt %d failed: blockNumber=%v, error=%v", attempt, number, err)
+		if attempt < MaxRetries {
+			time.Sleep(RetryIntervalMs)
+		}
 	}
 	if err != nil {
 		logrus.Errorf("rpc BlockByNumber failed: blockNumber=%v, error=%v", number, err)
