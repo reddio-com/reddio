@@ -202,7 +202,9 @@ func (e *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumbe
 		}
 
 		logrus.Warnf("BlockByNumber attempt %d failed: blockNumber=%v, error=%v", attempt, number, err)
-		time.Sleep(RetryIntervalMs)
+		if attempt < MaxRetries {
+			time.Sleep(RetryIntervalMs)
+		}
 	}
 	if err != nil {
 		logrus.Errorf("rpc BlockByNumber failed: blockNumber=%v, error=%v", number, err)
