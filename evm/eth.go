@@ -30,7 +30,6 @@ import (
 	yu_types "github.com/yu-org/yu/core/types"
 
 	"github.com/reddio-com/reddio/config"
-	"github.com/reddio-com/reddio/contract"
 	yuConfig "github.com/reddio-com/reddio/evm/config"
 	"github.com/reddio-com/reddio/evm/pending_state"
 	"github.com/reddio-com/reddio/metrics"
