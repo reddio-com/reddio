@@ -448,7 +448,13 @@ func (s *BlockChainAPI) GetBlockByNumber(ctx context.Context, number rpc.BlockNu
 				response[field] = nil
 			}
 		}
+		if err != nil {
+			logrus.Warnf("GetBlockByNumber Failed to marshal block %v: %v ", number, err)
+		}
 		return response, err
+	}
+	if err != nil {
+		logrus.Errorf("Failed to get block by number %v: %v", number, err)
 	}
 	return nil, err
 }
