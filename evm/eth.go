@@ -248,9 +248,6 @@ func (s *Solidity) CheckTxn(txn *yu_types.SignedTxn) error {
 // the given code. It makes sure that it's restored to its original state afterwards.
 func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 	s.Lock()
-	messageNonceSlot := s.ethState.StateDB().GetState(contract.TestBridgeContractAddress, contract.TestStorageSlotHash)
-	startMessageNonceSlot := new(big.Int).SetBytes(messageNonceSlot.Bytes())
-
 	start := time.Now()
 	defer func() {
 		s.Unlock()
@@ -274,15 +271,6 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 	if cfg.EVMConfig.Tracer != nil && cfg.EVMConfig.Tracer.OnTxStart != nil {
 		cfg.EVMConfig.Tracer.OnTxStart(vmenv.GetVMContext(), types.NewTx(&types.LegacyTx{To: txReq.Address, Data: txReq.Input, Value: txReq.Value, Gas: txReq.GasLimit}), txReq.Origin)
 	}
-
-	defer func() {
-		messageNonceSlot := s.ethState.StateDB().GetState(contract.TestBridgeContractAddress, contract.TestStorageSlotHash)
-		finishMessageNonceSlot := new(big.Int).SetBytes(messageNonceSlot.Bytes())
-		diff := new(big.Int).Sub(finishMessageNonceSlot, startMessageNonceSlot)
-		if diff.Cmp(big.NewInt(0)) != 0 {
-			logrus.Infof("nonce changed: ExecuteTxn, txHash:%s before %s, after %s, diff %s, isErr:%v", txReq.Hash.String(), finishMessageNonceSlot.String(), startMessageNonceSlot.String(), diff.String(), err != nil)
-		}
-	}()
 
 	err = s.preCheck(txReq, pd)
 	if err != nil {
@@ -345,8 +333,6 @@ func (s *Solidity) Call(ctx *context.ReadContext) {
 		s.Unlock()
 		metrics.SolidityHist.WithLabelValues(callTxnLbl).Observe(float64(time.Since(start).Microseconds()))
 	}()
-	messageNonceSlot := s.ethState.StateDB().GetState(contract.TestBridgeContractAddress, contract.TestStorageSlotHash)
-	startMessageNonceSlot := new(big.Int).SetBytes(messageNonceSlot.Bytes())
 
 	callReq := new(CallRequest)
 	err := ctx.BindJson(callReq)
@@ -393,15 +379,6 @@ func (s *Solidity) Call(ctx *context.ReadContext) {
 
 	logrus.Debugf("[Call] Request from = %v, to = %v, gasLimit = %v, value = %v, input = %v", sender.Address().Hex(), address.Hex(), gasLimit, value.Uint64(), hex.EncodeToString(input))
 	logrus.Debugf("[Call] Response: Origin Code = %v, Hex Code = %v, String Code = %v, LeftOverGas = %v", ret, hex.EncodeToString(ret), new(big.Int).SetBytes(ret).String(), leftOverGas)
-
-	defer func() {
-		messageNonceSlot := s.ethState.StateDB().GetState(contract.TestBridgeContractAddress, contract.TestStorageSlotHash)
-		FinishMessageNonceSlot := new(big.Int).SetBytes(messageNonceSlot.Bytes())
-		diff := new(big.Int).Sub(startMessageNonceSlot, startMessageNonceSlot)
-		if diff.Cmp(big.NewInt(0)) != 0 {
-			logrus.Infof("message nonce slot changed: Call, before %s, after %s, diff %s, isErr:%v", startMessageNonceSlot.String(), FinishMessageNonceSlot.String(), diff.String(), err != nil)
-		}
-	}()
 
 	if err != nil {
 		ctx.Json(http.StatusInternalServerError, &CallResponse{Err: err})
