@@ -258,7 +258,7 @@ func (c *CrossMessage) UpdateL1Message(ctx context.Context, message_hash string,
 		"updated_at":      time.Now(),
 	}).Error
 	if err != nil {
-		return fmt.Errorf("failed to update L2 message, id: %s, error: %v", message_hash, err)
+		return fmt.Errorf("failed to update L1 message, id: %s, error: %v", message_hash, err)
 	}
 	return nil
 }
