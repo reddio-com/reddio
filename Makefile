@@ -54,25 +54,10 @@ ci_parallel_transfer_erc20_test: reset
 ci_serial_transfer_erc20_test: reset
 	./transfer_erc20_test --parallel=FALSE
 
-build_state_root_test:
-	go build -v -o state_root_test ./test/cmd/state_root/main.go
-
-state_root_test_gen: reset
-	./state_root_test --action=gen
-
-state_root_test_assert: reset
-	./state_root_test --action=assert
-
 ## for local benchmark
 
 build_benchmark_test:
 	go build -v -o benchmark_test ./test/cmd/benchmark/main.go
-
-parallel_benchmark_test:
-	./benchmark_test --parallel=true --maxBlock=50 --qps=1000 --embedded=false
-
-serial_benchmark_test:
-	./benchmark_test --parallel=false --maxBlock=50 --qps=1000 --embedded=false
 
 reset:
 	@if [ -d "yu" ]; then \
