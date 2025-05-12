@@ -3,61 +3,61 @@ PROJECT=reddio
 default: build
 
 build:
-	go build -v -o $(PROJECT) ./cmd/node/main.go ./cmd/node/testrequest.go
+	go build -v -o ./bin/$(PROJECT) ./cmd/node/main.go ./cmd/node/testrequest.go
 
 ## for local dev
 
 build_transfer_test_no_race:
-	go build -v -o transfer_test ./test/cmd/transfer/main.go
+	go build -v -o ./bin/transfer_test ./test/cmd/transfer/main.go
 
 build_uniswap_test_no_race:
-	go build -v -o uniswap_test ./test/cmd/uniswap/main.go
+	go build -v -o ./bin/uniswap_test ./test/cmd/uniswap/main.go
 
 build_uniswap_benchmark_test:
-	go build -v -o uniswap_benchmark_test ./test/cmd/uniswap_benchmark/main.go
+	go build -v -o ./bin/uniswap_benchmark_test ./test/cmd/uniswap_benchmark/main.go
 
 build_transfer_erc20_test_no_race:
-	go build -v -o transfer_erc20_test ./test/cmd/erc20/main.go
+	go build -v -o ./bin/transfer_erc20_test ./test/cmd/erc20/main.go
 
 ## for ci
 
 build_transfer_test_race:
-	go build -race -v -o transfer_test ./test/cmd/transfer/main.go
+	go build -race -v -o ./bin/transfer_test ./test/cmd/transfer/main.go
 
 build_uniswap_test_race:
-	go build -race -v -o uniswap_test ./test/cmd/uniswap/main.go
+	go build -race -v -o ./bin/uniswap_test ./test/cmd/uniswap/main.go
 
 build_transfer_erc20_test_race:
-	go build -race -v -o transfer_erc20_test ./test/cmd/erc20/main.go
+	go build -race -v -o ./bin/transfer_erc20_test ./test/cmd/erc20/main.go
 
 ci_parallel_transfer_test: reset
-	./transfer_test --parallel=true
+	./bin/transfer_test --parallel=true
 
 ci_sqlite_parallel_transfer_test: reset
-	./transfer_test --parallel=true --use-sql=true
+	./bin/transfer_test --parallel=true --use-sql=true
 
 ci_serial_transfer_test: reset
-	./transfer_test --parallel=false
+	./bin/transfer_test --parallel=false
 
 ci_parallel_uniswap_test: reset
-	./uniswap_test --parallel=true
+	./bin/uniswap_test --parallel=true
 
 ci_sqlite_parallel_uniswap_test: reset
-	./uniswap_test --parallel=true --use-sql=true
+	./bin/uniswap_test --parallel=true --use-sql=true
 
 ci_serial_uniswap_test: reset
-	./uniswap_test --parallel=false
+	./bin/uniswap_test --parallel=false
 
 ci_parallel_transfer_erc20_test: reset
-	./transfer_erc20_test --parallel=true
+	./bin/transfer_erc20_test --parallel=true
 
 ci_serial_transfer_erc20_test: reset
-	./transfer_erc20_test --parallel=FALSE
+	./bin/transfer_erc20_test --parallel=FALSE
 
 ## for local benchmark
 
 build_benchmark_test:
-	go build -v -o benchmark_test ./test/cmd/benchmark/main.go
+	go build -v -o ./bin/benchmark_test ./test/cmd/benchmark/main.go
 
 reset:
 	@if [ -d "yu" ]; then \
