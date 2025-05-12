@@ -15,3 +15,4 @@ uniswap_benchmark_test
 eth_benchmark_data.json
 **/.env
 **/.*.env
+bin/
