@@ -12,6 +12,7 @@ type Config struct {
 	MaxConcurrency  int             `yaml:"maxConcurrency"`
 	IsBenchmarkMode bool            `yaml:"isBenchmarkMode"`
 	AsyncCommit     bool            `yaml:"asyncCommit"`
+	IgnoreConflict  bool            `yaml:"ignoreConflict"`
 	RateLimitConfig RateLimitConfig `yaml:"rateLimitConfig"`
 }
 
