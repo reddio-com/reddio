@@ -6,13 +6,6 @@
 
 /test/tmp/
 data
-reddio
-transfer_test
-transfer_erc20_test
-benchmark_test
-uniswap_test
-uniswap_benchmark_test
-eth_benchmark_data.json
 **/.env
 **/.*.env
 bin/
