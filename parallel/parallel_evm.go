@@ -65,7 +65,28 @@ func (e *ParallelEvmExecutor) executeAllTxn(got [][]*txnCtx) [][]*txnCtx {
 }
 
 func (e *ParallelEvmExecutor) splitTxnCtxList(list []*txnCtx) [][]*txnCtx {
-	return e.k.splitTxnCtxList(list)
+	cur := 0
+	curList := make([]*txnCtx, 0)
+	got := make([][]*txnCtx, 0)
+	for cur < len(list) {
+		curTxnCtx := list[cur]
+		if checkAddressConflict(curTxnCtx, curList) {
+			got = append(got, curList)
+			curList = make([]*txnCtx, 0)
+			continue
+		}
+		curList = append(curList, curTxnCtx)
+		if len(curList) >= config.GetGlobalConfig().MaxConcurrency {
+			got = append(got, curList)
+			curList = make([]*txnCtx, 0)
+		}
+		cur++
+	}
+	if len(curList) > 0 {
+		got = append(got, curList)
+	}
+	e.k.statManager.TxnBatchCount = len(got)
+	return got
 }
 
 func (e *ParallelEvmExecutor) executeTxnCtxListInParallel(list []*txnCtx) []*txnCtx {
@@ -116,7 +137,7 @@ func (e *ParallelEvmExecutor) executeTxnCtxListInConcurrency(list []*txnCtx) []*
 			break
 		}
 	}
-	if conflict {
+	if conflict && !config.GetGlobalConfig().IgnoreConflict {
 		e.k.statManager.TxnBatchRedoCount++
 		metrics.BatchTxnCounter.WithLabelValues(batchTxnLabelRedo).Inc()
 		return e.k.executeTxnCtxListInOrder(e.cpdb, list, true)

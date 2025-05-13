@@ -24,6 +24,8 @@ var (
 	preCreateWallets int
 )
 
+const benchmarkDataPath = "./bin/eth_benchmark_data.json"
+
 func init() {
 	flag.StringVar(&configPath, "configPath", "", "")
 	flag.StringVar(&evmConfigPath, "evmConfigPath", "./conf/evm.toml", "")
@@ -55,11 +57,11 @@ func prepareBenchmark(evmCfg *evm.GethConfig) error {
 	if err != nil {
 		return err
 	}
-	_, err = os.Stat("eth_benchmark_data.json")
+	_, err = os.Stat(benchmarkDataPath)
 	if err == nil {
-		os.Remove("eth_benchmark_data.json")
+		os.Remove(benchmarkDataPath)
 	}
-	file, err := os.Create("eth_benchmark_data.json")
+	file, err := os.Create(benchmarkDataPath)
 	if err != nil {
 		return err
 	}
@@ -73,7 +75,7 @@ func prepareBenchmark(evmCfg *evm.GethConfig) error {
 }
 
 func loadWallets() ([]*pkg.EthWallet, error) {
-	d, err := os.ReadFile("eth_benchmark_data.json")
+	d, err := os.ReadFile(benchmarkDataPath)
 	if err != nil {
 		return nil, err
 	}
