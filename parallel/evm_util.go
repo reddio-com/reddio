@@ -55,12 +55,12 @@ type txnCtx struct {
 	receipt *types.Receipt
 }
 
-func (k *ParallelEVM) handleTxnError(err error, ctx *context.WriteContext, block *types.Block, stxn *types.SignedTxn) *types.Receipt {
+func (k *TxnEVMProcessor) handleTxnError(err error, ctx *context.WriteContext, block *types.Block, stxn *types.SignedTxn) *types.Receipt {
 	metrics.TxnCounter.WithLabelValues(txnLabelErrExecute).Inc()
 	return k.HandleError(err, ctx, block, stxn)
 }
 
-func (k *ParallelEVM) handleTxnEvent(ctx *context.WriteContext, block *types.Block, stxn *types.SignedTxn, isRedo bool) *types.Receipt {
+func (k *TxnEVMProcessor) handleTxnEvent(ctx *context.WriteContext, block *types.Block, stxn *types.SignedTxn, isRedo bool) *types.Receipt {
 	metrics.TxnCounter.WithLabelValues(txnLabelExecuteSuccess).Inc()
 	if isRedo {
 		metrics.TxnCounter.WithLabelValues(txnLabelRedoExecute).Inc()
@@ -68,18 +68,18 @@ func (k *ParallelEVM) handleTxnEvent(ctx *context.WriteContext, block *types.Blo
 	return k.HandleEvent(ctx, block, stxn)
 }
 
-func (k *ParallelEVM) prepareExecute() {
+func (k *TxnEVMProcessor) prepareExecute() {
 	if config.GetGlobalConfig().AsyncCommit {
 		//k.cpdb.ClearPendingCommitMark()
 		k.clearObjInc()
 	}
 }
 
-func (k *ParallelEVM) clearObjInc() {
+func (k *TxnEVMProcessor) clearObjInc() {
 	k.objectInc = make(map[common2.Address]int)
 }
 
-func (k *ParallelEVM) updateTxnObjSub(txns []*txnCtx) {
+func (k *TxnEVMProcessor) updateTxnObjSub(txns []*txnCtx) {
 	if !config.GetGlobalConfig().AsyncCommit {
 		return
 	}
@@ -102,7 +102,7 @@ func (k *ParallelEVM) updateTxnObjSub(txns []*txnCtx) {
 	}
 }
 
-func (k *ParallelEVM) updateTxnObjInc(txns []*txnCtx) {
+func (k *TxnEVMProcessor) updateTxnObjInc(txns []*txnCtx) {
 	if !config.GetGlobalConfig().AsyncCommit {
 		return
 	}
@@ -123,7 +123,7 @@ func (k *ParallelEVM) updateTxnObjInc(txns []*txnCtx) {
 	}
 }
 
-func (k *ParallelEVM) prepareTxnList(block *types.Block) ([]*txnCtx, map[common.Hash]*types.Receipt) {
+func (k *TxnEVMProcessor) prepareTxnList(block *types.Block) ([]*txnCtx, map[common.Hash]*types.Receipt) {
 	start := time.Now()
 	defer func() {
 		k.statManager.PrepareDuration = time.Since(start)
@@ -157,7 +157,7 @@ func (k *ParallelEVM) prepareTxnList(block *types.Block) ([]*txnCtx, map[common.
 	return txnCtxList, receipts
 }
 
-func (k *ParallelEVM) executeTxnCtxListInOrder(sdb *state.StateDB, list []*txnCtx, isRedo bool) []*txnCtx {
+func (k *TxnEVMProcessor) executeTxnCtxListInOrder(sdb *state.StateDB, list []*txnCtx, isRedo bool) []*txnCtx {
 	for index, tctx := range list {
 		if tctx.err != nil {
 			tctx.receipt = k.handleTxnError(tctx.err, tctx.ctx, tctx.ctx.Block, tctx.txn)
@@ -178,7 +178,7 @@ func (k *ParallelEVM) executeTxnCtxListInOrder(sdb *state.StateDB, list []*txnCt
 	return list
 }
 
-func (k *ParallelEVM) gcCopiedStateDB(copiedStateDBList []*pending_state.PendingStateWrapper, list []*txnCtx) {
+func (k *TxnEVMProcessor) gcCopiedStateDB(copiedStateDBList []*pending_state.PendingStateWrapper, list []*txnCtx) {
 	copiedStateDBList = nil
 	for _, ctx := range list {
 		ctx.ctx.ExtraInterface = nil

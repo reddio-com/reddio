@@ -17,13 +17,13 @@ import (
 )
 
 type ParallelEvmExecutor struct {
-	k          *ParallelEVM
+	k          *TxnEVMProcessor
 	cpdb       *state.StateDB
 	receipts   map[common.Hash]*types.Receipt
 	subTxnList [][]*txnCtx
 }
 
-func NewParallelEvmExecutor(evm *ParallelEVM) *ParallelEvmExecutor {
+func NewParallelEvmExecutor(evm *TxnEVMProcessor) *ParallelEvmExecutor {
 	return &ParallelEvmExecutor{
 		k:    evm,
 		cpdb: evm.db,

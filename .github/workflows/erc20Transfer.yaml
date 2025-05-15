@@ -5,12 +5,12 @@ name: ERC20Transfer
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main","main_v2"]
     paths-ignore:
       - "**/docs/**"
       - "**/README.md"
   pull_request:
-    branches: ["main"]
+    branches: ["main","main_v2"]
     paths-ignore:
       - "**/docs/**"
       - "**/README.md"

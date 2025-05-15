@@ -90,7 +90,7 @@ func InitReddio(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm.G
 	yuCfg.TxnConf.ReceiptsLimit = int(poaCfg.PackNum)
 	poaTri := poa.NewPoa(poaCfg)
 	solidityTri := evm.NewSolidity(evmCfg)
-	parallelTri := parallel.NewParallelEVM()
+	parallelTri := parallel.NewTxnEVMProcessor()
 	//watcherTri := watcher.NewL2EventsWatcherTripod(evmCfg, db)
 
 	chain := startup.InitDefaultKernel(yuCfg).WithTripods(poaTri, solidityTri, parallelTri)

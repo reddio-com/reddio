@@ -13,14 +13,14 @@ import (
 
 type SerialEvmExecutor struct {
 	db         *state.StateDB
-	k          *ParallelEVM
+	k          *TxnEVMProcessor
 	receipts   map[common.Hash]*types.Receipt
 	txnCtxList []*txnCtx
 	startNonce *big.Int
 	endNonce   *big.Int
 }
 
-func NewSerialEvmExecutor(evm *ParallelEVM) *SerialEvmExecutor {
+func NewSerialEvmExecutor(evm *TxnEVMProcessor) *SerialEvmExecutor {
 	return &SerialEvmExecutor{
 		k:  evm,
 		db: evm.db,
