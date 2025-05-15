@@ -2,7 +2,6 @@ package evm
 
 import (
 	"bytes"
-	context2 "context"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -29,17 +28,13 @@ import (
 	"github.com/yu-org/yu/core/tripod"
 	yu_types "github.com/yu-org/yu/core/types"
 
-	"github.com/reddio-com/reddio/config"
 	yuConfig "github.com/reddio-com/reddio/evm/config"
 	"github.com/reddio-com/reddio/evm/pending_state"
 	"github.com/reddio-com/reddio/metrics"
-	"github.com/reddio-com/reddio/utils"
 )
 
 var (
 	startBlockLbl  = "start"
-	finaliseLbl    = "finalise"
-	setStateDBLbl  = "set"
 	executeTxnLbl  = "execute"
 	callTxnLbl     = "call"
 	commitLbl      = "commit"
@@ -48,11 +43,10 @@ var (
 
 	statusSuccess = "success"
 	statusErr     = "err"
-	statusExceed  = "exceed"
 )
 
 type Solidity struct {
-	sync.Mutex
+	sync.RWMutex
 
 	*tripod.Tripod
 	ethState    *EthState
@@ -69,10 +63,10 @@ func (s *Solidity) StateDB() *state.StateDB {
 	return s.ethState.StateDB()
 }
 
-func (s *Solidity) GetStateDBState(addr common.Address, hash common.Hash) common.Hash {
-	s.Lock()
-	defer s.Unlock()
-	return s.ethState.StateDB().GetState(addr, hash)
+func (s *Solidity) CopyStateDB() *state.StateDB {
+	s.RLock()
+	defer s.RUnlock()
+	return s.ethState.StateDB().Copy()
 }
 
 func (s *Solidity) SetStateDB(d *state.StateDB) {
@@ -246,10 +240,10 @@ func (s *Solidity) CheckTxn(txn *yu_types.SignedTxn) error {
 // Execute sets up an in-memory, temporary, environment for the execution of
 // the given code. It makes sure that it's restored to its original state afterwards.
 func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
-	s.Lock()
+	s.RLock()
 	start := time.Now()
 	defer func() {
-		s.Unlock()
+		s.RUnlock()
 		metrics.SolidityHist.WithLabelValues(executeTxnLbl).Observe(float64(time.Since(start).Microseconds()))
 		if err == nil {
 			metrics.SolidityCounter.WithLabelValues(executeTxnLbl, statusSuccess).Inc()
@@ -598,20 +592,6 @@ type ReceiptsResponse struct {
 	Err      error            `json:"err"`
 }
 
-func checkGetReceipt() (checkResult bool) {
-	limiter := utils.GetReceiptRateLimiter
-	if config.GetGlobalConfig().RateLimitConfig.GetReceipt < 1 || limiter == nil {
-		return true
-	}
-	if !limiter.Allow() {
-		return false
-	}
-	if err := limiter.Wait(context2.Background()); err != nil {
-		return false
-	}
-	return true
-}
-
 func (s *Solidity) GetEthReceipt(hash common.Hash) (*types.Receipt, error) {
 	yuHash, err := ConvertHashToYuHash(hash)
 	if err != nil {
@@ -644,12 +624,6 @@ func (s *Solidity) GetEthReceipt(hash common.Hash) (*types.Receipt, error) {
 }
 
 func (s *Solidity) GetReceipt(ctx *context.ReadContext) {
-	if !checkGetReceipt() {
-		fmt.Println("exceed the limit")
-		metrics.SolidityCounter.WithLabelValues(getReceiptLbl, statusExceed).Inc()
-		ctx.Json(http.StatusBadRequest, &ReceiptResponse{Err: errors.New("exceed the limit")})
-		return
-	}
 	start := time.Now()
 	defer func() {
 		metrics.SolidityHist.WithLabelValues(getReceiptLbl).Observe(float64(time.Since(start).Microseconds()))

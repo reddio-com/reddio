@@ -4,7 +4,6 @@ import (
 	"time"
 
 	common2 "github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/yu-org/yu/core/tripod"
 
 	"github.com/yu-org/yu/common"
@@ -23,23 +22,22 @@ const (
 	batchTxnLabelRedo    = "redo"
 )
 
-type ParallelEVM struct {
+type TxnEVMProcessor struct {
 	*tripod.Tripod
-	db          *state.StateDB
 	Solidity    *evm.Solidity `tripod:"solidity"`
 	statManager *BlockTxnStatManager
 	objectInc   map[common2.Address]int
 	processor   EvmProcessor
 }
 
-func NewParallelEVM() *ParallelEVM {
-	evm := &ParallelEVM{
+func NewTxnEVMProcessor() *TxnEVMProcessor {
+	evm := &TxnEVMProcessor{
 		Tripod: tripod.NewTripod(),
 	}
 	return evm
 }
 
-func (k *ParallelEVM) setupProcessor() {
+func (k *TxnEVMProcessor) setupProcessor() {
 	if config.GetGlobalConfig().IsParallel {
 		k.processor = NewParallelEvmExecutor(k)
 	} else {
@@ -47,9 +45,8 @@ func (k *ParallelEVM) setupProcessor() {
 	}
 }
 
-func (k *ParallelEVM) Execute(block *types.Block) error {
+func (k *TxnEVMProcessor) Execute(block *types.Block) error {
 	k.statManager = &BlockTxnStatManager{TxnCount: len(block.Txns)}
-	k.db = k.Solidity.StateDB()
 	k.setupProcessor()
 	start := time.Now()
 	defer func() {
@@ -62,7 +59,7 @@ func (k *ParallelEVM) Execute(block *types.Block) error {
 	return k.Commit(block, receipts)
 }
 
-func (k *ParallelEVM) Commit(block *types.Block, receipts map[common.Hash]*types.Receipt) error {
+func (k *TxnEVMProcessor) Commit(block *types.Block, receipts map[common.Hash]*types.Receipt) error {
 	commitStart := time.Now()
 	defer func() {
 		k.statManager.CommitDuration = time.Since(commitStart)
