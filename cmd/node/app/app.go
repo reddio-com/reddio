@@ -30,11 +30,9 @@ import (
 	"github.com/reddio-com/reddio/evm"
 	"github.com/reddio-com/reddio/evm/ethrpc"
 	"github.com/reddio-com/reddio/parallel"
-	"github.com/reddio-com/reddio/utils"
 )
 
 func StartByConfig(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm.GethConfig) {
-	utils.IniLimiter()
 	go startPromServer()
 	StartUpChain(yuCfg, poaCfg, evmCfg)
 }

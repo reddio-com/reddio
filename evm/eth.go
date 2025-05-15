@@ -2,7 +2,6 @@ package evm
 
 import (
 	"bytes"
-	context2 "context"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -29,17 +28,13 @@ import (
 	"github.com/yu-org/yu/core/tripod"
 	yu_types "github.com/yu-org/yu/core/types"
 
-	"github.com/reddio-com/reddio/config"
 	yuConfig "github.com/reddio-com/reddio/evm/config"
 	"github.com/reddio-com/reddio/evm/pending_state"
 	"github.com/reddio-com/reddio/metrics"
-	"github.com/reddio-com/reddio/utils"
 )
 
 var (
 	startBlockLbl  = "start"
-	finaliseLbl    = "finalise"
-	setStateDBLbl  = "set"
 	executeTxnLbl  = "execute"
 	callTxnLbl     = "call"
 	commitLbl      = "commit"
@@ -48,7 +43,6 @@ var (
 
 	statusSuccess = "success"
 	statusErr     = "err"
-	statusExceed  = "exceed"
 )
 
 type Solidity struct {
@@ -598,20 +592,6 @@ type ReceiptsResponse struct {
 	Err      error            `json:"err"`
 }
 
-func checkGetReceipt() (checkResult bool) {
-	limiter := utils.GetReceiptRateLimiter
-	if config.GetGlobalConfig().RateLimitConfig.GetReceipt < 1 || limiter == nil {
-		return true
-	}
-	if !limiter.Allow() {
-		return false
-	}
-	if err := limiter.Wait(context2.Background()); err != nil {
-		return false
-	}
-	return true
-}
-
 func (s *Solidity) GetEthReceipt(hash common.Hash) (*types.Receipt, error) {
 	yuHash, err := ConvertHashToYuHash(hash)
 	if err != nil {
@@ -644,12 +624,6 @@ func (s *Solidity) GetEthReceipt(hash common.Hash) (*types.Receipt, error) {
 }
 
 func (s *Solidity) GetReceipt(ctx *context.ReadContext) {
-	if !checkGetReceipt() {
-		fmt.Println("exceed the limit")
-		metrics.SolidityCounter.WithLabelValues(getReceiptLbl, statusExceed).Inc()
-		ctx.Json(http.StatusBadRequest, &ReceiptResponse{Err: errors.New("exceed the limit")})
-		return
-	}
 	start := time.Now()
 	defer func() {
 		metrics.SolidityHist.WithLabelValues(getReceiptLbl).Observe(float64(time.Since(start).Microseconds()))
