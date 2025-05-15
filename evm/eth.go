@@ -75,12 +75,6 @@ func (s *Solidity) CopyStateDB() *state.StateDB {
 	return s.ethState.StateDB().Copy()
 }
 
-func (s *Solidity) GetStateDBState(addr common.Address, hash common.Hash) common.Hash {
-	s.Lock()
-	defer s.Unlock()
-	return s.ethState.StateDB().GetState(addr, hash)
-}
-
 func (s *Solidity) SetStateDB(d *state.StateDB) {
 	s.Lock()
 	defer s.Unlock()
@@ -252,10 +246,10 @@ func (s *Solidity) CheckTxn(txn *yu_types.SignedTxn) error {
 // Execute sets up an in-memory, temporary, environment for the execution of
 // the given code. It makes sure that it's restored to its original state afterwards.
 func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
-	s.Lock()
+	s.RLock()
 	start := time.Now()
 	defer func() {
-		s.Unlock()
+		s.RUnlock()
 		metrics.SolidityHist.WithLabelValues(executeTxnLbl).Observe(float64(time.Since(start).Microseconds()))
 		if err == nil {
 			metrics.SolidityCounter.WithLabelValues(executeTxnLbl, statusSuccess).Inc()
