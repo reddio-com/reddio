@@ -20,7 +20,6 @@ func GenerateConfig(yuConfigPath, evmConfigPath, poaConfigPath string, useSql, i
 	config.IsBenchmarkMode = true
 	config.IsParallel = isParallel
 	config.AsyncCommit = false
-	config.RateLimitConfig.GetReceipt = 0
 	poaCfg = poa.LoadCfgFromPath(poaConfigPath)
 	return yuCfg, poaCfg, evmConfig, config
 }
