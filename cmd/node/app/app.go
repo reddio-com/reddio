@@ -30,11 +30,9 @@ import (
 	"github.com/reddio-com/reddio/evm"
 	"github.com/reddio-com/reddio/evm/ethrpc"
 	"github.com/reddio-com/reddio/parallel"
-	"github.com/reddio-com/reddio/utils"
 )
 
 func StartByConfig(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm.GethConfig) {
-	utils.IniLimiter()
 	go startPromServer()
 	StartUpChain(yuCfg, poaCfg, evmCfg)
 }
@@ -90,7 +88,7 @@ func InitReddio(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm.G
 	yuCfg.TxnConf.ReceiptsLimit = int(poaCfg.PackNum)
 	poaTri := poa.NewPoa(poaCfg)
 	solidityTri := evm.NewSolidity(evmCfg)
-	parallelTri := parallel.NewParallelEVM()
+	parallelTri := parallel.NewEvmTxnProcessor()
 	//watcherTri := watcher.NewL2EventsWatcherTripod(evmCfg, db)
 
 	chain := startup.InitDefaultKernel(yuCfg).WithTripods(poaTri, solidityTri, parallelTri)

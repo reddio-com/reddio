@@ -19,7 +19,7 @@ Ethereum-level security.
 git clone git@github.com:reddio-com/reddio.git
 cd reddio && make build
 
-./reddio
+./bin/reddio
 ```
 
 ### Docker Pull & Run

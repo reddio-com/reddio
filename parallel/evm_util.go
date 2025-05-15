@@ -4,7 +4,6 @@ import (
 	"time"
 
 	common2 "github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/yu-org/yu/common"
 	"github.com/yu-org/yu/core/context"
 	"github.com/yu-org/yu/core/tripod/dev"
@@ -55,12 +54,12 @@ type txnCtx struct {
 	receipt *types.Receipt
 }
 
-func (k *ParallelEVM) handleTxnError(err error, ctx *context.WriteContext, block *types.Block, stxn *types.SignedTxn) *types.Receipt {
+func (k *EvmTxnProcessor) handleTxnError(err error, ctx *context.WriteContext, block *types.Block, stxn *types.SignedTxn) *types.Receipt {
 	metrics.TxnCounter.WithLabelValues(txnLabelErrExecute).Inc()
 	return k.HandleError(err, ctx, block, stxn)
 }
 
-func (k *ParallelEVM) handleTxnEvent(ctx *context.WriteContext, block *types.Block, stxn *types.SignedTxn, isRedo bool) *types.Receipt {
+func (k *EvmTxnProcessor) handleTxnEvent(ctx *context.WriteContext, block *types.Block, stxn *types.SignedTxn, isRedo bool) *types.Receipt {
 	metrics.TxnCounter.WithLabelValues(txnLabelExecuteSuccess).Inc()
 	if isRedo {
 		metrics.TxnCounter.WithLabelValues(txnLabelRedoExecute).Inc()
@@ -68,18 +67,18 @@ func (k *ParallelEVM) handleTxnEvent(ctx *context.WriteContext, block *types.Blo
 	return k.HandleEvent(ctx, block, stxn)
 }
 
-func (k *ParallelEVM) prepareExecute() {
+func (k *EvmTxnProcessor) prepareExecute() {
 	if config.GetGlobalConfig().AsyncCommit {
 		//k.cpdb.ClearPendingCommitMark()
 		k.clearObjInc()
 	}
 }
 
-func (k *ParallelEVM) clearObjInc() {
+func (k *EvmTxnProcessor) clearObjInc() {
 	k.objectInc = make(map[common2.Address]int)
 }
 
-func (k *ParallelEVM) updateTxnObjSub(txns []*txnCtx) {
+func (k *EvmTxnProcessor) updateTxnObjSub(txns []*txnCtx) {
 	if !config.GetGlobalConfig().AsyncCommit {
 		return
 	}
@@ -102,7 +101,7 @@ func (k *ParallelEVM) updateTxnObjSub(txns []*txnCtx) {
 	}
 }
 
-func (k *ParallelEVM) updateTxnObjInc(txns []*txnCtx) {
+func (k *EvmTxnProcessor) updateTxnObjInc(txns []*txnCtx) {
 	if !config.GetGlobalConfig().AsyncCommit {
 		return
 	}
@@ -123,7 +122,7 @@ func (k *ParallelEVM) updateTxnObjInc(txns []*txnCtx) {
 	}
 }
 
-func (k *ParallelEVM) prepareTxnList(block *types.Block) ([]*txnCtx, map[common.Hash]*types.Receipt) {
+func (k *EvmTxnProcessor) prepareTxnList(block *types.Block) ([]*txnCtx, map[common.Hash]*types.Receipt) {
 	start := time.Now()
 	defer func() {
 		k.statManager.PrepareDuration = time.Since(start)
@@ -157,28 +156,7 @@ func (k *ParallelEVM) prepareTxnList(block *types.Block) ([]*txnCtx, map[common.
 	return txnCtxList, receipts
 }
 
-func (k *ParallelEVM) executeTxnCtxListInOrder(sdb *state.StateDB, list []*txnCtx, isRedo bool) []*txnCtx {
-	for index, tctx := range list {
-		if tctx.err != nil {
-			tctx.receipt = k.handleTxnError(tctx.err, tctx.ctx, tctx.ctx.Block, tctx.txn)
-			continue
-		}
-		tctx.ctx.ExtraInterface = pending_state.NewPendingStateWrapper(pending_state.NewStateDBWrapper(sdb), pending_state.NewStateContext(false), int64(index))
-		err := tctx.writing(tctx.ctx)
-		if err != nil {
-			tctx.err = err
-			tctx.receipt = k.handleTxnError(err, tctx.ctx, tctx.ctx.Block, tctx.txn)
-		} else {
-			tctx.receipt = k.handleTxnEvent(tctx.ctx, tctx.ctx.Block, tctx.txn, isRedo)
-		}
-		tctx.ps = tctx.ctx.ExtraInterface.(*pending_state.PendingStateWrapper)
-		list[index] = tctx
-	}
-	k.gcCopiedStateDB(nil, list)
-	return list
-}
-
-func (k *ParallelEVM) gcCopiedStateDB(copiedStateDBList []*pending_state.PendingStateWrapper, list []*txnCtx) {
+func (k *EvmTxnProcessor) gcCopiedStateDB(copiedStateDBList []*pending_state.PendingStateWrapper, list []*txnCtx) {
 	copiedStateDBList = nil
 	for _, ctx := range list {
 		ctx.ctx.ExtraInterface = nil
