@@ -52,7 +52,7 @@ var (
 )
 
 type Solidity struct {
-	sync.Mutex
+	sync.RWMutex
 
 	*tripod.Tripod
 	ethState    *EthState
@@ -67,6 +67,12 @@ func (s *Solidity) StateDB() *state.StateDB {
 	s.Lock()
 	defer s.Unlock()
 	return s.ethState.StateDB()
+}
+
+func (s *Solidity) CopyStateDB() *state.StateDB {
+	s.RLock()
+	defer s.RUnlock()
+	return s.ethState.StateDB().Copy()
 }
 
 func (s *Solidity) GetStateDBState(addr common.Address, hash common.Hash) common.Hash {

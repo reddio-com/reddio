@@ -4,7 +4,6 @@ import (
 	"time"
 
 	common2 "github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/yu-org/yu/core/tripod"
 
 	"github.com/yu-org/yu/common"
@@ -25,7 +24,6 @@ const (
 
 type TxnEVMProcessor struct {
 	*tripod.Tripod
-	db          *state.StateDB
 	Solidity    *evm.Solidity `tripod:"solidity"`
 	statManager *BlockTxnStatManager
 	objectInc   map[common2.Address]int
@@ -49,7 +47,6 @@ func (k *TxnEVMProcessor) setupProcessor() {
 
 func (k *TxnEVMProcessor) Execute(block *types.Block) error {
 	k.statManager = &BlockTxnStatManager{TxnCount: len(block.Txns)}
-	k.db = k.Solidity.StateDB()
 	k.setupProcessor()
 	start := time.Now()
 	defer func() {
