@@ -18,6 +18,7 @@ import (
 )
 
 type UniswapV2AccuracyTestCase struct {
+	ChainID       int64
 	CaseName      string
 	walletCount   int
 	initialCount  uint64
@@ -29,8 +30,9 @@ func (ca *UniswapV2AccuracyTestCase) Name() string {
 	return ca.CaseName
 }
 
-func NewUniswapV2AccuracyTestCase(name string, count int, initial uint64) *UniswapV2AccuracyTestCase {
+func NewUniswapV2AccuracyTestCase(name string, count int, initial uint64, chainID int64) *UniswapV2AccuracyTestCase {
 	return &UniswapV2AccuracyTestCase{
+		ChainID:       chainID,
 		CaseName:      name,
 		walletCount:   count,
 		initialCount:  initial,
@@ -72,7 +74,7 @@ func (ca *UniswapV2AccuracyTestCase) Run(ctx context.Context, m *pkg.WalletManag
 	if err != nil {
 		logrus.Fatalf("Failed to parse private key: %v", err)
 	}
-	testUserAuth, err := bind.NewKeyedTransactorWithChainID(testUserPK, big.NewInt(50341))
+	testUserAuth, err := bind.NewKeyedTransactorWithChainID(testUserPK, big.NewInt(ca.ChainID))
 	if err != nil {
 		logrus.Fatalf("Failed to create authorized transactor: %v", err)
 	}
@@ -199,7 +201,7 @@ func (ca *UniswapV2AccuracyTestCase) prepareDeployerContract(deployerUser *pkg.E
 	if err != nil {
 		return [20]byte{}, nil, fmt.Errorf("failed to parse private key: %v", err)
 	}
-	depolyerAuth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(chainID))
+	depolyerAuth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(ca.ChainID))
 	if err != nil {
 		return [20]byte{}, nil, fmt.Errorf("failed to create authorized transactor: %v", err)
 	}
@@ -240,7 +242,7 @@ func (ca *UniswapV2AccuracyTestCase) prepareDeployerContract(deployerUser *pkg.E
 
 		depolyerAuth.Nonce = depolyerAuth.Nonce.Add(depolyerAuth.Nonce, big.NewInt(1))
 		for _, user := range testUsers {
-			testAuth, err := generateTestAuth(client, user, chainID, gasPrice, gasLimit)
+			testAuth, err := generateTestAuth(client, user, ca.ChainID, gasPrice, gasLimit)
 			if err != nil {
 				return [20]byte{}, nil, fmt.Errorf("failed to generate test auth for user %s: %v", user.Address, err)
 			}

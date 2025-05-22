@@ -3,25 +3,24 @@ package pkg
 import (
 	"context"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common"
 	"math/big"
 	"math/rand"
 	"time"
+
+	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+
 	"github.com/reddio-com/reddio/test/contracts"
 )
 
 const (
-	nodeUrl                  = "http://localhost:9092"
-	accountInitialFunds      = 1e18
-	chainID                  = 50341
-	waitForConfirmationTime  = 1 * time.Second
-	maxRetries               = 300
-	accountInitialERC20Token = 1e18
+	nodeUrl                 = "http://localhost:9092"
+	waitForConfirmationTime = 1 * time.Second
+	maxRetries              = 300
 )
 
 type ERC20Wallet struct {
@@ -57,8 +56,9 @@ func GenerateERC20Wallets(initialTokenCount uint64, wallets []*ERC20Wallet) []*E
 	return wallets
 }
 
-func (m *Erc20TransferManager) GenerateRandomErc20TransferSteps(stepCount int, wallets []*ERC20Wallet, contractAddress common.Address) *Erc20TransferCase {
+func (m *Erc20TransferManager) GenerateRandomErc20TransferSteps(stepCount int, wallets []*ERC20Wallet, contractAddress common.Address, chainID int64) *Erc20TransferCase {
 	t := &Erc20TransferCase{
+		ChainID:      chainID,
 		Original:     getCopyERC20(wallets),
 		Expect:       getCopyERC20(wallets),
 		ContractAddr: contractAddress,
@@ -135,7 +135,7 @@ func (tc *Erc20TransferCase) Run(m *WalletManager) error {
 			return err
 		}
 
-		ownerAuth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(50341))
+		ownerAuth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(tc.ChainID))
 		if err != nil {
 			return err
 		}
@@ -322,7 +322,8 @@ func getCopyERC20(wallets []*ERC20Wallet) map[string]*ERC20Wallet {
 }
 
 type Erc20TransferCase struct {
-	Steps []*Erc20Step `json:"steps"`
+	ChainID int64
+	Steps   []*Erc20Step `json:"steps"`
 	// address to wallet
 	Original     map[string]*ERC20Wallet `json:"original"`
 	Expect       map[string]*ERC20Wallet `json:"expect"`
