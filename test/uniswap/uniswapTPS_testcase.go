@@ -23,7 +23,6 @@ const (
 	nodeUrl                  = "http://localhost:9092"
 	accountInitialFunds      = 1e18
 	gasLimit                 = 6e7
-	chainID                  = 50341
 	accountInitialERC20Token = 1e18
 	approveAmount            = 1e18
 	amountADesired           = 1e15
@@ -33,6 +32,7 @@ const (
 )
 
 type UniswapV2TPSStatisticsTestCase struct {
+	ChainID       int64
 	MaxUsers      int
 	NonConflict   bool
 	TestUsers     int
@@ -54,7 +54,7 @@ func (cd *UniswapV2TPSStatisticsTestCase) Name() string {
 	return cd.CaseName
 }
 
-func NewUniswapV2TPSStatisticsTestCase(name string, t, d, maxUser int, rm *rate.Limiter, needLoad, nonConflict bool) *UniswapV2TPSStatisticsTestCase {
+func NewUniswapV2TPSStatisticsTestCase(name string, t, d, maxUser int, rm *rate.Limiter, needLoad, nonConflict bool, chainID int64) *UniswapV2TPSStatisticsTestCase {
 	tc := &UniswapV2TPSStatisticsTestCase{
 		MaxUsers:      maxUser,
 		NonConflict:   nonConflict,
@@ -62,6 +62,7 @@ func NewUniswapV2TPSStatisticsTestCase(name string, t, d, maxUser int, rm *rate.
 		TestUsers:     d,
 		CaseName:      name,
 		rm:            rm,
+		ChainID:       chainID,
 	}
 	if needLoad {
 		loadedTestData, err := loadTestDataFromFile("test/tmp/prepared_test_data.json")
@@ -93,7 +94,7 @@ func NewUniswapV2TPSStatisticsTestCase(name string, t, d, maxUser int, rm *rate.
 // 3. Assert
 //   - Calculate and report the transactions per second (TPS) achieved during the test
 func (cd *UniswapV2TPSStatisticsTestCase) Run(ctx context.Context, m *pkg.WalletManager) error {
-	err := cd.executeTest(nodeUrl, chainID, gasLimit, stepCount)
+	err := cd.executeTest(nodeUrl, cd.ChainID, gasLimit, stepCount)
 	if err != nil {
 		logrus.Fatalf("Failed to execute test and calculate TPS: %v", err)
 	}
@@ -106,7 +107,7 @@ func (cd *UniswapV2TPSStatisticsTestCase) prepareDeployerContract(deployerUser *
 	if err != nil {
 		return [20]byte{}, nil, fmt.Errorf("failed to parse private key: %v", err)
 	}
-	depolyerAuth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(chainID))
+	depolyerAuth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(cd.ChainID))
 	if err != nil {
 		return [20]byte{}, nil, fmt.Errorf("failed to create authorized transactor: %v", err)
 	}
@@ -148,7 +149,7 @@ func (cd *UniswapV2TPSStatisticsTestCase) prepareDeployerContract(deployerUser *
 
 		depolyerAuth.Nonce = depolyerAuth.Nonce.Add(depolyerAuth.Nonce, big.NewInt(1))
 		for _, user := range testUsers {
-			testAuth, err := generateTestAuth(client, user, chainID, gasPrice, gasLimit)
+			testAuth, err := generateTestAuth(client, user, cd.ChainID, gasPrice, gasLimit)
 			if err != nil {
 				return [20]byte{}, nil, fmt.Errorf("failed to generate test auth for user %s: %v", user.Address, err)
 			}

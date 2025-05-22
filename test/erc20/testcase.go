@@ -21,7 +21,6 @@ import (
 const (
 	nodeUrl                  = "http://localhost:9092"
 	accountInitialFunds      = 1e18
-	chainID                  = 50341
 	waitForConfirmationTime  = 1 * time.Second
 	maxRetries               = 300
 	accountInitialERC20Token = 1e18
@@ -44,6 +43,7 @@ type TestData struct {
 }
 
 type RandomTransferTestCase struct {
+	ChainID      int64
 	CaseName     string
 	walletCount  int
 	initialCount uint64
@@ -55,13 +55,14 @@ type RandomTransferTestCase struct {
 	erc20Wallets []*pkg.ERC20Wallet
 }
 
-func NewRandomTest(name string, count int, initial uint64, steps int) *RandomTransferTestCase {
+func NewRandomTest(name string, count int, initial uint64, steps int, chainID int64) *RandomTransferTestCase {
 	return &RandomTransferTestCase{
 		CaseName:     name,
 		walletCount:  count,
 		initialCount: initial,
 		steps:        steps,
 		tm:           pkg.NewErc20TransferManager(common.Address{}),
+		ChainID:      chainID,
 	}
 }
 
@@ -101,7 +102,7 @@ func (tc *RandomTransferTestCase) Run(ctx context.Context, m *pkg.WalletManager)
 		return err
 	}
 
-	tc.transCase = tc.tm.GenerateRandomErc20TransferSteps(tc.steps, erc20Wallets, contractAddress)
+	tc.transCase = tc.tm.GenerateRandomErc20TransferSteps(tc.steps, erc20Wallets, contractAddress, tc.ChainID)
 	return runAndAssert(tc.transCase, m, erc20Wallets)
 }
 
@@ -133,7 +134,7 @@ func (tc *RandomTransferTestCase) prepareDeployerContract(deployerUser *pkg.EthW
 		return common.Address{}, nil
 	}
 
-	depolyerAuth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(chainID))
+	depolyerAuth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(tc.ChainID))
 	depolyerAuth.GasPrice = gasPrice
 	depolyerAuth.GasLimit = uint64(6e7)
 	//depolyerNonce, err := client.PendingNonceAt(context.Background(), common.HexToAddress(deployerUser.Address))
