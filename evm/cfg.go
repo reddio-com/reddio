@@ -16,6 +16,8 @@ import (
 )
 
 type GethConfig struct {
+	IsReddioMainnet bool `toml:"is_reddio_mainnet"`
+
 	ChainConfig *params.ChainConfig
 
 	// BlockContext provides the EVM with auxiliary information. Once provided
@@ -119,7 +121,7 @@ func SetDefaultGethConfig() *GethConfig {
 		ChainConfig: params.AllEthashProtocolChanges,
 		Difficulty:  big.NewInt(1),
 		Origin:      common.HexToAddress("0x0"),
-		Coinbase:    common.HexToAddress("0x8c275240c489d177fc10b6d10ffc5a68ef71ee8b"),
+		Coinbase:    common.HexToAddress("0x3E2D75F83e775761890d9ab9389eCF6C9D6017eB"),
 		BlockNumber: big.NewInt(0),
 		Time:        0,
 		GasLimit:    8000000,
