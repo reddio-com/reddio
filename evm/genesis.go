@@ -533,7 +533,7 @@ func DefaultGenesisBlock() *Genesis {
 		ExtraData:  hexutil.MustDecode("0x11bbe8db4e347b4e8c937c1c8370e4b5ed33adb3db69cbdb7a38e1e50b1b82fa"),
 		GasLimit:   5000,
 		Difficulty: big.NewInt(17179869184),
-		Alloc:      decodePrealloc(mainnetAllocData),
+		Alloc:      decodePrealloc(mainnetAllocData, true),
 	}
 }
 
@@ -545,7 +545,7 @@ func DefaultGoerliGenesisBlock() *Genesis {
 		ExtraData:  hexutil.MustDecode("0x22466c6578692069732061207468696e6722202d204166726900000000000000e0a2bd4258d2768837baa26a28fe71dc079f84c70000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"),
 		GasLimit:   10485760,
 		Difficulty: big.NewInt(1),
-		Alloc:      decodePrealloc(goerliAllocData),
+		Alloc:      decodePrealloc(goerliAllocData, false),
 	}
 }
 
@@ -558,7 +558,7 @@ func DefaultSepoliaGenesisBlock() *Genesis {
 		GasLimit:   0x1c9c380,
 		Difficulty: big.NewInt(0x20000),
 		Timestamp:  1633267481,
-		Alloc:      decodePrealloc(sepoliaAllocData),
+		Alloc:      decodePrealloc(sepoliaAllocData, false),
 	}
 }
 
@@ -570,7 +570,7 @@ func DefaultHoleskyGenesisBlock() *Genesis {
 		GasLimit:   0x17d7840,
 		Difficulty: big.NewInt(0x01),
 		Timestamp:  1695902100,
-		Alloc:      decodePrealloc(holeskyAllocData),
+		Alloc:      decodePrealloc(holeskyAllocData, false),
 	}
 }
 
@@ -616,45 +616,55 @@ type AccountInfo struct {
 	} `rlp:"optional"`
 }
 
-func decodePrealloc(data string) types.GenesisAlloc {
+func decodePrealloc(data string, isMainnet bool) types.GenesisAlloc {
 	var p []AccountInfo
-	if err := rlp.NewStream(strings.NewReader(data), 0).Decode(&p); err != nil {
-		panic(err)
-	}
 
-	devAccount := AccountInfo{
-		Addr:    common.HexToAddress("0x7Bd36074b61Cfe75a53e1B9DF7678C96E6463b02").Big(),
-		Balance: new(big.Int).Mul(big.NewInt(100000000000), ether),
-	}
-	p = append(p, devAccount)
+	if isMainnet {
+		mainnetAccounts := []AccountInfo{
+			{
+				Addr:    common.HexToAddress("0x3E2D75F83e775761890d9ab9389eCF6C9D6017eB").Big(),
+				Balance: new(big.Int).Mul(big.NewInt(100_0000_0000), ether),
+			},
+		}
+		p = append(p, mainnetAccounts...)
+	} else {
+		if err := rlp.NewStream(strings.NewReader(data), 0).Decode(&p); err != nil {
+			panic(err)
+		}
+		devAccount := AccountInfo{
+			Addr:    common.HexToAddress("0x7Bd36074b61Cfe75a53e1B9DF7678C96E6463b02").Big(),
+			Balance: new(big.Int).Mul(big.NewInt(100000000000), ether),
+		}
+		p = append(p, devAccount)
 
-	devnetAccounts := []AccountInfo{
-		{
-			Addr:    common.HexToAddress("0x3E2D75F83e775761890d9ab9389eCF6C9D6017eB").Big(),
-			Balance: new(big.Int).Mul(big.NewInt(100000000000), ether),
-		},
-		{
-			Addr:    common.HexToAddress("0x8c275240c489d177fc10b6d10ffc5a68ef71ee8b").Big(),
-			Balance: new(big.Int).Mul(big.NewInt(100000000000), ether),
-		},
-		{
-			Addr:    common.HexToAddress("0x136277C7F881dA7FD1F229660B5C691BC937F62F").Big(),
-			Balance: new(big.Int).Mul(big.NewInt(100000000000), ether),
-		},
-		{
-			Addr:    common.HexToAddress("0x367589ff9fe0356dd621285f40f9e51f1cb912c4").Big(),
-			Balance: new(big.Int).Mul(big.NewInt(100000000000), ether),
-		},
-		{
-			Addr:    common.HexToAddress("0x821b0B1b166464b37e862507004BdB1425a443e2").Big(),
-			Balance: new(big.Int).Mul(big.NewInt(100000000000), ether),
-		},
-		{
-			Addr:    common.HexToAddress("0x43e0CE2E233DEC0Cb9061FF74Ec19bF590E148Ed").Big(),
-			Balance: new(big.Int).Mul(big.NewInt(100000000000), ether),
-		},
+		devnetAccounts := []AccountInfo{
+			{
+				Addr:    common.HexToAddress("0x3E2D75F83e775761890d9ab9389eCF6C9D6017eB").Big(),
+				Balance: new(big.Int).Mul(big.NewInt(100000000000), ether),
+			},
+			{
+				Addr:    common.HexToAddress("0x8c275240c489d177fc10b6d10ffc5a68ef71ee8b").Big(),
+				Balance: new(big.Int).Mul(big.NewInt(100000000000), ether),
+			},
+			{
+				Addr:    common.HexToAddress("0x136277C7F881dA7FD1F229660B5C691BC937F62F").Big(),
+				Balance: new(big.Int).Mul(big.NewInt(100000000000), ether),
+			},
+			{
+				Addr:    common.HexToAddress("0x367589ff9fe0356dd621285f40f9e51f1cb912c4").Big(),
+				Balance: new(big.Int).Mul(big.NewInt(100000000000), ether),
+			},
+			{
+				Addr:    common.HexToAddress("0x821b0B1b166464b37e862507004BdB1425a443e2").Big(),
+				Balance: new(big.Int).Mul(big.NewInt(100000000000), ether),
+			},
+			{
+				Addr:    common.HexToAddress("0x43e0CE2E233DEC0Cb9061FF74Ec19bF590E148Ed").Big(),
+				Balance: new(big.Int).Mul(big.NewInt(100000000000), ether),
+			},
+		}
+		p = append(p, devnetAccounts...)
 	}
-	p = append(p, devnetAccounts...)
 
 	ga := make(types.GenesisAlloc, len(p))
 	for _, account := range p {

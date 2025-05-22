@@ -131,7 +131,12 @@ func newEVM(cfg *GethConfig) *vm.EVM {
 
 func (s *Solidity) InitChain(genesisBlock *yu_types.Block) {
 	cfg := s.stateConfig
-	genesis := DefaultGoerliGenesisBlock()
+	var genesis *Genesis
+	if s.cfg.IsReddioMainnet {
+		genesis = DefaultGenesisBlock()
+	} else {
+		genesis = DefaultGoerliGenesisBlock()
+	}
 
 	var lastStateRoot common.Hash
 	block, err := s.GetCurrentBlock()
