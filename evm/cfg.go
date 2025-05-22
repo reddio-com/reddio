@@ -10,9 +10,10 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/sirupsen/logrus"
+
 	"github.com/reddio-com/reddio/bridge/utils/database"
 	yuConfig "github.com/reddio-com/reddio/evm/config"
-	"github.com/sirupsen/logrus"
 )
 
 type GethConfig struct {
@@ -49,6 +50,9 @@ type GethConfig struct {
 	EnableEthRPC bool   `toml:"enable_eth_rpc"`
 	EthHost      string `toml:"eth_host"`
 	EthPort      string `toml:"eth_port"`
+
+	// chainID
+	ChainID int64 `toml:"chain_id"`
 
 	// EventsWatcher configs
 	EnableBridge               bool             `toml:"enable_bridge"`
@@ -114,7 +118,7 @@ func (gc *GethConfig) Copy() *GethConfig {
 }
 
 // sets defaults on the config
-func SetDefaultGethConfig() *GethConfig {
+func SetDefaultGethConfig(fpath string) *GethConfig {
 	cfg := &GethConfig{
 		ChainConfig: params.AllEthashProtocolChanges,
 		Difficulty:  big.NewInt(1),
@@ -136,19 +140,19 @@ func SetDefaultGethConfig() *GethConfig {
 		GetHashFn: func(n uint64) common.Hash {
 			return common.BytesToHash(crypto.Keccak256([]byte(new(big.Int).SetUint64(n).String())))
 		},
+		ChainID: 50341,
 	}
-
-	cfg.ChainConfig.ChainID = big.NewInt(50341)
+	_, err := toml.DecodeFile(fpath, cfg)
+	if err != nil {
+		logrus.Fatalf("load config file failed: %v", err)
+	}
+	cfg.ChainConfig.ChainID = big.NewInt(cfg.ChainID)
 
 	return cfg
 }
 
 func LoadEvmConfig(fpath string) *GethConfig {
-	cfg := SetDefaultGethConfig()
-	_, err := toml.DecodeFile(fpath, cfg)
-	if err != nil {
-		logrus.Fatalf("load config file failed: %v", err)
-	}
+	cfg := SetDefaultGethConfig(fpath)
 	return cfg
 }
 
