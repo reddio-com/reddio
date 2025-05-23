@@ -3,7 +3,7 @@ PROJECT=reddio
 default: build
 
 build:
-	go build -v -o ./bin/$(PROJECT) ./cmd/node/main.go ./cmd/node/testrequest.go
+	go build -v -o ./$(PROJECT) ./cmd/node/main.go ./cmd/node/testrequest.go
 
 ## for local dev
 
