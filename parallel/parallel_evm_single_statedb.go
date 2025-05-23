@@ -20,6 +20,7 @@ type ParallelEvmSingleStateDBExecutor struct {
 	subTxnList [][]*txnCtx
 }
 
+// one evm
 func NewParallelEvmSingleStateDBExecutor(evm *TxnEVMProcessor) *ParallelEvmSingleStateDBExecutor {
 	return &ParallelEvmSingleStateDBExecutor{
 		k: evm,
