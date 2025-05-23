@@ -50,16 +50,6 @@ var (
 		[]string{TypeLbl},
 	)
 
-	BatchTxnSplitCounter = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Namespace: "reddio",
-			Subsystem: "batch_txn",
-			Name:      "split_txn_count",
-			Help:      "split sub batch txn count",
-		},
-		[]string{TypeCountLbl},
-	)
-
 	BlockExecuteTxnDurationGauge = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: "reddio",
@@ -205,7 +195,6 @@ func init() {
 	prometheus.MustRegister(BlockExecuteTxnDurationGauge)
 
 	prometheus.MustRegister(BatchTxnCounter)
-	prometheus.MustRegister(BatchTxnSplitCounter)
 	prometheus.MustRegister(BatchTxnDuration)
 
 	prometheus.MustRegister(DownwardMessageSuccessCounter)

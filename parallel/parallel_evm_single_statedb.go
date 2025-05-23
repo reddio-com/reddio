@@ -2,10 +2,10 @@ package parallel
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/yu-org/yu/common"
 	"github.com/yu-org/yu/core/types"
 
@@ -14,29 +14,31 @@ import (
 	"github.com/reddio-com/reddio/metrics"
 )
 
-type ParallelEvmExecutor struct {
+type ParallelEvmSingleStateDBExecutor struct {
 	k          *TxnEVMProcessor
-	cpdb       *state.StateDB
 	receipts   map[common.Hash]*types.Receipt
 	subTxnList [][]*txnCtx
 }
 
-func NewParallelEvmExecutor(evm *TxnEVMProcessor) *ParallelEvmExecutor {
-	return &ParallelEvmExecutor{
+func NewParallelEvmSingleStateDBExecutor(evm *TxnEVMProcessor) *ParallelEvmSingleStateDBExecutor {
+	return &ParallelEvmSingleStateDBExecutor{
 		k: evm,
 	}
 }
 
-func (e *ParallelEvmExecutor) Prepare(block *types.Block) {
+func (e *ParallelEvmSingleStateDBExecutor) Prepare(block *types.Block) {
 	e.k.prepareExecute()
 	txnCtxList, receipts := e.k.prepareTxnList(block)
 	e.receipts = receipts
 	e.k.updateTxnObjInc(txnCtxList)
 	e.subTxnList = e.splitTxnCtxList(txnCtxList)
-	e.cpdb = e.k.Solidity.CopyStateDB()
 }
 
-func (e *ParallelEvmExecutor) Execute(block *types.Block) {
+func (e *ParallelEvmSingleStateDBExecutor) Receipts(block *types.Block) map[common.Hash]*types.Receipt {
+	return e.receipts
+}
+
+func (e *ParallelEvmSingleStateDBExecutor) Execute(block *types.Block) {
 	got := e.executeAllTxn(e.subTxnList)
 	for _, subList := range got {
 		for _, c := range subList {
@@ -45,24 +47,7 @@ func (e *ParallelEvmExecutor) Execute(block *types.Block) {
 	}
 }
 
-func (e *ParallelEvmExecutor) Receipts(block *types.Block) map[common.Hash]*types.Receipt {
-	return e.receipts
-}
-
-func (e *ParallelEvmExecutor) executeAllTxn(got [][]*txnCtx) [][]*txnCtx {
-	start := time.Now()
-	defer func() {
-		e.k.statManager.ExecuteTxnDuration = time.Since(start)
-	}()
-	for index, subList := range got {
-		e.executeTxnCtxListInParallel(subList)
-		got[index] = subList
-	}
-	e.k.Solidity.SetStateDB(e.cpdb)
-	return got
-}
-
-func (e *ParallelEvmExecutor) splitTxnCtxList(list []*txnCtx) [][]*txnCtx {
+func (e *ParallelEvmSingleStateDBExecutor) splitTxnCtxList(list []*txnCtx) [][]*txnCtx {
 	cur := 0
 	curList := make([]*txnCtx, 0)
 	got := make([][]*txnCtx, 0)
@@ -87,95 +72,90 @@ func (e *ParallelEvmExecutor) splitTxnCtxList(list []*txnCtx) [][]*txnCtx {
 	return got
 }
 
-func (e *ParallelEvmExecutor) executeTxnCtxListInParallel(list []*txnCtx) []*txnCtx {
+func (e *ParallelEvmSingleStateDBExecutor) executeAllTxn(got [][]*txnCtx) [][]*txnCtx {
+	start := time.Now()
 	defer func() {
-		e.cpdb.Finalise(true)
-		if config.GetGlobalConfig().AsyncCommit {
-			e.k.updateTxnObjSub(list)
-			//e.cpdb.PendingCommit(true, e.k.objectInc)
-		}
+		e.k.statManager.ExecuteTxnDuration = time.Since(start)
 	}()
-	return e.executeTxnCtxListInConcurrency(list)
+	for index, subList := range got {
+		e.executeTxnCtxListInConcurrency(subList)
+		got[index] = subList
+	}
+	return got
 }
 
-func (e *ParallelEvmExecutor) executeTxnCtxListInConcurrency(list []*txnCtx) []*txnCtx {
+func (e *ParallelEvmSingleStateDBExecutor) executeTxnCtxListInConcurrency(list []*txnCtx) []*txnCtx {
 	conflict := false
 	start := time.Now()
 	defer func() {
 		end := time.Now()
 		metrics.BatchTxnDuration.WithLabelValues(fmt.Sprintf("%v", conflict)).Observe(end.Sub(start).Seconds())
 	}()
-	copiedStateDBList := e.CopyStateDb(list)
+	version := e.k.Solidity.Snapshot()
+	wrapperList := e.prepareStateDbWrapper(list)
 	wg := sync.WaitGroup{}
 	for i, c := range list {
 		wg.Add(1)
-		go func(index int, tctx *txnCtx, cpDb *pending_state.PendingStateWrapper) {
+		go func(index int, tctx *txnCtx, wrapper *pending_state.PendingStateWrapper) {
 			defer func() {
 				wg.Done()
 			}()
-			tctx.ctx.ExtraInterface = cpDb
+			tctx.ctx.ExtraInterface = wrapper
 			err := tctx.writing(tctx.ctx)
 			if err != nil {
+				if strings.Contains(err.Error(), "conflict") {
+					conflict = true
+				}
 				tctx.err = err
 				tctx.receipt = e.k.handleTxnError(err, tctx.ctx, tctx.ctx.Block, tctx.txn)
 			} else {
 				tctx.receipt = e.k.handleTxnEvent(tctx.ctx, tctx.ctx.Block, tctx.txn, false)
 			}
+
 			tctx.ps = tctx.ctx.ExtraInterface.(*pending_state.PendingStateWrapper)
+
 			list[index] = tctx
-		}(i, c, copiedStateDBList[i])
+		}(i, c, wrapperList[i])
 	}
 	wg.Wait()
-	curtCtx := pending_state.NewStateContext(false)
-	for _, tctx := range list {
-		if curtCtx.IsConflict(tctx.ps.GetCtx()) {
-			conflict = true
-			e.k.statManager.ConflictCount++
-			break
-		}
-	}
 	if conflict {
 		e.k.statManager.TxnBatchRedoCount++
 		metrics.BatchTxnCounter.WithLabelValues(batchTxnLabelRedo).Inc()
-		return e.executeTxnCtxListInOrder(list, true)
+		e.k.Solidity.RevertToSnapshot(version)
+		return e.executeTxnCtxListInOrder(list)
 	}
 	metrics.BatchTxnCounter.WithLabelValues(batchTxnLabelSuccess).Inc()
-	e.mergeStateDB(list)
-	e.k.gcCopiedStateDB(copiedStateDBList, list)
+	e.k.gcCopiedStateDB(wrapperList, list)
 	return list
 }
 
-func (e *ParallelEvmExecutor) mergeStateDB(list []*txnCtx) {
-	for _, tctx := range list {
-		tctx.ps.MergeInto(e.cpdb, tctx.req.Origin)
-	}
-}
-
-func (e *ParallelEvmExecutor) CopyStateDb(list []*txnCtx) []*pending_state.PendingStateWrapper {
+func (e *ParallelEvmSingleStateDBExecutor) prepareStateDbWrapper(list []*txnCtx) []*pending_state.PendingStateWrapper {
 	copiedStateDBList := make([]*pending_state.PendingStateWrapper, 0)
 	start := time.Now()
 	defer func() {
 		e.k.statManager.CopyDuration += time.Since(start)
 	}()
+	stateDBWrapper := pending_state.NewStateDBWrapper(e.k.Solidity.StateDB())
+	sctx := pending_state.NewStateContext(true)
 	for i := 0; i < len(list); i++ {
-		copiedStateDBList = append(copiedStateDBList, pending_state.NewPendingStateWrapper(pending_state.NewStateDBWrapper(e.cpdb.Copy()), pending_state.NewStateContext(false), int64(i)))
+		copiedStateDBList = append(copiedStateDBList, pending_state.NewPendingStateWrapper(stateDBWrapper, sctx, int64(i)))
 	}
 	return copiedStateDBList
 }
 
-func (e *ParallelEvmExecutor) executeTxnCtxListInOrder(list []*txnCtx, isRedo bool) []*txnCtx {
+func (e *ParallelEvmSingleStateDBExecutor) executeTxnCtxListInOrder(list []*txnCtx) []*txnCtx {
 	for index, tctx := range list {
 		if tctx.err != nil {
 			tctx.receipt = e.k.handleTxnError(tctx.err, tctx.ctx, tctx.ctx.Block, tctx.txn)
 			continue
 		}
-		tctx.ctx.ExtraInterface = pending_state.NewPendingStateWrapper(pending_state.NewStateDBWrapper(e.cpdb), pending_state.NewStateContext(false), int64(index))
+		tctx.ctx.ExtraInterface = pending_state.NewPendingStateWrapper(pending_state.NewStateDBWrapper(e.k.Solidity.StateDB()), pending_state.NewStateContext(false), int64(index))
 		err := tctx.writing(tctx.ctx)
 		if err != nil {
 			tctx.err = err
 			tctx.receipt = e.k.handleTxnError(err, tctx.ctx, tctx.ctx.Block, tctx.txn)
 		} else {
-			tctx.receipt = e.k.handleTxnEvent(tctx.ctx, tctx.ctx.Block, tctx.txn, isRedo)
+			tctx.receipt = e.k.handleTxnEvent(tctx.ctx, tctx.ctx.Block, tctx.txn, true)
 		}
 		tctx.ps = tctx.ctx.ExtraInterface.(*pending_state.PendingStateWrapper)
 		list[index] = tctx
