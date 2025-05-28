@@ -150,7 +150,7 @@ func (e *ParallelEvmSingleStateDBExecutor) executeTxnCtxListInOrder(list []*txnC
 			tctx.receipt = e.k.handleTxnError(tctx.err, tctx.ctx, tctx.ctx.Block, tctx.txn)
 			continue
 		}
-		tctx.ctx.ExtraInterface = pending_state.NewPendingStateWrapper(pending_state.NewStateDBWrapper(e.k.Solidity.StateDB()), pending_state.NewStateContext(false), int64(index))
+		tctx.ctx.ExtraInterface = pending_state.NewPendingStateWrapper(pending_state.NewStateDBWrapper(e.k.Solidity.StateDB()), pending_state.NewStateContext(true), int64(index))
 		err := tctx.writing(tctx.ctx)
 		if err != nil {
 			tctx.err = err
