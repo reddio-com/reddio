@@ -13,7 +13,7 @@ import (
 
 // StateDBWrapper provides a pending state for a transaction.
 type StateDBWrapper struct {
-	sync.RWMutex
+	sync.Mutex
 	state *state.StateDB
 }
 
@@ -30,8 +30,8 @@ func (s *StateDBWrapper) SetTxContext(txHash common.Hash, txIndex int) {
 }
 
 func (s *StateDBWrapper) GetStateDB() *state.StateDB {
-	s.RLock()
-	defer s.RUnlock()
+	s.Lock()
+	defer s.Unlock()
 	return s.state
 }
 
@@ -54,14 +54,14 @@ func (s *StateDBWrapper) AddBalance(address common.Address, u *uint256.Int, reas
 }
 
 func (s *StateDBWrapper) GetBalance(address common.Address) *uint256.Int {
-	s.RLock()
-	defer s.RUnlock()
+	s.Lock()
+	defer s.Unlock()
 	return s.state.GetBalance(address)
 }
 
 func (s *StateDBWrapper) GetNonce(address common.Address) uint64 {
-	s.RLock()
-	defer s.RUnlock()
+	s.Lock()
+	defer s.Unlock()
 	return s.state.GetNonce(address)
 }
 
@@ -72,14 +72,14 @@ func (s *StateDBWrapper) SetNonce(address common.Address, u uint64) {
 }
 
 func (s *StateDBWrapper) GetCodeHash(address common.Address) common.Hash {
-	s.RLock()
-	defer s.RUnlock()
+	s.Lock()
+	defer s.Unlock()
 	return s.state.GetCodeHash(address)
 }
 
 func (s *StateDBWrapper) GetCode(address common.Address) []byte {
-	s.RLock()
-	defer s.RUnlock()
+	s.Lock()
+	defer s.Unlock()
 	return s.state.GetCode(address)
 }
 
@@ -90,8 +90,8 @@ func (s *StateDBWrapper) SetCode(address common.Address, bytes []byte) {
 }
 
 func (s *StateDBWrapper) GetCodeSize(address common.Address) int {
-	s.RLock()
-	defer s.RUnlock()
+	s.Lock()
+	defer s.Unlock()
 	return s.state.GetCodeSize(address)
 }
 
@@ -108,20 +108,20 @@ func (s *StateDBWrapper) SubRefund(u uint64) {
 }
 
 func (s *StateDBWrapper) GetRefund() uint64 {
-	s.RLock()
-	defer s.RUnlock()
+	s.Lock()
+	defer s.Unlock()
 	return s.state.GetRefund()
 }
 
 func (s *StateDBWrapper) GetCommittedState(address common.Address, hash common.Hash) common.Hash {
-	s.RLock()
-	defer s.RUnlock()
+	s.Lock()
+	defer s.Unlock()
 	return s.state.GetCommittedState(address, hash)
 }
 
 func (s *StateDBWrapper) GetState(address common.Address, key common.Hash) common.Hash {
-	s.RLock()
-	defer s.RUnlock()
+	s.Lock()
+	defer s.Unlock()
 	return s.state.GetState(address, key)
 }
 
@@ -132,14 +132,14 @@ func (s *StateDBWrapper) SetState(address common.Address, key common.Hash, value
 }
 
 func (s *StateDBWrapper) GetStorageRoot(addr common.Address) common.Hash {
-	s.RLock()
-	defer s.RUnlock()
+	s.Lock()
+	defer s.Unlock()
 	return s.state.GetStorageRoot(addr)
 }
 
 func (s *StateDBWrapper) GetTransientState(addr common.Address, key common.Hash) common.Hash {
-	s.RLock()
-	defer s.RUnlock()
+	s.Lock()
+	defer s.Unlock()
 	return s.state.GetTransientState(addr, key)
 }
 
@@ -156,8 +156,8 @@ func (s *StateDBWrapper) SelfDestruct(address common.Address) {
 }
 
 func (s *StateDBWrapper) HasSelfDestructed(address common.Address) bool {
-	s.RLock()
-	defer s.RUnlock()
+	s.Lock()
+	defer s.Unlock()
 	return s.state.HasSelfDestructed(address)
 }
 
@@ -168,26 +168,26 @@ func (s *StateDBWrapper) Selfdestruct6780(address common.Address) {
 }
 
 func (s *StateDBWrapper) Exist(address common.Address) bool {
-	s.RLock()
-	defer s.RUnlock()
+	s.Lock()
+	defer s.Unlock()
 	return s.state.Exist(address)
 }
 
 func (s *StateDBWrapper) Empty(address common.Address) bool {
-	s.RLock()
-	defer s.RUnlock()
+	s.Lock()
+	defer s.Unlock()
 	return s.state.Empty(address)
 }
 
 func (s *StateDBWrapper) AddressInAccessList(addr common.Address) bool {
-	s.RLock()
-	defer s.RUnlock()
+	s.Lock()
+	defer s.Unlock()
 	return s.state.AddressInAccessList(addr)
 }
 
 func (s *StateDBWrapper) SlotInAccessList(addr common.Address, slot common.Hash) (addressOk bool, slotOk bool) {
-	s.RLock()
-	defer s.RUnlock()
+	s.Lock()
+	defer s.Unlock()
 	return s.state.SlotInAccessList(addr, slot)
 }
 
@@ -234,7 +234,7 @@ func (s *StateDBWrapper) AddPreimage(hash common.Hash, bytes []byte) {
 }
 
 func (s *StateDBWrapper) AllPreimages() map[common.Hash][]byte {
-	s.RLock()
-	defer s.RUnlock()
+	s.Lock()
+	defer s.Unlock()
 	return s.state.Preimages()
 }

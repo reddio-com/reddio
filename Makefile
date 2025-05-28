@@ -31,28 +31,31 @@ build_transfer_erc20_test_race:
 	go build -race -v -o ./bin/transfer_erc20_test ./test/cmd/erc20/main.go
 
 ci_parallel_transfer_test: reset
-	./bin/transfer_test --parallel=true
+	./bin/transfer_test --evmProcessorSelector=parallel-multiple
 
-ci_sqlite_parallel_transfer_test: reset
-	./bin/transfer_test --parallel=true --use-sql=true
+ci_parallel_single_transfer_test: reset
+	./bin/transfer_test --evmProcessorSelector=parallel-single
 
 ci_serial_transfer_test: reset
-	./bin/transfer_test --parallel=false
+	./bin/transfer_test --evmProcessorSelector=serial
 
 ci_parallel_uniswap_test: reset
-	./bin/uniswap_test --parallel=true
+	./bin/uniswap_test --evmProcessorSelector=parallel-multiple
 
-ci_sqlite_parallel_uniswap_test: reset
-	./bin/uniswap_test --parallel=true --use-sql=true
+ci_parallel_single_uniswap_test: reset
+	./bin/uniswap_test --evmProcessorSelector=parallel-single
 
 ci_serial_uniswap_test: reset
-	./bin/uniswap_test --parallel=false
+	./bin/uniswap_test --evmProcessorSelector=serial
 
 ci_parallel_transfer_erc20_test: reset
-	./bin/transfer_erc20_test --parallel=true
+	./bin/transfer_erc20_test --evmProcessorSelector=parallel-multiple
 
 ci_serial_transfer_erc20_test: reset
-	./bin/transfer_erc20_test --parallel=FALSE
+	./bin/transfer_erc20_test --evmProcessorSelector=serial
+
+ci_parallel_single_transfer_erc20_test: reset
+	./bin/transfer_erc20_test --evmProcessorSelector=parallel-single
 
 ## for local benchmark
 

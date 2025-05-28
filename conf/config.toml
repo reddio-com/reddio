@@ -1,4 +1,4 @@
-isParallel = true
+evmProcessorSelector = "serial"
 enableAsyncCommit = false
 maxConcurrency = 4
 isBenchmarkMode = false
