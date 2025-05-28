@@ -95,6 +95,7 @@ func (e *ParallelEvmSingleStateDBExecutor) executeTxnCtxListInConcurrency(list [
 	version := e.k.Solidity.Snapshot()
 	wrapperList := e.prepareStateDbWrapper(list)
 	wg := sync.WaitGroup{}
+	hasError := false
 	for i, c := range list {
 		wg.Add(1)
 		go func(index int, tctx *txnCtx, wrapper *pending_state.PendingStateWrapper) {
@@ -107,6 +108,7 @@ func (e *ParallelEvmSingleStateDBExecutor) executeTxnCtxListInConcurrency(list [
 				if strings.Contains(err.Error(), "conflict") {
 					conflict = true
 				}
+				hasError = true
 				tctx.err = err
 				tctx.receipt = e.k.handleTxnError(err, tctx.ctx, tctx.ctx.Block, tctx.txn)
 			} else {
@@ -119,7 +121,7 @@ func (e *ParallelEvmSingleStateDBExecutor) executeTxnCtxListInConcurrency(list [
 		}(i, c, wrapperList[i])
 	}
 	wg.Wait()
-	if conflict {
+	if conflict || hasError {
 		e.k.statManager.TxnBatchRedoCount++
 		metrics.BatchTxnCounter.WithLabelValues(batchTxnLabelRedo).Inc()
 		e.k.Solidity.RevertToSnapshot(version)
