@@ -6,6 +6,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/sirupsen/logrus"
 	"github.com/yu-org/yu/common"
 	"github.com/yu-org/yu/core/types"
 
@@ -92,10 +94,10 @@ func (e *ParallelEvmSingleStateDBExecutor) executeTxnCtxListInConcurrency(list [
 		end := time.Now()
 		metrics.BatchTxnDuration.WithLabelValues(fmt.Sprintf("%v", conflict)).Observe(end.Sub(start).Seconds())
 	}()
-	version := e.k.Solidity.Snapshot()
 	wrapperList := e.prepareStateDbWrapper(list)
 	wg := sync.WaitGroup{}
 	hasError := false
+	redoStateDb := e.k.Solidity.CopyStateDB()
 	for i, c := range list {
 		wg.Add(1)
 		go func(index int, tctx *txnCtx, wrapper *pending_state.PendingStateWrapper) {
@@ -124,8 +126,8 @@ func (e *ParallelEvmSingleStateDBExecutor) executeTxnCtxListInConcurrency(list [
 	if conflict || hasError {
 		e.k.statManager.TxnBatchRedoCount++
 		metrics.BatchTxnCounter.WithLabelValues(batchTxnLabelRedo).Inc()
-		e.k.Solidity.RevertToSnapshot(version)
-		return e.executeTxnCtxListInOrder(list)
+		logrus.Info("meet conflict or error,ready to redo")
+		return e.executeTxnCtxListInOrder(list, redoStateDb)
 	}
 	metrics.BatchTxnCounter.WithLabelValues(batchTxnLabelSuccess).Inc()
 	e.k.gcCopiedStateDB(wrapperList, list)
@@ -146,13 +148,13 @@ func (e *ParallelEvmSingleStateDBExecutor) prepareStateDbWrapper(list []*txnCtx)
 	return copiedStateDBList
 }
 
-func (e *ParallelEvmSingleStateDBExecutor) executeTxnCtxListInOrder(list []*txnCtx) []*txnCtx {
+func (e *ParallelEvmSingleStateDBExecutor) executeTxnCtxListInOrder(list []*txnCtx, cpdb *state.StateDB) []*txnCtx {
 	for index, tctx := range list {
 		if tctx.err != nil {
 			tctx.receipt = e.k.handleTxnError(tctx.err, tctx.ctx, tctx.ctx.Block, tctx.txn)
 			continue
 		}
-		tctx.ctx.ExtraInterface = pending_state.NewPendingStateWrapper(pending_state.NewStateDBWrapper(e.k.Solidity.StateDB()), pending_state.NewStateContext(true), int64(index))
+		tctx.ctx.ExtraInterface = pending_state.NewPendingStateWrapper(pending_state.NewStateDBWrapper(cpdb), pending_state.NewStateContext(false), int64(index))
 		err := tctx.writing(tctx.ctx)
 		if err != nil {
 			tctx.err = err
@@ -164,5 +166,6 @@ func (e *ParallelEvmSingleStateDBExecutor) executeTxnCtxListInOrder(list []*txnC
 		list[index] = tctx
 	}
 	e.k.gcCopiedStateDB(nil, list)
+	e.k.Solidity.SetStateDB(cpdb)
 	return list
 }
