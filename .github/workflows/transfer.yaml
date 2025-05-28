@@ -33,6 +33,8 @@ jobs:
         run: make build
       - name: Build Test
         run: make build_transfer_test_race
+      - name: Parallel Single Transfer Test
+        run: make ci_parallel_single_transfer_test
       - name: Parallel Transfer Test
         run: make ci_parallel_transfer_test
       - name: Serial Transfer Test

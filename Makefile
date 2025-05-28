@@ -33,11 +33,17 @@ build_transfer_erc20_test_race:
 ci_parallel_transfer_test: reset
 	./bin/transfer_test --evmProcessorSelector=parallel-multiple
 
+ci_parallel_single_transfer_test: reset
+	./bin/transfer_test --evmProcessorSelector=parallel-single
+
 ci_serial_transfer_test: reset
 	./bin/transfer_test --evmProcessorSelector=serial
 
 ci_parallel_uniswap_test: reset
 	./bin/uniswap_test --evmProcessorSelector=parallel-multiple
+
+ci_parallel_single_uniswap_test: reset
+	./bin/uniswap_test --evmProcessorSelector=parallel-single
 
 ci_serial_uniswap_test: reset
 	./bin/uniswap_test --evmProcessorSelector=serial
@@ -47,6 +53,9 @@ ci_parallel_transfer_erc20_test: reset
 
 ci_serial_transfer_erc20_test: reset
 	./bin/transfer_erc20_test --evmProcessorSelector=serial
+
+ci_parallel_single_transfer_erc20_test: reset
+	./bin/transfer_erc20_test --evmProcessorSelector=parallel-single
 
 ## for local benchmark
 

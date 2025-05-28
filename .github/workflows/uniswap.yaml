@@ -37,6 +37,8 @@ jobs:
           go-version: "1.23"
       - name: Build Uniswap Test
         run: make build_uniswap_test_race
+      - name: Parallel Single Uniswap Test
+        run: make ci_parallel_single_uniswap_test
       - name: Parallel Uniswap Test
         run: make ci_parallel_uniswap_test
       - name: Serial Uniswap Test
