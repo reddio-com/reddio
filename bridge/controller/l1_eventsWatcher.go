@@ -51,7 +51,7 @@ func NewL1EventsWatcher(ctx context.Context, cfg *evm.GethConfig, ethClient *eth
 		cfg:                 cfg,
 		l1Client:            ethClient,
 		l1EventParser:       logic.NewL1EventParser(cfg),
-		rawBridgeEventsOrm:  orm.NewRawBridgeEvent(db),
+		rawBridgeEventsOrm:  orm.NewRawBridgeEvent(db, cfg),
 		contractAddressList: contractAddressList,
 	}
 	return c, nil
@@ -237,7 +237,7 @@ func (w *L1EventsWatcher) getBlocksAndDetectReorg(ctx context.Context, from, to 
 	return false, 0, lastBlockHash, blocks, nil
 }
 func (w *L1EventsWatcher) GetL1SyncHeight(ctx context.Context) (uint64, error) {
-	messageSyncedHeight, err := w.rawBridgeEventsOrm.GetMaxBlockNumber(ctx, orm.TableRawBridgeEvents11155111)
+	messageSyncedHeight, err := w.rawBridgeEventsOrm.GetMaxBlockNumber(ctx, w.cfg.L1_RawBridgeEventsTableName)
 	if err != nil {
 		log.Error("failed to get L1 cross message synced height", "error", err)
 		return 0, err
@@ -246,12 +246,12 @@ func (w *L1EventsWatcher) GetL1SyncHeight(ctx context.Context) (uint64, error) {
 	return messageSyncedHeight, nil
 }
 func (w *L1EventsWatcher) L1InsertOrUpdate(ctx context.Context, l1FetcherResult *L1FilterResult) error {
-	if err := w.rawBridgeEventsOrm.InsertRawBridgeEvents(context.Background(), orm.TableRawBridgeEvents11155111, l1FetcherResult.DepositMessages); err != nil {
+	if err := w.rawBridgeEventsOrm.InsertRawBridgeEvents(context.Background(), w.cfg.L1_RawBridgeEventsTableName, l1FetcherResult.DepositMessages); err != nil {
 		logrus.Error("failed to insert L1 deposit messages", "err", err)
 		return err
 	}
 
-	if err := w.rawBridgeEventsOrm.InsertRawBridgeEvents(context.Background(), orm.TableRawBridgeEvents11155111, l1FetcherResult.RelayedMessages); err != nil {
+	if err := w.rawBridgeEventsOrm.InsertRawBridgeEvents(context.Background(), w.cfg.L1_RawBridgeEventsTableName, l1FetcherResult.RelayedMessages); err != nil {
 		logrus.Error("failed to insert L1 relayed messages", "err", err)
 		return err
 	}

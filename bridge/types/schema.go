@@ -7,8 +7,10 @@ import (
 )
 
 const (
-	Sepolia = 11155111
-	Reddio  = 50341
+	Sepolia    = 11155111
+	Ethereum   = 1
+	ReddioTest = 50341
+	Reddio     = 50342
 
 	// Success indicates that the operation was successful.
 	Success = 0
