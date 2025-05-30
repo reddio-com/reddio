@@ -94,7 +94,7 @@ func NewL1Relayer(ctx context.Context, cfg *evm.GethConfig, l2Client *ethclient.
 		chain:             chain,
 		l1EventParser:     l1EventParser,
 		crossMessageOrm:   orm.NewCrossMessage(db),
-		rawBridgeEventOrm: orm.NewRawBridgeEvent(db),
+		rawBridgeEventOrm: orm.NewRawBridgeEvent(db, cfg),
 		pollingSemaphore:  make(chan struct{}, 1), // 1 means only one polling goroutine can run at a time
 
 	}
@@ -125,7 +125,7 @@ func (b *L1Relayer) StartPolling() {
 func (b *L1Relayer) pollUnProcessedMessages() {
 	ctx := context.Background()
 	//messages, err := r.crossMessageOrm.QueryL1UnConsumedMessages(ctx, btypes.TxTypeDeposit)
-	bridgeEvents, err := b.rawBridgeEventOrm.QueryUnProcessedBridgeEvents(ctx, orm.TableRawBridgeEvents11155111, b.cfg.RelayerBatchSize)
+	bridgeEvents, err := b.rawBridgeEventOrm.QueryUnProcessedBridgeEvents(ctx, b.cfg.L1_RawBridgeEventsTableName, b.cfg.RelayerBatchSize)
 	if err != nil {
 		logrus.Error("Failed to query unconsumed messages: %v", err)
 		return
@@ -152,20 +152,20 @@ func (b *L1Relayer) HandleL1RelayerMessage(msg *orm.RawBridgeEvent) error {
 	relayedMessage, err := b.l1EventParser.ParseL1RelayMessagePayload(b.ctx, msg)
 	if err != nil {
 		logrus.Infof("Failed to parse L1 cross chain payload: %v", err)
-		b.rawBridgeEventOrm.UpdateProcessFail(orm.TableRawBridgeEvents11155111, msg.ID, err.Error())
+		b.rawBridgeEventOrm.UpdateProcessFail(b.cfg.L1_RawBridgeEventsTableName, msg.ID, err.Error())
 		return err
 	}
 	rowsAffected, err := b.crossMessageOrm.UpdateL2MessageConsumedStatus(b.ctx, relayedMessage)
 	if err != nil {
 		logrus.Infof("Failed to update L2 message consumed status: %v", err)
-		b.rawBridgeEventOrm.UpdateProcessFail(orm.TableRawBridgeEvents11155111, msg.ID, err.Error())
+		b.rawBridgeEventOrm.UpdateProcessFail(b.cfg.L1_RawBridgeEventsTableName, msg.ID, err.Error())
 		return err
 	}
 	if rowsAffected == 0 {
 		logrus.Warn("L2 message cant be found: ", relayedMessage.MessageHash)
 		return nil
 	}
-	b.rawBridgeEventOrm.UpdateProcessStatus(orm.TableRawBridgeEvents11155111, msg.ID, int(btypes.Processed))
+	b.rawBridgeEventOrm.UpdateProcessStatus(b.cfg.L1_RawBridgeEventsTableName, msg.ID, int(btypes.Processed))
 	return nil
 }
 
@@ -230,7 +230,7 @@ func (b *L1Relayer) HandleDownwardMessageWithSystemCall(msg *orm.RawBridgeEvent)
 		return err
 	}
 
-	b.rawBridgeEventOrm.UpdateProcessStatus(orm.TableRawBridgeEvents11155111, msg.ID, int(btypes.Processed))
+	b.rawBridgeEventOrm.UpdateProcessStatus(b.cfg.L1_RawBridgeEventsTableName, msg.ID, int(btypes.Processed))
 
 	return nil
 }
@@ -253,7 +253,7 @@ func (b *L1Relayer) HandleDownwardMessage(msg *orm.RawBridgeEvent) error {
 	}
 	metrics.DownwardMessageReceivedCounter.WithLabelValues(fmt.Sprintf("%d", msg.MessagePayloadType)).Inc()
 
-	relayerPkStr, err := LoadPrivateKey("bridge/relayer/.relayer.env")
+	relayerPkStr, err := LoadPrivateKey(b.cfg.RelayerEnvFile, b.cfg.RelayerEnvVar)
 	if err != nil {
 		logrus.Fatalf("Error loading private key: %v", err)
 	}
@@ -281,8 +281,12 @@ func (b *L1Relayer) HandleDownwardMessage(msg *orm.RawBridgeEvent) error {
 
 	tx, err := session.ReceiveDownwardMessages(downwardMessages)
 	if err != nil {
+		if strings.Contains(err.Error(), "Message was already successfully executed") {
+			b.rawBridgeEventOrm.UpdateProcessStatus(b.cfg.L1_RawBridgeEventsTableName, msg.ID, int(btypes.Processed))
+			return nil
+		}
 		logrus.Errorf("Failed to send downward messages: %v", err)
-		b.rawBridgeEventOrm.UpdateProcessFail(orm.TableRawBridgeEvents11155111, msg.ID, err.Error())
+		b.rawBridgeEventOrm.UpdateProcessFail(b.cfg.L1_RawBridgeEventsTableName, msg.ID, err.Error())
 		metrics.DownwardMessageFailureCounter.WithLabelValues(fmt.Sprintf("%d", msg.MessagePayloadType)).Inc()
 		return err
 	}
@@ -301,7 +305,7 @@ func (b *L1Relayer) HandleDownwardMessage(msg *orm.RawBridgeEvent) error {
 		return err
 	}
 
-	b.rawBridgeEventOrm.UpdateProcessStatus(orm.TableRawBridgeEvents11155111, msg.ID, int(btypes.Processed))
+	b.rawBridgeEventOrm.UpdateProcessStatus(b.cfg.L1_RawBridgeEventsTableName, msg.ID, int(btypes.Processed))
 
 	return nil
 }
@@ -385,14 +389,11 @@ func newTxArgsFromTx(tx *types.Transaction) *TransactionArgs {
 }
 
 func (b *L1Relayer) createRefundMessage(msgs []*orm.CrossMessage) error {
-	privateKey, err := LoadPrivateKey("bridge/relayer/.sepolia.env")
+	privateKeys, err := LoadPrivateKeyArray(b.cfg.MultisigEnvFile, b.cfg.MultisigEnvVar)
 	if err != nil {
 		logrus.Fatalf("Error loading private key: %v", err)
 	}
 
-	privateKeys := []string{
-		privateKey,
-	}
 	for _, msg := range msgs {
 		var upwardMessages []contract.UpwardMessage
 		payloadBytes, err := hex.DecodeString(msg.MessagePayload)

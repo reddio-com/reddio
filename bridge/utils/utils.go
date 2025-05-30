@@ -85,13 +85,13 @@ func ObjToJson(obj interface{}) string {
 	}
 	return string(byt)
 }
-func LoadPrivateKey(envFilePath string) (string, error) {
+func LoadPrivateKey(envFilePath string, envPramName string) (string, error) {
 	err := godotenv.Load(envFilePath)
 	if err != nil {
 		return "", err
 	}
 
-	privateKey := os.Getenv("PRIVATE_KEY")
+	privateKey := os.Getenv(envPramName)
 	if privateKey == "" {
 		return "", fmt.Errorf("PRIVATE_KEY not set in %s", envFilePath)
 	}

@@ -9,14 +9,10 @@ import (
 	"time"
 
 	btypes "github.com/reddio-com/reddio/bridge/types"
+	"github.com/reddio-com/reddio/evm"
 	"github.com/sirupsen/logrus"
 
 	"gorm.io/gorm"
-)
-
-const (
-	TableRawBridgeEvents11155111 = "raw_bridge_events_11155111"
-	TableRawBridgeEvents50341    = "raw_bridge_events_50341"
 )
 
 // Gap represents a gap in MessageNonce.
@@ -62,12 +58,12 @@ type RawBridgeEvent struct {
 }
 
 // NewBridgeEvents creates a new instance of BridgeEvents.
-func NewRawBridgeEvent(db *gorm.DB) *RawBridgeEvent {
-	err := db.Table(TableRawBridgeEvents11155111).AutoMigrate(&RawBridgeEvent{})
+func NewRawBridgeEvent(db *gorm.DB, cfg *evm.GethConfig) *RawBridgeEvent {
+	err := db.Table(cfg.L1_RawBridgeEventsTableName).AutoMigrate(&RawBridgeEvent{})
 	if err != nil {
 		log.Fatal("failed to AutoMigrate db", "err", err)
 	}
-	err = db.Table(TableRawBridgeEvents50341).AutoMigrate(&RawBridgeEvent{})
+	err = db.Table(cfg.L2_RawBridgeEventsTableName).AutoMigrate(&RawBridgeEvent{})
 	if err != nil {
 		log.Fatal("failed to AutoMigrate db", "err", err)
 	}

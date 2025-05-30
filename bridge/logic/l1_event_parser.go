@@ -406,7 +406,7 @@ func (e *L1EventParser) ParseL1EventToRawBridgeEvents(ctx context.Context, logs 
 				}
 				l1DepositMessages = append(l1DepositMessages, &orm.RawBridgeEvent{
 					EventType:       int(btypes.QueueTransaction),
-					ChainID:         btypes.Sepolia,
+					ChainID:         int(e.cfg.ChainID),
 					ContractAddress: e.cfg.ParentLayerContractAddress,
 					TokenType:       int(btypes.ETH),
 					TxHash:          vlog.TxHash.String(),
@@ -439,7 +439,7 @@ func (e *L1EventParser) ParseL1EventToRawBridgeEvents(ctx context.Context, logs 
 				}
 				l1DepositMessages = append(l1DepositMessages, &orm.RawBridgeEvent{
 					EventType:       int(btypes.QueueTransaction),
-					ChainID:         btypes.Sepolia,
+					ChainID:         int(e.cfg.ChainID),
 					ContractAddress: e.cfg.ParentLayerContractAddress,
 					TokenType:       int(btypes.RED),
 					TxHash:          vlog.TxHash.String(),
@@ -482,7 +482,7 @@ func (e *L1EventParser) ParseL1EventToRawBridgeEvents(ctx context.Context, logs 
 				}
 				l1RelayedMessages = append(l1RelayedMessages, &orm.RawBridgeEvent{
 					EventType:       int(btypes.L1RelayedMessage),
-					ChainID:         btypes.Sepolia,
+					ChainID:         int(e.cfg.ChainID),
 					ContractAddress: e.cfg.ParentLayerContractAddress,
 					TokenType:       int(btypes.PayloadTypeETH),
 					TxHash:          vlog.TxHash.String(),
@@ -514,7 +514,7 @@ func (e *L1EventParser) ParseL1EventToRawBridgeEvents(ctx context.Context, logs 
 				}
 				l1RelayedMessages = append(l1RelayedMessages, &orm.RawBridgeEvent{
 					EventType:       int(btypes.L1RelayedMessage),
-					ChainID:         btypes.Sepolia,
+					ChainID:         int(e.cfg.ChainID),
 					ContractAddress: e.cfg.ParentLayerContractAddress,
 					TokenType:       int(btypes.PayloadTypeRED),
 					TxHash:          vlog.TxHash.String(),
@@ -555,7 +555,7 @@ func (e *L1EventParser) ParseDepositEventToRawBridgeEvents(ctx context.Context, 
 		}
 		l1DepositMessages = append(l1DepositMessages, &orm.RawBridgeEvent{
 			EventType:       int(btypes.QueueTransaction),
-			ChainID:         btypes.Sepolia,
+			ChainID:         int(e.cfg.ChainID),
 			ContractAddress: e.cfg.ParentLayerContractAddress,
 			TokenType:       int(btypes.ETH),
 			TxHash:          msg.Raw.TxHash.String(),
@@ -587,7 +587,7 @@ func (e *L1EventParser) ParseDepositEventToRawBridgeEvents(ctx context.Context, 
 		}
 		l1DepositMessages = append(l1DepositMessages, &orm.RawBridgeEvent{
 			EventType:       int(btypes.QueueTransaction),
-			ChainID:         btypes.Sepolia,
+			ChainID:         int(e.cfg.ChainID),
 			ContractAddress: e.cfg.ParentLayerContractAddress,
 			TokenType:       int(btypes.RED),
 			TxHash:          msg.Raw.TxHash.String(),
@@ -628,7 +628,7 @@ func (e *L1EventParser) ParseL1RelayedMessageToRawBridgeEvents(ctx context.Conte
 		}
 		l1RelayedMessages = append(l1RelayedMessages, &orm.RawBridgeEvent{
 			EventType:       int(btypes.L1RelayedMessage),
-			ChainID:         btypes.Sepolia,
+			ChainID:         int(e.cfg.ChainID),
 			ContractAddress: e.cfg.ParentLayerContractAddress,
 			TokenType:       int(btypes.PayloadTypeETH),
 			TxHash:          msg.Raw.TxHash.String(),
@@ -660,7 +660,7 @@ func (e *L1EventParser) ParseL1RelayedMessageToRawBridgeEvents(ctx context.Conte
 		}
 		l1RelayedMessages = append(l1RelayedMessages, &orm.RawBridgeEvent{
 			EventType:       int(btypes.L1RelayedMessage),
-			ChainID:         btypes.Sepolia,
+			ChainID:         int(e.cfg.ChainID),
 			ContractAddress: e.cfg.ParentLayerContractAddress,
 			TokenType:       int(btypes.PayloadTypeRED),
 			TxHash:          msg.Raw.TxHash.String(),

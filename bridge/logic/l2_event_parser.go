@@ -108,7 +108,7 @@ func (e *L2EventParser) ParseL2EventToRawBridgeEvents(ctx context.Context, logs 
 				}
 				l2WithdrawMessages = append(l2WithdrawMessages, &orm.RawBridgeEvent{
 					EventType:       int(btypes.SentMessage),
-					ChainID:         btypes.Reddio,
+					ChainID:         int(e.cfg.ChainID),
 					ContractAddress: e.cfg.ChildLayerContractAddress,
 					TokenType:       int(btypes.ETH),
 					TxHash:          vlog.TxHash.String(),
@@ -140,7 +140,7 @@ func (e *L2EventParser) ParseL2EventToRawBridgeEvents(ctx context.Context, logs 
 				}
 				l2WithdrawMessages = append(l2WithdrawMessages, &orm.RawBridgeEvent{
 					EventType:       int(btypes.SentMessage),
-					ChainID:         btypes.Reddio,
+					ChainID:         int(e.cfg.ChainID),
 					ContractAddress: e.cfg.ChildLayerContractAddress,
 					TokenType:       int(btypes.ERC20),
 					TxHash:          vlog.TxHash.String(),
@@ -173,7 +173,7 @@ func (e *L2EventParser) ParseL2EventToRawBridgeEvents(ctx context.Context, logs 
 				}
 				l2WithdrawMessages = append(l2WithdrawMessages, &orm.RawBridgeEvent{
 					EventType:       int(btypes.SentMessage),
-					ChainID:         btypes.Reddio,
+					ChainID:         int(e.cfg.ChainID),
 					ContractAddress: e.cfg.ChildLayerContractAddress,
 					TokenType:       int(btypes.RED),
 					TxHash:          vlog.TxHash.String(),
@@ -216,7 +216,7 @@ func (e *L2EventParser) ParseL2EventToRawBridgeEvents(ctx context.Context, logs 
 				}
 				l2RelayedMessages = append(l2RelayedMessages, &orm.RawBridgeEvent{
 					EventType:       int(btypes.L2RelayedMessage),
-					ChainID:         btypes.Reddio,
+					ChainID:         int(e.cfg.ChainID),
 					ContractAddress: e.cfg.ChildLayerContractAddress,
 					TokenType:       int(btypes.ETH),
 					TxHash:          vlog.TxHash.String(),
@@ -248,7 +248,7 @@ func (e *L2EventParser) ParseL2EventToRawBridgeEvents(ctx context.Context, logs 
 				}
 				l2RelayedMessages = append(l2RelayedMessages, &orm.RawBridgeEvent{
 					EventType:       int(btypes.L2RelayedMessage),
-					ChainID:         btypes.Reddio,
+					ChainID:         int(e.cfg.ChainID),
 					ContractAddress: e.cfg.ChildLayerContractAddress,
 					TokenType:       int(btypes.RED),
 					TxHash:          vlog.TxHash.String(),

@@ -66,7 +66,7 @@ func StartUpChain(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm
 	ethrpc.StartupEthRPC(chain, evmCfg)
 	if evmCfg.EnableBridge {
 		//StartupL1Watcher(evmCfg, db)
-		StartupL2Watcher(evmCfg, db)
+		//StartupL2Watcher(evmCfg, db)
 		StartupRelayer(chain, evmCfg, db)
 		StartupBridgeRpc(evmCfg, db)
 	}
@@ -125,10 +125,6 @@ func StartupL1Watcher(cfg *evm.GethConfig, db *gorm.DB) {
 func StartupL2Watcher(cfg *evm.GethConfig, db *gorm.DB) {
 	ctx := context.Background()
 
-	// l2Client, err := ethclient.Dial(cfg.L2ClientAddress)
-	// if err != nil {
-	// 	logrus.Fatal("failed to connect to L2 geth", "endpoint", cfg.L2ClientAddress, "err", err)
-	// }
 	l2Client, err := rdoclient.NewClient(cfg.L2ClientAddress)
 	if err != nil {
 		logrus.Fatal("failed to connect to L2 geth", "endpoint", cfg.L2ClientAddress, "err", err)

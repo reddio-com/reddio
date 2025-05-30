@@ -60,7 +60,7 @@ func (w *L2EventsWatcherTripod) WatchL2BridgeEvent(ctx context.Context, block *y
 
 func (w *L2EventsWatcherTripod) InitChain(block *yutypes.Block) {
 	if w.cfg.EnableBridge {
-		w.rawBridgeEventsOrm = orm.NewRawBridgeEvent(w.db)
+		w.rawBridgeEventsOrm = orm.NewRawBridgeEvent(w.db, w.cfg)
 
 		l2WatcherLogic, err := logic.NewL2WatcherLogic(w.cfg, w.solidity)
 		if err != nil {
@@ -97,7 +97,7 @@ func (w *L2EventsWatcherTripod) savel2BridgeEvents(
 	if len(rawBridgeEvents) == 0 {
 		return nil
 	}
-	err := w.rawBridgeEventsOrm.InsertRawBridgeEvents(context.Background(), orm.TableRawBridgeEvents50341, rawBridgeEvents)
+	err := w.rawBridgeEventsOrm.InsertRawBridgeEvents(context.Background(), w.cfg.L2_RawBridgeEventsTableName, rawBridgeEvents)
 	if err != nil {
 		return err
 	}

@@ -37,36 +37,51 @@ type L2Relayer struct {
 
 func NewL2Relayer(ctx context.Context, cfg *evm.GethConfig, db *gorm.DB) (*L2Relayer, error) {
 
-	privateKey, err := LoadPrivateKey("bridge/relayer/.sepolia.env")
+	privateKeys, err := LoadPrivateKeyArray(cfg.MultisigEnvFile, cfg.MultisigEnvVar)
 	if err != nil {
 		log.Fatalf("Error loading private key: %v", err)
-	}
-	privateKeys := []string{
-		privateKey,
 	}
 
 	return &L2Relayer{
 		ctx:               ctx,
 		cfg:               cfg,
 		crossMessageOrm:   orm.NewCrossMessage(db),
-		rawBridgeEventOrm: orm.NewRawBridgeEvent(db),
+		rawBridgeEventOrm: orm.NewRawBridgeEvent(db, cfg),
 		l2EventParser:     logic.NewL2EventParser(cfg),
 		sigPrivateKeys:    privateKeys,
 		pollingSemaphore:  make(chan struct{}, 1), // 1 means only one polling goroutine can run at a time
 	}, nil
 }
-func LoadPrivateKey(envFilePath string) (string, error) {
+func LoadPrivateKey(envFilePath string, envVarName string) (string, error) {
 	err := godotenv.Load(envFilePath)
 	if err != nil {
 		return "", err
 	}
 
-	privateKey := os.Getenv("PRIVATE_KEY")
+	privateKey := os.Getenv(envVarName)
 	if privateKey == "" {
 		return "", fmt.Errorf("PRIVATE_KEY not set in %s", envFilePath)
 	}
 
 	return privateKey, nil
+}
+
+func LoadPrivateKeyArray(envFilePath string, envVarName string) ([]string, error) {
+	err := godotenv.Load(envFilePath)
+	if err != nil {
+		return nil, err
+	}
+
+	privateKeysStr := os.Getenv(envVarName)
+	if privateKeysStr == "" {
+		return nil, fmt.Errorf("%s not set in %s", envVarName, envFilePath)
+	}
+
+	privateKeys := strings.Split(privateKeysStr, ",")
+	for i := range privateKeys {
+		privateKeys[i] = strings.TrimSpace(privateKeys[i])
+	}
+	return privateKeys, nil
 }
 
 // HandleUpwardMessage handle L2 Upward Message
@@ -118,7 +133,7 @@ func (b *L2Relayer) HandleUpwardMessage(ctx context.Context, bridgeEvent *orm.Ra
 		if err != nil {
 			logrus.Errorf("Failed to insert or update L2 messages: %v", err)
 		}
-		err = b.rawBridgeEventOrm.UpdateProcessStatus(orm.TableRawBridgeEvents50341, bridgeEvent.ID, int(btypes.Processed))
+		err = b.rawBridgeEventOrm.UpdateProcessStatus(b.cfg.L2_RawBridgeEventsTableName, bridgeEvent.ID, int(btypes.Processed))
 		if err != nil {
 			logrus.Errorf("Failed to update process status of raw bridge events: %v", err)
 		}
@@ -153,7 +168,7 @@ func (b *L2Relayer) StartPolling() {
 func (b *L2Relayer) pollUnProcessedMessages() {
 	ctx := context.Background()
 	//messages, err := r.crossMessageOrm.QueryL1UnConsumedMessages(ctx, btypes.TxTypeDeposit)
-	bridgeEvents, err := b.rawBridgeEventOrm.QueryUnProcessedBridgeEvents(ctx, orm.TableRawBridgeEvents50341, b.cfg.RelayerBatchSize)
+	bridgeEvents, err := b.rawBridgeEventOrm.QueryUnProcessedBridgeEvents(ctx, b.cfg.L2_RawBridgeEventsTableName, b.cfg.RelayerBatchSize)
 	if err != nil {
 		log.Printf("Failed to query unconsumed messages: %v", err)
 		return
@@ -182,14 +197,14 @@ func (b *L2Relayer) HandleL2RelayerMessage(ctx context.Context, bridgeEvent *orm
 	//fmt.Println("relayedMessages:", relayedMessage.MessageHash)
 	if err != nil {
 		logrus.Infof("Failed to parse L1 cross chain payload: %v", err)
-		b.rawBridgeEventOrm.UpdateProcessFail(orm.TableRawBridgeEvents50341, bridgeEvent.ID, err.Error())
+		b.rawBridgeEventOrm.UpdateProcessFail(b.cfg.L2_RawBridgeEventsTableName, bridgeEvent.ID, err.Error())
 		return err
 	}
 	rowsAffected, err := b.crossMessageOrm.UpdateL1MessageConsumedStatus(b.ctx, relayedMessage)
 	//fmt.Println("UpdateL1MessageConsumedStatus")
 	if err != nil {
 		logrus.Infof("Failed to update L2 message consumed status: %v", err)
-		b.rawBridgeEventOrm.UpdateProcessFail(orm.TableRawBridgeEvents50341, bridgeEvent.ID, err.Error())
+		b.rawBridgeEventOrm.UpdateProcessFail(b.cfg.L2_RawBridgeEventsTableName, bridgeEvent.ID, err.Error())
 		return err
 	}
 	if rowsAffected == 0 {
@@ -197,7 +212,7 @@ func (b *L2Relayer) HandleL2RelayerMessage(ctx context.Context, bridgeEvent *orm
 		return nil
 	}
 
-	b.rawBridgeEventOrm.UpdateProcessStatus(orm.TableRawBridgeEvents50341, bridgeEvent.ID, int(btypes.Processed))
+	b.rawBridgeEventOrm.UpdateProcessStatus(b.cfg.L2_RawBridgeEventsTableName, bridgeEvent.ID, int(btypes.Processed))
 	return nil
 }
 

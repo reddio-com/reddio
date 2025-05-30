@@ -31,18 +31,18 @@ func TestLoadPrivateKey(t *testing.T) {
 
 	// Test case: Successfully load private key
 	t.Run("Success", func(t *testing.T) {
-		loadedKey, err := LoadPrivateKey(envFilePath)
+		loadedKey, err := LoadPrivateKey(envFilePath, "PRIVATE_KEY")
 		assert.NoError(t, err)
 		assert.Equal(t, privateKey, loadedKey)
 	})
 	t.Run("Success2", func(t *testing.T) {
-		_, err := LoadPrivateKey("../relayer/.sepolia.env")
+		_, err := LoadPrivateKey("../relayer/.sepolia.env", "PRIVATE_KEY")
 		assert.NoError(t, err)
 
 	})
 	// Test case: .env file does not exist
 	t.Run("FileNotExist", func(t *testing.T) {
-		_, err := LoadPrivateKey("nonexistent.env")
+		_, err := LoadPrivateKey("nonexistent.env", "PRIVATE_KEY")
 		assert.Error(t, err)
 	})
 

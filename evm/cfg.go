@@ -70,7 +70,14 @@ type GethConfig struct {
 	L1WatcherConfig BridgeWatcherConfig `toml:"l1_watcher_config"`
 	L2WatcherConfig BridgeWatcherConfig `toml:"l2_watcher_config"`
 	// relayer config
-	RelayerBatchSize int `toml:"relayer_batch_size"`
+	RelayerBatchSize            int    `toml:"relayer_batch_size"`
+	MultisigEnvFile             string `toml:"multisig_env_file"`
+	MultisigEnvVar              string `toml:"multisig_env_var"`
+	RelayerEnvFile              string `toml:"relayer_env_file"`
+	RelayerEnvVar               string `toml:"relayer_env_var"`
+	L1_RawBridgeEventsTableName string `toml:"l1_raw_bridge_events_table_name"`
+	L2_RawBridgeEventsTableName string `toml:"l2_raw_bridge_events_table_name"`
+
 	// checker config
 	EnableBridgeChecker bool                `toml:"enable_bridge_checker"`
 	BridgeCheckerConfig BridgeCheckerConfig `toml:"bridge_checker_config"`
@@ -80,6 +87,7 @@ type BridgeWatcherConfig struct {
 	FetchLimit   uint64 `toml:"fetch_limit"`
 	StartHeight  uint64 `toml:"start_height"`
 	BlockTime    uint64 `toml:"block_time"`
+	ChainID      int64  `toml:"chain_id"`
 }
 type BridgeCheckerConfig struct {
 	CheckerBatchSize       int    `toml:"checker_batch_size"`

@@ -45,7 +45,7 @@ func NewChecker(ctx context.Context, cfg *evm.GethConfig, db *gorm.DB) *Checker 
 		cfg:                 cfg,
 		l1EventParser:       logic.NewL1EventParser(cfg),
 		l2EventParser:       logic.NewL2EventParser(cfg),
-		rawBridgeEventOrm:   orm.NewRawBridgeEvent(db),
+		rawBridgeEventOrm:   orm.NewRawBridgeEvent(db, cfg),
 		crossMessageOrm:     orm.NewCrossMessage(db),
 		ctx:                 ctx,
 		l1CheckingSemaphore: make(chan struct{}, 1),
@@ -70,12 +70,12 @@ func (c *Checker) StartChecking() {
 				go func() {
 					defer func() { <-c.l1CheckingSemaphore }()
 					if c.cfg.BridgeCheckerConfig.EnableL1CheckStep1 {
-						if err := c.checkStep1(orm.TableRawBridgeEvents11155111, int(btypes.QueueTransaction), c.cfg.L1ClientAddress); err != nil {
+						if err := c.checkStep1(c.cfg.L1_RawBridgeEventsTableName, int(btypes.QueueTransaction), c.cfg.L1ClientAddress); err != nil {
 							logrus.Errorf("checkStep1 for Sepolia deposit failed: %v", err)
 						}
 					}
 					if c.cfg.BridgeCheckerConfig.EnableL1CheckStep2 {
-						if err := c.checkStep2(orm.TableRawBridgeEvents11155111, int(btypes.QueueTransaction)); err != nil {
+						if err := c.checkStep2(c.cfg.L1_RawBridgeEventsTableName, int(btypes.QueueTransaction)); err != nil {
 							logrus.Errorf("checkStep2 for Sepolia deposit failed: %v", err)
 						}
 					}
@@ -90,12 +90,12 @@ func (c *Checker) StartChecking() {
 				go func() {
 					defer func() { <-c.l2CheckingSemaphore }()
 					if c.cfg.BridgeCheckerConfig.EnableL2CheckStep1 {
-						if err := c.checkStep1(orm.TableRawBridgeEvents50341, int(btypes.SentMessage), c.cfg.L2ClientAddress); err != nil {
+						if err := c.checkStep1(c.cfg.L2_RawBridgeEventsTableName, int(btypes.SentMessage), c.cfg.L2ClientAddress); err != nil {
 							logrus.Errorf("checkStep1 for L2 withdraw failed: %v", err)
 						}
 					}
 					if c.cfg.BridgeCheckerConfig.EnableL2CheckStep2 {
-						if err := c.checkStep2(orm.TableRawBridgeEvents50341, int(btypes.SentMessage)); err != nil {
+						if err := c.checkStep2(c.cfg.L2_RawBridgeEventsTableName, int(btypes.SentMessage)); err != nil {
 							logrus.Errorf("checkStep2 for L2 withdraw failed: %v", err)
 						}
 					}
@@ -163,7 +163,7 @@ func (c *Checker) checkStep1(rawBridgeEventTableName string, eventType int, clie
 			logrus.Infof("Gap from %d to %d:,starblock:%d,endblock:%d", gap.StartGap, gap.EndGap, gap.StartBlockNumber, gap.EndBlockNumber)
 
 			//fmt.Printf("Gap from %d to %d\n", gap.StartGap, gap.EndGap)
-			if rawBridgeEventTableName == orm.TableRawBridgeEvents11155111 {
+			if rawBridgeEventTableName == c.cfg.L1_RawBridgeEventsTableName {
 				logrus.Infof("Processing Sepolia deposit gap,start block number:%d,end block number:%d", gap.StartBlockNumber, gap.EndBlockNumber)
 				//fmt.Println("Processing Sepolia deposit gap")
 				err = c.processL1Gap(gap, client)
@@ -171,7 +171,7 @@ func (c *Checker) checkStep1(rawBridgeEventTableName string, eventType int, clie
 					logrus.Errorf("Failed to process L1 gap: %v", err)
 					return err
 				}
-			} else if rawBridgeEventTableName == orm.TableRawBridgeEvents50341 {
+			} else if rawBridgeEventTableName == c.cfg.L2_RawBridgeEventsTableName {
 				logrus.Infof("Processing L2 gap,start block number:%d,end block number:%d", gap.StartBlockNumber, gap.EndBlockNumber)
 				//fmt.Println("Processing L2 withdraw gap")
 				err = c.processL2Gap(gap, client)
@@ -310,7 +310,7 @@ func (c *Checker) processL1Gap(gap orm.Gap, client *ethclient.Client) error {
 		}
 	}
 	logrus.Infof("QueueTransaction event count: %d", queueEventCount)
-	err = c.rawBridgeEventOrm.InsertRawBridgeEventsFromCheckStep1(context.Background(), orm.TableRawBridgeEvents11155111, allBridgeEvents)
+	err = c.rawBridgeEventOrm.InsertRawBridgeEventsFromCheckStep1(context.Background(), c.cfg.L1_RawBridgeEventsTableName, allBridgeEvents)
 	if err != nil {
 		return fmt.Errorf("failed to insert bridge events: %v", err)
 	}
@@ -334,14 +334,14 @@ func (c *Checker) processL2Gap(gap orm.Gap, client *ethclient.Client) error {
 		return fmt.Errorf("failed to parse L2 event: %v", err)
 	}
 	logrus.Infof("L2 withdraw messages count: %d", len(l2WithdrawMessages))
-	err = c.rawBridgeEventOrm.InsertRawBridgeEventsFromCheckStep1(context.Background(), orm.TableRawBridgeEvents50341, l2WithdrawMessages)
+	err = c.rawBridgeEventOrm.InsertRawBridgeEventsFromCheckStep1(context.Background(), c.cfg.L2_RawBridgeEventsTableName, l2WithdrawMessages)
 	if err != nil {
 		return fmt.Errorf("failed to insert bridge l2WithdrawMessages: %v", err)
 	}
 
 	logrus.Infof("L2RelayedMessages messages count: %d", len(l2RelayedMessages))
 
-	err = c.rawBridgeEventOrm.InsertRawBridgeEventsFromCheckStep1(context.Background(), orm.TableRawBridgeEvents50341, l2RelayedMessages)
+	err = c.rawBridgeEventOrm.InsertRawBridgeEventsFromCheckStep1(context.Background(), c.cfg.L2_RawBridgeEventsTableName, l2RelayedMessages)
 	if err != nil {
 		return fmt.Errorf("failed to insert bridge l2RelayedMessages: %v", err)
 	}
