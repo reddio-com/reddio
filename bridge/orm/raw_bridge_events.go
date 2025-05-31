@@ -39,6 +39,10 @@ type RawBridgeEvent struct {
 	Timestamp          uint64     `json:"timestamp" gorm:"column:timestamp"`
 	Sender             string     `json:"sender" gorm:"column:sender"` // sender address
 	Receiver           string     `json:"receiver" gorm:"column:receiver"`
+	TokenAddress       string     `json:"token_address" gorm:"column:token_address;type:varchar(100);"`
+	TokenName          string     `json:"token_name" gorm:"column:token_name;type:varchar(100);"`
+	TokenSymbol        string     `json:"token_symbol" gorm:"column:token_symbol;type:varchar(100);"`
+	Decimals           string     `json:"decimals" gorm:"column:decimals;type:varchar(10);"`                     // token decimals
 	MessageHash        string     `json:"message_hash" gorm:"column:message_hash;type:varchar(256);uniqueIndex"` // unique message hash
 	MessagePayloadType int        `json:"message_payloadtype" gorm:"column:message_payloadtype"`
 	MessagePayload     string     `json:"message_payload" gorm:"column:message_payload"`

@@ -1,12 +1,11 @@
 chain_id = 50341
-is_reddio_mainnet = false
 enable_eth_rpc = true
 eth_host = "0.0.0.0"
 eth_port = "9092"
 
 
 # [Module:Watcher]
-enable_bridge = false
+enable_bridge = true
 # note: need websocket rpc to listen to the L1 event
 ## use your own node address
 l1_client_address = ""
@@ -28,9 +27,10 @@ multisig_env_file = ""
 multisig_env_var = ""
 relayer_env_file = ""
 relayer_env_var = ""
+l1_chain_id = 11155111
+l2_chain_id = 50341
 l1_raw_bridge_events_table_name = ""
 l2_raw_bridge_events_table_name = ""
-
 
 #checker
 enable_bridge_checker = false
@@ -62,7 +62,7 @@ reddio_ticker_interval = 15
 
 
 [bridge_db_config]
-dsn = "testuser:123456@tcp(localhost:3306)/testdb?charset=utf8mb4&parseTime=True&loc=Local"
+dsn = ""
 driverName = "mysql"
 maxOpenNum = 10
 maxIdleNum = 5
