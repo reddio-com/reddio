@@ -12,7 +12,7 @@ func (sctx *StateContext) WriteConflict(addr common.Address, txnID int64) bool {
 }
 
 func (sctx *StateContext) ReadConflict(addr common.Address, txnID int64) bool {
-	ra := sctx.Read.Address[addr]
+	ra := sctx.Write.Address[addr]
 	return checkVisitedTxnConflict(txnID, ra)
 }
 
