@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
 	"github.com/common-nighthawk/go-figure"
@@ -31,7 +32,47 @@ import (
 	"github.com/reddio-com/reddio/evm/ethrpc"
 	"github.com/reddio-com/reddio/parallel"
 	"github.com/reddio-com/reddio/utils"
+	"github.com/reddio-com/reddio/utils/s3"
 )
+
+func prepareCfg(data *s3.ConfigData) (*yuConfig.KernelConf, *poa.PoaConfig, *evm.GethConfig, error) {
+	folder := os.TempDir()
+	evmPath := filepath.Join(folder, "evm.toml")
+	yuPath := filepath.Join(folder, "yu.toml")
+	poaPath := filepath.Join(folder, "poa.toml")
+	configPath := filepath.Join(folder, "config.toml")
+	defer func() {
+		os.Remove(evmPath)
+		os.Remove(yuPath)
+		os.Remove(poaPath)
+		os.Remove(configPath)
+	}()
+	if err := writeTmpCfg(evmPath, data.EvmCfg); err != nil {
+		return nil, nil, nil, err
+	}
+	if err := writeTmpCfg(yuPath, data.YuCfg); err != nil {
+		return nil, nil, nil, err
+	}
+	if err := writeTmpCfg(poaPath, data.PoaCfg); err != nil {
+		return nil, nil, nil, err
+	}
+	if err := writeTmpCfg(configPath, data.ConfigCfg); err != nil {
+		return nil, nil, nil, err
+	}
+	return loadAllCfg(evmPath, yuPath, poaPath, configPath)
+}
+
+func writeTmpCfg(fp string, data []byte) error {
+	return os.WriteFile(fp, data, 0644)
+}
+
+func StartByCfgData(data *s3.ConfigData) {
+	yuCfg, poaCfg, evmCfg, err := prepareCfg(data)
+	if err != nil {
+		panic(err)
+	}
+	StartUpChain(yuCfg, poaCfg, evmCfg)
+}
 
 func StartByConfig(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm.GethConfig) {
 	utils.IniLimiter()
@@ -39,11 +80,16 @@ func StartByConfig(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *ev
 	StartUpChain(yuCfg, poaCfg, evmCfg)
 }
 
-func Start(evmPath, yuPath, poaPath, configPath string) {
+func loadAllCfg(evmPath, yuPath, poaPath, configPath string) (*yuConfig.KernelConf, *poa.PoaConfig, *evm.GethConfig, error) {
 	yuCfg := startup.InitKernelConfigFromPath(yuPath)
 	poaCfg := poa.LoadCfgFromPath(poaPath)
 	evmCfg := evm.LoadEvmConfig(evmPath)
 	err := config.LoadConfig(configPath)
+	return yuCfg, poaCfg, evmCfg, err
+}
+
+func Start(evmPath, yuPath, poaPath, configPath string) {
+	yuCfg, poaCfg, evmCfg, err := loadAllCfg(evmPath, yuPath, poaPath, configPath)
 	if err != nil {
 		panic(err)
 	}
