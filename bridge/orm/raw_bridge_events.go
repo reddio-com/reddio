@@ -28,7 +28,7 @@ type RawBridgeEvent struct {
 	db                 *gorm.DB   `gorm:"column:-"`
 	ID                 uint64     `json:"id" gorm:"column:id;primary_key;autoIncrement"` // primary key in the database
 	EventType          int        `json:"event_type" gorm:"column:event_type"`           // 1.QueueTransaction(L1DepositMsgSent) 2.L2RelayedMessage(L2DepositMsgConsumed) 3.SentMessage(L2withdrawMsgSent) 4.L1RelayedMessage(L2DepositMsgConsumed)
-	ChainID            int        `json:"chain_id" gorm:"column:chain_id"`               // L1:1 11155111  L2:2 50341
+	ChainID            int        `json:"chain_id" gorm:"column:chain_id"`
 	ContractAddress    string     `json:"contract_address" gorm:"column:contract_address"`
 	TokenType          int        `json:"token_type" gorm:"column:token_type"`
 	TxHash             string     `json:"tx_hash" gorm:"column:tx_hash"`
@@ -39,6 +39,10 @@ type RawBridgeEvent struct {
 	Timestamp          uint64     `json:"timestamp" gorm:"column:timestamp"`
 	Sender             string     `json:"sender" gorm:"column:sender"` // sender address
 	Receiver           string     `json:"receiver" gorm:"column:receiver"`
+	TokenAddress       string     `json:"token_address" gorm:"column:token_address;type:varchar(100);"`
+	TokenName          string     `json:"token_name" gorm:"column:token_name;type:varchar(100);"`
+	TokenSymbol        string     `json:"token_symbol" gorm:"column:token_symbol;type:varchar(100);"`
+	Decimals           string     `json:"decimals" gorm:"column:decimals;type:varchar(10);"`                     // token decimals
 	MessageHash        string     `json:"message_hash" gorm:"column:message_hash;type:varchar(256);uniqueIndex"` // unique message hash
 	MessagePayloadType int        `json:"message_payloadtype" gorm:"column:message_payloadtype"`
 	MessagePayload     string     `json:"message_payload" gorm:"column:message_payload"`
