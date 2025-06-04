@@ -244,6 +244,11 @@ func (b *L1Relayer) HandleDownwardMessage(msg *orm.RawBridgeEvent) error {
 		logrus.Errorf("Failed to decode hex string: %v", err)
 		return err
 	}
+	chainId, err := b.l2Client.ChainID(b.ctx)
+	if err != nil {
+		logrus.Errorf("HandleDownwardMessage Failed to get chain ID: %v", err)
+		return err
+	}
 	downwardMessages := []contract.DownwardMessage{
 		{
 			PayloadType: uint32(msg.MessagePayloadType),
@@ -262,7 +267,7 @@ func (b *L1Relayer) HandleDownwardMessage(msg *orm.RawBridgeEvent) error {
 		log.Fatalf("Failed to load private key: %v", err)
 	}
 
-	auth, err := bind.NewKeyedTransactorWithChainID(relayerPk, big.NewInt(50341))
+	auth, err := bind.NewKeyedTransactorWithChainID(relayerPk, chainId)
 	if err != nil {
 		log.Fatalf("Failed to create transactor: %v", err)
 	}

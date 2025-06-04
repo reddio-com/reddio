@@ -28,7 +28,7 @@ type RawBridgeEvent struct {
 	db                 *gorm.DB   `gorm:"column:-"`
 	ID                 uint64     `json:"id" gorm:"column:id;primary_key;autoIncrement"` // primary key in the database
 	EventType          int        `json:"event_type" gorm:"column:event_type"`           // 1.QueueTransaction(L1DepositMsgSent) 2.L2RelayedMessage(L2DepositMsgConsumed) 3.SentMessage(L2withdrawMsgSent) 4.L1RelayedMessage(L2DepositMsgConsumed)
-	ChainID            int        `json:"chain_id" gorm:"column:chain_id"`               // L1:1 11155111  L2:2 50341
+	ChainID            int        `json:"chain_id" gorm:"column:chain_id"`
 	ContractAddress    string     `json:"contract_address" gorm:"column:contract_address"`
 	TokenType          int        `json:"token_type" gorm:"column:token_type"`
 	TxHash             string     `json:"tx_hash" gorm:"column:tx_hash"`
