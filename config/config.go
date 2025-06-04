@@ -8,18 +8,17 @@ import (
 )
 
 type Config struct {
-	IsParallel      bool `yaml:"isParallel"`
-	MaxConcurrency  int  `yaml:"maxConcurrency"`
-	IsBenchmarkMode bool `yaml:"isBenchmarkMode"`
-	AsyncCommit     bool `yaml:"asyncCommit"`
-	IgnoreConflict  bool `yaml:"ignoreConflict"`
+	EvmProcessorSelector string `yaml:"evmProcessorSelector"`
+	MaxConcurrency       int    `yaml:"maxConcurrency"`
+	IsBenchmarkMode      bool   `yaml:"isBenchmarkMode"`
+	AsyncCommit          bool   `yaml:"asyncCommit"`
 }
 
 func defaultConfig() *Config {
 	return &Config{
-		AsyncCommit:    false,
-		IsParallel:     true,
-		MaxConcurrency: runtime.NumCPU(),
+		EvmProcessorSelector: "serial",
+		AsyncCommit:          false,
+		MaxConcurrency:       runtime.NumCPU(),
 	}
 }
 

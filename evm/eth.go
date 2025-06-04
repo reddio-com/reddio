@@ -57,6 +57,18 @@ type Solidity struct {
 	coinbaseReward atomic.Uint64
 }
 
+func (s *Solidity) Snapshot() int {
+	s.Lock()
+	defer s.Unlock()
+	return s.ethState.stateDB.Snapshot()
+}
+
+func (s *Solidity) RevertToSnapshot(vision int) {
+	s.Lock()
+	defer s.Unlock()
+	s.ethState.stateDB.RevertToSnapshot(vision)
+}
+
 func (s *Solidity) StateDB() *state.StateDB {
 	s.Lock()
 	defer s.Unlock()

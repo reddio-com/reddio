@@ -16,30 +16,23 @@ import (
 )
 
 var (
-	evmConfigPath string
-	yuConfigPath  string
-	poaConfigPath string
-	isParallel    bool
-	useSql        bool
+	evmConfigPath        string
+	yuConfigPath         string
+	poaConfigPath        string
+	evmProcessorSelector string
 )
 
 func init() {
 	flag.StringVar(&evmConfigPath, "evmConfigPath", "./conf/evm.toml", "")
 	flag.StringVar(&yuConfigPath, "yuConfigPath", "./conf/yu.toml", "")
 	flag.StringVar(&poaConfigPath, "poaConfigPath", "./conf/poa.toml", "")
-	flag.BoolVar(&isParallel, "parallel", true, "")
-	flag.BoolVar(&useSql, "use-sql", false, "")
+	flag.StringVar(&evmProcessorSelector, "evmProcessorSelector", "serial", "")
 }
 
 func main() {
 	flag.Parse()
-	yuCfg, poaCfg, evmConfig, config := testx.GenerateConfig(yuConfigPath, evmConfigPath, poaConfigPath, useSql, isParallel)
+	yuCfg, poaCfg, evmConfig, _ := testx.GenerateConfig(yuConfigPath, evmConfigPath, poaConfigPath, evmProcessorSelector)
 	go func() {
-		if config.IsParallel {
-			logrus.Info("start transfer test in parallel")
-		} else {
-			logrus.Info("start transfer test in serial")
-		}
 		app.StartByConfig(yuCfg, poaCfg, evmConfig)
 	}()
 	time.Sleep(5 * time.Second)

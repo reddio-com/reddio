@@ -38,10 +38,13 @@ func NewTxnEVMProcessor() *TxnEVMProcessor {
 }
 
 func (k *TxnEVMProcessor) setupProcessor() {
-	if config.GetGlobalConfig().IsParallel {
-		k.processor = NewParallelEvmExecutor(k)
-	} else {
+	switch config.GetGlobalConfig().EvmProcessorSelector {
+	case "serial":
 		k.processor = NewSerialEvmExecutor(k)
+	case "parallel-multiple":
+		k.processor = NewParallelEvmExecutor(k)
+	case "parallel-single":
+		k.processor = NewParallelEvmSingleStateDBExecutor(k)
 	}
 }
 
