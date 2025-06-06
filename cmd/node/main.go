@@ -39,7 +39,7 @@ func main() {
 		if len(Bucket) < 1 {
 			panic(fmt.Errorf("s3 bucket name is required"))
 		}
-		s3Config, err := s3.InitS3Config(Bucket)
+		s3Config, err := s3.InitS3Config(folder, Bucket)
 		if err != nil {
 			panic(err)
 		}

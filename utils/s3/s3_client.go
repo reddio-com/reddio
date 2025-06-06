@@ -13,7 +13,7 @@ import (
 
 func InitS3Config(folder, bucket string) (*S3ConfigClient, error) {
 	s := &S3ConfigClient{}
-	if err := s.Init(bucket); err != nil {
+	if err := s.Init(folder, bucket); err != nil {
 		return nil, fmt.Errorf("init s3 client err: %v", err)
 	}
 	if err := s.LoadAllConfig(); err != nil {
