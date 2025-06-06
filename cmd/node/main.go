@@ -2,6 +2,9 @@ package main
 
 import (
 	"flag"
+	"fmt"
+
+	"github.com/sirupsen/logrus"
 
 	"github.com/reddio-com/reddio/cmd/node/app"
 	"github.com/reddio-com/reddio/utils/s3"
@@ -12,8 +15,9 @@ var (
 	yuConfigPath     string
 	PoaConfigPath    string
 	ReddioConfigPath string
-	useS3Config      bool
-	s3Bucket         string
+
+	loadConfigType string
+	Bucket         string
 )
 
 func init() {
@@ -21,19 +25,29 @@ func init() {
 	flag.StringVar(&yuConfigPath, "yu-config", "./conf/yu.toml", "path to yu-config file")
 	flag.StringVar(&PoaConfigPath, "poa-config", "./conf/poa.toml", "path to poa-config file")
 	flag.StringVar(&ReddioConfigPath, "reddio-config", "./conf/config.toml", "path to reddio-config file")
-	flag.BoolVar(&useS3Config, "use-s3-config", false, "use s3 config file")
-	flag.StringVar(&s3Bucket, "s3-bucket", "", "s3 bucket name")
+	flag.StringVar(&loadConfigType, "load-config-type", "file", "load-config-type json")
+	flag.StringVar(&Bucket, "bucket", "", "s3 bucket name")
 }
 
 func main() {
 	flag.Parse()
-	if useS3Config {
-		s3Config, err := s3.InitS3Config(s3Bucket)
+	switch loadConfigType {
+	case "s3":
+		logrus.Info("load config from s3")
+		if len(Bucket) < 1 {
+			panic(fmt.Errorf("s3 bucket name is required"))
+		}
+		s3Config, err := s3.InitS3Config(Bucket)
 		if err != nil {
 			panic(err)
 		}
 		app.StartByCfgData(s3Config.GetConfig())
-	} else {
+	case "file":
+		logrus.Info("load config from file")
 		app.Start(evmConfigPath, yuConfigPath, PoaConfigPath, ReddioConfigPath)
+	default:
+		logrus.Info("load config from file")
+		app.Start(evmConfigPath, yuConfigPath, PoaConfigPath, ReddioConfigPath)
+
 	}
 }

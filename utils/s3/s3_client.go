@@ -2,6 +2,7 @@ package s3
 
 import (
 	"context"
+	"fmt"
 	"io"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -12,7 +13,10 @@ import (
 func InitS3Config(bucket string) (*S3ConfigClient, error) {
 	s := &S3ConfigClient{}
 	if err := s.Init(bucket); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("init s3 client err: %v", err)
+	}
+	if err := s.LoadAllConfig(); err != nil {
+		return nil, fmt.Errorf("load config from s3 err: %v", err)
 	}
 	return s, nil
 }
@@ -68,7 +72,11 @@ func (s *S3ConfigClient) LoadConfig(key string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return io.ReadAll(resp.Body)
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("load %v error %v", key, err)
+	}
+	return data, nil
 }
 
 type ConfigData struct {
