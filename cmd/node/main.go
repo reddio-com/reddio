@@ -17,6 +17,7 @@ var (
 	ReddioConfigPath string
 
 	loadConfigType string
+	folder         string
 	Bucket         string
 )
 
@@ -26,6 +27,7 @@ func init() {
 	flag.StringVar(&PoaConfigPath, "poa-config", "./conf/poa.toml", "path to poa-config file")
 	flag.StringVar(&ReddioConfigPath, "reddio-config", "./conf/config.toml", "path to reddio-config file")
 	flag.StringVar(&loadConfigType, "load-config-type", "file", "load-config-type json")
+	flag.StringVar(&folder, "folder", "", "path to bucket folder")
 	flag.StringVar(&Bucket, "bucket", "", "s3 bucket name")
 }
 

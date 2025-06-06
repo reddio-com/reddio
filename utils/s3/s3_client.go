@@ -4,13 +4,14 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"path/filepath"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
-func InitS3Config(bucket string) (*S3ConfigClient, error) {
+func InitS3Config(folder, bucket string) (*S3ConfigClient, error) {
 	s := &S3ConfigClient{}
 	if err := s.Init(bucket); err != nil {
 		return nil, fmt.Errorf("init s3 client err: %v", err)
@@ -22,18 +23,20 @@ func InitS3Config(bucket string) (*S3ConfigClient, error) {
 }
 
 type S3ConfigClient struct {
+	Folder string
 	Bucket string
 	client *s3.Client
 	cd     *ConfigData
 }
 
-func (s *S3ConfigClient) Init(Bucket string) error {
+func (s *S3ConfigClient) Init(Folder, Bucket string) error {
 	cfg, err := config.LoadDefaultConfig(context.TODO())
 	if err != nil {
 		return err
 	}
 	client := s3.NewFromConfig(cfg)
 	s.client = client
+	s.Folder = Folder
 	s.Bucket = Bucket
 	s.cd = &ConfigData{}
 	return nil
@@ -45,19 +48,19 @@ func (s *S3ConfigClient) GetConfig() *ConfigData {
 
 func (s *S3ConfigClient) LoadAllConfig() error {
 	var err error
-	s.cd.EvmCfg, err = s.LoadConfig("evm.toml")
+	s.cd.EvmCfg, err = s.LoadConfig(filepath.Join(s.Folder, "evm.toml"))
 	if err != nil {
 		return err
 	}
-	s.cd.YuCfg, err = s.LoadConfig("yu.toml")
+	s.cd.YuCfg, err = s.LoadConfig(filepath.Join(s.Folder, "yu.toml"))
 	if err != nil {
 		return err
 	}
-	s.cd.PoaCfg, err = s.LoadConfig("poa.toml")
+	s.cd.PoaCfg, err = s.LoadConfig(filepath.Join(s.Folder, "poa.toml"))
 	if err != nil {
 		return err
 	}
-	s.cd.ConfigCfg, err = s.LoadConfig("config.toml")
+	s.cd.ConfigCfg, err = s.LoadConfig(filepath.Join(s.Folder, "config.toml"))
 	if err != nil {
 		return err
 	}
