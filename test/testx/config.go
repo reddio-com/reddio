@@ -9,12 +9,8 @@ import (
 	"github.com/reddio-com/reddio/evm"
 )
 
-func GenerateConfig(yuConfigPath, evmConfigPath, poaConfigPath string, useSql, isParallel bool) (yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmConfig *evm.GethConfig, config *config2.Config) {
+func GenerateConfig(yuConfigPath, evmConfigPath, poaConfigPath string, isParallel bool) (yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmConfig *evm.GethConfig, config *config2.Config) {
 	yuCfg = startup.InitKernelConfigFromPath(yuConfigPath)
-	if useSql {
-		yuCfg.SqliteDBConf.Path = "sqlite.db"
-		yuCfg.TxnConf.EnableSqliteStorage = true
-	}
 	evmConfig = evm.LoadEvmConfig(evmConfigPath)
 	config = config2.GetGlobalConfig()
 	config.IsBenchmarkMode = true

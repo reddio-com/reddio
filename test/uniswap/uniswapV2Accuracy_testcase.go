@@ -18,6 +18,7 @@ import (
 )
 
 type UniswapV2AccuracyTestCase struct {
+	NodeURL       string
 	ChainID       int64
 	CaseName      string
 	walletCount   int
@@ -30,8 +31,9 @@ func (ca *UniswapV2AccuracyTestCase) Name() string {
 	return ca.CaseName
 }
 
-func NewUniswapV2AccuracyTestCase(name string, count int, initial uint64, chainID int64) *UniswapV2AccuracyTestCase {
+func NewUniswapV2AccuracyTestCase(name, nodeURL string, count int, initial uint64, chainID int64) *UniswapV2AccuracyTestCase {
 	return &UniswapV2AccuracyTestCase{
+		NodeURL:       nodeURL,
 		ChainID:       chainID,
 		CaseName:      name,
 		walletCount:   count,
@@ -301,7 +303,7 @@ func (ca *UniswapV2AccuracyTestCase) Prepare(ctx context.Context, m *pkg.WalletM
 	if err != nil {
 		return TestData{}, fmt.Errorf("failed to generate test users: %v", err)
 	}
-	client, err := ethclient.Dial(nodeUrl)
+	client, err := ethclient.Dial(ca.NodeURL)
 	if err != nil {
 		return TestData{}, fmt.Errorf("failed to connect to the Ethereum client: %v", err)
 	}

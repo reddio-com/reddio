@@ -16,13 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/sirupsen/logrus"
 
-	"github.com/reddio-com/reddio/evm"
 	"github.com/reddio-com/reddio/evm/ethrpc"
-)
-
-const (
-	nodeURL           = "http://localhost:9092"
-	GenesisPrivateKey = "32e3b56c9f2763d2332e6e4188e4755815ac96441e899de121969845e343c2ff"
 )
 
 type EthWallet struct {
@@ -38,14 +32,16 @@ func (e *EthWallet) Copy() *EthWallet {
 }
 
 type WalletManager struct {
-	cfg         *evm.GethConfig
-	hostAddress string
+	nodeUrl string
+	pk      string
+	chainID int64
 }
 
-func NewWalletManager(cfg *evm.GethConfig, hostAddress string) *WalletManager {
+func NewWalletManager(chainID int64, nodeUrl, pk string) *WalletManager {
 	return &WalletManager{
-		cfg:         cfg,
-		hostAddress: hostAddress,
+		nodeUrl: nodeUrl,
+		pk:      pk,
+		chainID: chainID,
 	}
 }
 
@@ -99,7 +95,7 @@ func (m *WalletManager) createEthWallet(initialEthCount uint64) (*EthWallet, err
 }
 
 func (m *WalletManager) CreateEthWalletByAddress(initialEthCount uint64, privateKey, address string) (*EthWallet, error) {
-	if err := m.transferEth(GenesisPrivateKey, address, initialEthCount); err != nil {
+	if err := m.transferEth(m.pk, address, initialEthCount); err != nil {
 		return nil, err
 	}
 	// logrus.Infof("create wallet %v", address))
@@ -115,7 +111,7 @@ func (m *WalletManager) TransferEth(from, to *EthWallet, amount, nonce uint64) e
 }
 
 func (m *WalletManager) QueryEth(wallet *EthWallet) (uint64, error) {
-	client, err := ethclient.Dial(nodeURL)
+	client, err := ethclient.Dial(m.nodeUrl)
 	if err != nil {
 		return 0, err
 	}
@@ -158,7 +154,7 @@ func (m *WalletManager) sendRawTx(privateKeyHex string, toAddress string, amount
 
 	gasLimit := uint64(21000)
 
-	client, err := ethclient.Dial(nodeURL)
+	client, err := ethclient.Dial(m.nodeUrl)
 	if err != nil {
 		return fmt.Errorf("failed to connect to the Ethereum client: %v", err)
 	}
@@ -179,7 +175,7 @@ func (m *WalletManager) sendRawTx(privateKeyHex string, toAddress string, amount
 		Data:     nil,
 	})
 
-	chainID := m.cfg.ChainConfig.ChainID
+	chainID := big.NewInt(int64(m.chainID))
 	signedTx, err := types.SignTx(tx, types.NewEIP155Signer(chainID), privateKey)
 	if err != nil {
 		logrus.Fatal(err)
@@ -199,7 +195,7 @@ type RawTxReq struct {
 }
 
 func (m *WalletManager) sendBatchRawTxs(rawTxs []*RawTxReq) error {
-	client, err := ethclient.Dial(nodeURL)
+	client, err := ethclient.Dial(m.nodeUrl)
 	if err != nil {
 		logrus.Fatal(err)
 	}
@@ -231,7 +227,7 @@ func (m *WalletManager) sendBatchRawTxs(rawTxs []*RawTxReq) error {
 			Data:     rawTx.data,
 		})
 
-		chainID := m.cfg.ChainConfig.ChainID
+		chainID := big.NewInt(int64(m.chainID))
 		signedTx, err := types.SignTx(tx, types.NewEIP155Signer(chainID), privateKey)
 		if err != nil {
 			logrus.Fatal(err)
@@ -255,6 +251,6 @@ func (m *WalletManager) sendBatchRawTxs(rawTxs []*RawTxReq) error {
 		"method": "eth_sendBatchRawTransactions",
 		"params": ["0x%x"] 
 	}`, batchTxBytes)
-	_, err = sendRequest(m.hostAddress, requestBody)
+	_, err = sendRequest(m.nodeUrl, requestBody)
 	return err
 }

@@ -20,7 +20,6 @@ import (
 )
 
 const (
-	nodeUrl                  = "http://localhost:9092"
 	accountInitialFunds      = 1e18
 	gasLimit                 = 6e7
 	accountInitialERC20Token = 1e18
@@ -32,6 +31,7 @@ const (
 )
 
 type UniswapV2TPSStatisticsTestCase struct {
+	nodeUrl       string
 	ChainID       int64
 	MaxUsers      int
 	NonConflict   bool
@@ -54,8 +54,9 @@ func (cd *UniswapV2TPSStatisticsTestCase) Name() string {
 	return cd.CaseName
 }
 
-func NewUniswapV2TPSStatisticsTestCase(name string, t, d, maxUser int, rm *rate.Limiter, needLoad, nonConflict bool, chainID int64) *UniswapV2TPSStatisticsTestCase {
+func NewUniswapV2TPSStatisticsTestCase(name, nodeURL string, t, d, maxUser int, rm *rate.Limiter, needLoad, nonConflict bool, chainID int64) *UniswapV2TPSStatisticsTestCase {
 	tc := &UniswapV2TPSStatisticsTestCase{
+		nodeUrl:       nodeURL,
 		MaxUsers:      maxUser,
 		NonConflict:   nonConflict,
 		DeployedUsers: t,
@@ -94,7 +95,7 @@ func NewUniswapV2TPSStatisticsTestCase(name string, t, d, maxUser int, rm *rate.
 // 3. Assert
 //   - Calculate and report the transactions per second (TPS) achieved during the test
 func (cd *UniswapV2TPSStatisticsTestCase) Run(ctx context.Context, m *pkg.WalletManager) error {
-	err := cd.executeTest(nodeUrl, cd.ChainID, gasLimit, stepCount)
+	err := cd.executeTest(cd.nodeUrl, cd.ChainID, gasLimit, stepCount)
 	if err != nil {
 		logrus.Fatalf("Failed to execute test and calculate TPS: %v", err)
 	}
@@ -210,7 +211,7 @@ func (cd *UniswapV2TPSStatisticsTestCase) Prepare(ctx context.Context, m *pkg.Wa
 	if err != nil {
 		return fmt.Errorf("failed to generate test users: %v", err)
 	}
-	client, err := ethclient.Dial(nodeUrl)
+	client, err := ethclient.Dial(cd.nodeUrl)
 	if err != nil {
 		return fmt.Errorf("failed to connect to the Ethereum client: %v", err)
 	}
