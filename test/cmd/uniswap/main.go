@@ -62,7 +62,7 @@ func assertUniswapV2(ctx context.Context, chainID int64) error {
 	cfg := conf.Config.EthCaseConf
 	ethManager.Configure(cfg, nodeUrl, genesisPrivateKey, chainID)
 	ethManager.AddTestCase(
-		uniswap.NewUniswapV2AccuracyTestCase("UniswapV2 Accuracy TestCase", 2, cfg.InitialEthCount, chainID),
+		uniswap.NewUniswapV2AccuracyTestCase("UniswapV2 Accuracy TestCase", nodeUrl, 2, cfg.InitialEthCount, chainID),
 	)
 	return ethManager.Run(ctx)
 }

@@ -59,7 +59,7 @@ func main() {
 	limiter := rate.NewLimiter(rate.Limit(qps), qps)
 	ethManager.Configure(cfg, nodeUrl, genesisPrivateKey, evmConfig.ChainConfig.ChainID.Int64())
 	ethManager.AddTestCase(
-		uniswap.NewUniswapV2TPSStatisticsTestCase("UniswapV2 TPS StatisticsTestCase", deployUsers, testUsers, maxUsers, limiter, action == "run", nonConflict, evmConfig.ChainID))
+		uniswap.NewUniswapV2TPSStatisticsTestCase("UniswapV2 TPS StatisticsTestCase", nodeUrl, deployUsers, testUsers, maxUsers, limiter, action == "run", nonConflict, evmConfig.ChainID))
 	switch action {
 	case "prepare":
 		prepareBenchmark(context.Background(), ethManager)

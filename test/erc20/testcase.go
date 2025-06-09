@@ -42,6 +42,7 @@ type TestData struct {
 }
 
 type RandomTransferTestCase struct {
+	nodeURL      string
 	ChainID      int64
 	CaseName     string
 	walletCount  int
@@ -54,8 +55,9 @@ type RandomTransferTestCase struct {
 	erc20Wallets []*pkg.ERC20Wallet
 }
 
-func NewRandomTest(name string, count int, initial uint64, steps int, chainID int64) *RandomTransferTestCase {
+func NewRandomTest(name, nodeUrl string, count int, initial uint64, steps int, chainID int64) *RandomTransferTestCase {
 	return &RandomTransferTestCase{
+		nodeURL:      nodeUrl,
 		CaseName:     name,
 		walletCount:  count,
 		initialCount: initial,
@@ -79,7 +81,7 @@ func (tc *RandomTransferTestCase) Run(ctx context.Context, m *pkg.WalletManager)
 	log.Println(fmt.Sprintf("%s create wallets finish", tc.CaseName))
 	tc.wallets = pkg.GenerateCaseWallets(tc.initialCount, wallets)
 
-	client, err := ethclient.Dial(nodeUrl)
+	client, err := ethclient.Dial(tc.nodeURL)
 	if err != nil {
 		log.Fatalf("Failed to connect to the Ethereum client: %v", err)
 	}

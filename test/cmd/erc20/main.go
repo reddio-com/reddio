@@ -64,7 +64,7 @@ func assertErc20Transfer(ctx context.Context, evmCfg *evm.GethConfig) error {
 	cfg := conf.Config.EthCaseConf
 	ethManager.Configure(cfg, nodeUrl, genesisPrivateKey, evmCfg.ChainConfig.ChainID.Int64())
 	ethManager.AddTestCase(
-		erc20.NewRandomTest("[rand_test 2 account, 1 transfer]", 2, cfg.InitialEthCount, 1, evmCfg.ChainID),
+		erc20.NewRandomTest("[rand_test 2 account, 1 transfer]", nodeUrl, 2, cfg.InitialEthCount, 1, evmCfg.ChainID),
 	)
 	return ethManager.Run(ctx)
 }
