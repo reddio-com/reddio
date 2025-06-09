@@ -19,7 +19,6 @@ import (
 )
 
 const (
-	nodeUrl                  = "http://localhost:9092"
 	accountInitialFunds      = 1e18
 	waitForConfirmationTime  = 1 * time.Second
 	maxRetries               = 300

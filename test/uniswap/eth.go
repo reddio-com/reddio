@@ -6,23 +6,20 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/reddio-com/reddio/evm"
 	"github.com/reddio-com/reddio/test/conf"
 	"github.com/reddio-com/reddio/test/pkg"
 )
 
 type EthManager struct {
-	evmCfg *evm.GethConfig
 	config *conf.EthCaseConf
 	wm     *pkg.WalletManager
 	// tm     *pkg.TransferManager
 	testcases []TestCase
 }
 
-func (m *EthManager) Configure(cfg *conf.EthCaseConf, evmCfg *evm.GethConfig) {
+func (m *EthManager) Configure(cfg *conf.EthCaseConf, nodeUrl, pk string, chainID int64) {
 	m.config = cfg
-	m.evmCfg = evmCfg
-	m.wm = pkg.NewWalletManager(m.evmCfg, m.config.HostUrl)
+	m.wm = pkg.NewWalletManager(chainID, nodeUrl, pk)
 	m.testcases = []TestCase{}
 }
 

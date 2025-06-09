@@ -43,7 +43,6 @@ func NewDefaultConfig() *TestConfig {
 
 func DefaultEthCaseConf() *EthCaseConf {
 	return &EthCaseConf{
-		HostUrl:         "localhost:9092",
 		GenWalletCount:  2,
 		InitialEthCount: 100 * 100 * 100,
 		TestSteps:       1,

@@ -15,16 +15,18 @@ import (
 )
 
 var (
-	configPath    string
-	evmConfigPath string
-	maxBlock      int
-	qps           int
-	action        string
-	duration      time.Duration
-	deployUsers   int
-	testUsers     int
-	nonConflict   bool
-	maxUsers      int
+	configPath        string
+	evmConfigPath     string
+	maxBlock          int
+	qps               int
+	action            string
+	duration          time.Duration
+	deployUsers       int
+	testUsers         int
+	nonConflict       bool
+	maxUsers          int
+	nodeUrl           string
+	genesisPrivateKey string
 )
 
 func init() {
@@ -38,6 +40,9 @@ func init() {
 	flag.IntVar(&testUsers, "testUsers", 100, "")
 	flag.BoolVar(&nonConflict, "nonConflict", false, "")
 	flag.IntVar(&maxUsers, "maxUsers", 0, "")
+	flag.StringVar(&nodeUrl, "nodeUrl", "http://localhost:9092", "")
+	flag.StringVar(&genesisPrivateKey, "key", "32e3b56c9f2763d2332e6e4188e4755815ac96441e899de121969845e343c2ff", "")
+
 }
 
 func main() {
@@ -52,7 +57,7 @@ func main() {
 	ethManager := &uniswap.EthManager{}
 	cfg := conf.Config.EthCaseConf
 	limiter := rate.NewLimiter(rate.Limit(qps), qps)
-	ethManager.Configure(cfg, evmConfig)
+	ethManager.Configure(cfg, nodeUrl, genesisPrivateKey, evmConfig.ChainConfig.ChainID.Int64())
 	ethManager.AddTestCase(
 		uniswap.NewUniswapV2TPSStatisticsTestCase("UniswapV2 TPS StatisticsTestCase", deployUsers, testUsers, maxUsers, limiter, action == "run", nonConflict, evmConfig.ChainID))
 	switch action {

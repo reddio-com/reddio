@@ -16,12 +16,14 @@ import (
 )
 
 var (
-	configPath       string
-	evmConfigPath    string
-	qps              int
-	duration         time.Duration
-	action           string
-	preCreateWallets int
+	configPath        string
+	evmConfigPath     string
+	qps               int
+	duration          time.Duration
+	action            string
+	preCreateWallets  int
+	nodeUrl           string
+	genesisPrivateKey string
 )
 
 const benchmarkDataPath = "./bin/eth_benchmark_data.json"
@@ -33,6 +35,9 @@ func init() {
 	flag.DurationVar(&duration, "duration", 5*time.Minute, "")
 	flag.StringVar(&action, "action", "run", "")
 	flag.IntVar(&preCreateWallets, "preCreateWallets", 100, "")
+	flag.StringVar(&nodeUrl, "nodeUrl", "http://localhost:9092", "")
+	flag.StringVar(&genesisPrivateKey, "key", "32e3b56c9f2763d2332e6e4188e4755815ac96441e899de121969845e343c2ff", "")
+
 }
 
 func main() {
@@ -43,16 +48,16 @@ func main() {
 	evmConfig := evm.LoadEvmConfig(evmConfigPath)
 	switch action {
 	case "prepare":
-		prepareBenchmark(evmConfig)
+		prepareBenchmark(evmConfig.ChainConfig.ChainID.Int64())
 	case "run":
-		blockBenchmark(evmConfig, qps)
+		blockBenchmark(evmConfig.ChainConfig.ChainID.Int64(), qps)
 	}
 }
 
-func prepareBenchmark(evmCfg *evm.GethConfig) error {
+func prepareBenchmark(chainID int64) error {
 	ethManager := &transfer.EthManager{}
 	cfg := conf.Config.EthCaseConf
-	ethManager.Configure(cfg, evmCfg)
+	ethManager.Configure(cfg, nodeUrl, genesisPrivateKey, chainID)
 	wallets, err := ethManager.PreCreateWallets(preCreateWallets, cfg.InitialEthCount)
 	if err != nil {
 		return err
@@ -86,14 +91,14 @@ func loadWallets() ([]*pkg.EthWallet, error) {
 	return exp, nil
 }
 
-func blockBenchmark(evmCfg *evm.GethConfig, qps int) error {
+func blockBenchmark(chainID int64, qps int) error {
 	wallets, err := loadWallets()
 	if err != nil {
 		return err
 	}
 	ethManager := &transfer.EthManager{}
 	cfg := conf.Config.EthCaseConf
-	ethManager.Configure(cfg, evmCfg)
+	ethManager.Configure(cfg, nodeUrl, genesisPrivateKey, chainID)
 	limiter := rate.NewLimiter(rate.Limit(qps), qps)
 	ethManager.AddTestCase(transfer.NewRandomBenchmarkTest("[rand_test 1000 transfer]", cfg.InitialEthCount, wallets, limiter))
 	runBenchmark(ethManager)
