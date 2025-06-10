@@ -35,7 +35,7 @@ func init() {
 	flag.StringVar(&genesisPrivateKey, "key", "32e3b56c9f2763d2332e6e4188e4755815ac96441e899de121969845e343c2ff", "")
 
 	flag.BoolVar(&AsClient, "as-client", false, "")
-	flag.Int64Var(&chainID, "chainId", 0, "")
+	flag.Int64Var(&chainID, "chainId", 50341, "")
 
 }
 

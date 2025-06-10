@@ -48,6 +48,9 @@ ci_parallel_transfer_erc20_test: reset
 ci_serial_transfer_erc20_test: reset
 	./bin/transfer_erc20_test --parallel=FALSE
 
+ci_transfer_client_test: reset
+	./test/cmd/transfer/client_test.sh
+
 ## for local benchmark
 
 build_benchmark_test:
