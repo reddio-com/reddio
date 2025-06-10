@@ -37,3 +37,5 @@ jobs:
         run: make ci_parallel_transfer_test
       - name: Serial Transfer Test
         run: make ci_serial_transfer_test
+      - name: Transfer Client Test
+        run: make ci_transfer_client_test
