@@ -66,6 +66,12 @@ func (s *Solidity) StateDB() *state.StateDB {
 	return s.ethState.StateDB()
 }
 
+func (s *Solidity) StateDBCopy() *state.StateDB {
+	s.Lock()
+	defer s.Unlock()
+	return s.ethState.StateDB().Copy()
+}
+
 func (s *Solidity) GetStateDBState(addr common.Address, hash common.Hash) common.Hash {
 	s.Lock()
 	defer s.Unlock()
@@ -238,6 +244,18 @@ func (s *Solidity) CheckTxn(txn *yu_types.SignedTxn) error {
 
 	if req.IsInternalCall {
 		// TODO: use txn.Pubkey and txn.Signature to verify the tx
+	}
+	return s.CheckGasfee(req)
+}
+
+func (s *Solidity) CheckGasfee(req *TxRequest) error {
+	s.Lock()
+	defer s.Unlock()
+	state := s.ethState.StateDB()
+	gasFee := new(big.Int).Mul(req.GasPrice, new(big.Int).SetUint64(req.GasLimit))
+	gasFeeU256, _ := uint256.FromBig(gasFee)
+	if state.GetBalance(req.Origin).Cmp(gasFeeU256) < 0 {
+		return core.ErrInsufficientFunds
 	}
 	return nil
 }
