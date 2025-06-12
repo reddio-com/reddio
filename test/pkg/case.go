@@ -57,8 +57,13 @@ func (m *TransferManager) GenerateSwapTransferSteps(wallets []*CaseEthWallet) *T
 		Expect:   getCopy(wallets),
 	}
 	steps := make([]*Step, 0)
-	steps = append(steps, generateStep(wallets[0], wallets[1], 1))
-	steps = append(steps, generateStep(wallets[1], wallets[0], 1))
+	for i := 0; i < len(wallets); i++ {
+		if i < len(wallets)-1 {
+			steps = append(steps, generateStep(wallets[i], wallets[i+1], 1))
+		} else {
+			steps = append(steps, generateStep(wallets[i], wallets[0], 1))
+		}
+	}
 	t.Steps = steps
 	calculateExpect(t)
 	return t

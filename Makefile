@@ -56,6 +56,9 @@ ci_transfer_client_test: reset
 build_benchmark_test:
 	go build -v -o ./bin/benchmark_test ./test/cmd/benchmark/main.go
 
+build_staging_benchmark_test:
+	go build -v -o ./bin/staging_benchmark_test ./test/cmd/staging_benchmark/main.go
+
 reset:
 	@if [ -d "yu" ]; then \
 		echo "Deleting 'yu' directory..."; \

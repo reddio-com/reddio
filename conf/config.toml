@@ -1,8 +1,5 @@
-isParallel = true
+isParallel = false
 enableAsyncCommit = false
 maxConcurrency = 4
-isBenchmarkMode = false
+isBenchmarkMode = true
 ignoreConflict = false
-
-[rateLimitConfig]
-getReceipt = 20000

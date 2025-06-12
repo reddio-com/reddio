@@ -20,9 +20,9 @@ var (
 )
 
 func init() {
-	flag.IntVar(&qps, "qps", 100, "")
+	flag.IntVar(&qps, "qps", 10, "")
 	flag.DurationVar(&duration, "duration", 5*time.Minute, "")
-	flag.IntVar(&preCreateWallets, "pre-create-wallets", 2, "")
+	flag.IntVar(&preCreateWallets, "pre-create-wallets", 100, "")
 	flag.StringVar(&nodeUrl, "nodeUrl", "http://localhost:9092", "")
 	flag.StringVar(&genesisPrivateKey, "key", "32e3b56c9f2763d2332e6e4188e4755815ac96441e899de121969845e343c2ff", "")
 	flag.Int64Var(&chainID, "chainId", 50341, "")
@@ -31,7 +31,7 @@ func init() {
 func main() {
 	ethManager := &transfer.EthManager{}
 	ethManager.Configure(nil, nodeUrl, genesisPrivateKey, chainID)
-	wallets, err := ethManager.PreCreateWallets(preCreateWallets, 2)
+	wallets, err := ethManager.PreCreateWallets(preCreateWallets, 5)
 	if err != nil {
 		panic(err)
 	}
