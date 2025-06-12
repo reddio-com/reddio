@@ -25,8 +25,7 @@ type ParallelEvmExecutor struct {
 
 func NewParallelEvmExecutor(evm *ParallelEVM) *ParallelEvmExecutor {
 	return &ParallelEvmExecutor{
-		k:    evm,
-		cpdb: evm.db,
+		k: evm,
 	}
 }
 
@@ -36,6 +35,7 @@ func (e *ParallelEvmExecutor) Prepare(block *types.Block) {
 	e.receipts = receipts
 	e.k.updateTxnObjInc(txnCtxList)
 	e.subTxnList = e.splitTxnCtxList(txnCtxList)
+	e.cpdb = e.k.Solidity.StateDBCopy()
 }
 
 func (e *ParallelEvmExecutor) Execute(block *types.Block) {
@@ -90,13 +90,6 @@ func (e *ParallelEvmExecutor) splitTxnCtxList(list []*txnCtx) [][]*txnCtx {
 }
 
 func (e *ParallelEvmExecutor) executeTxnCtxListInParallel(list []*txnCtx) []*txnCtx {
-	defer func() {
-		e.cpdb.Finalise(true)
-		if config.GetGlobalConfig().AsyncCommit {
-			e.k.updateTxnObjSub(list)
-			//e.cpdb.PendingCommit(true, e.k.objectInc)
-		}
-	}()
 	metrics.BatchTxnSplitCounter.WithLabelValues(strconv.FormatInt(int64(len(list)), 10)).Inc()
 	return e.executeTxnCtxListInConcurrency(list)
 }

@@ -69,6 +69,12 @@ func (s *Solidity) StateDB() *state.StateDB {
 	return s.ethState.StateDB()
 }
 
+func (s *Solidity) StateDBCopy() *state.StateDB {
+	s.Lock()
+	defer s.Unlock()
+	return s.ethState.StateDB().Copy()
+}
+
 func (s *Solidity) GetStateDBState(addr common.Address, hash common.Hash) common.Hash {
 	s.Lock()
 	defer s.Unlock()
