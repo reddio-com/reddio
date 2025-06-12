@@ -31,7 +31,6 @@ import (
 	"github.com/reddio-com/reddio/evm"
 	"github.com/reddio-com/reddio/evm/ethrpc"
 	"github.com/reddio-com/reddio/parallel"
-	"github.com/reddio-com/reddio/utils"
 	"github.com/reddio-com/reddio/utils/s3"
 )
 
@@ -75,7 +74,6 @@ func StartByCfgData(data *s3.ConfigData) {
 }
 
 func StartByConfig(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm.GethConfig) {
-	utils.IniLimiter()
 	go startPromServer()
 	StartUpChain(yuCfg, poaCfg, evmCfg)
 }
