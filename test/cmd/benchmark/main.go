@@ -37,7 +37,6 @@ func init() {
 	flag.IntVar(&preCreateWallets, "preCreateWallets", 100, "")
 	flag.StringVar(&nodeUrl, "nodeUrl", "http://localhost:9092", "")
 	flag.StringVar(&genesisPrivateKey, "key", "32e3b56c9f2763d2332e6e4188e4755815ac96441e899de121969845e343c2ff", "")
-
 }
 
 func main() {
