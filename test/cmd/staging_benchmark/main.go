@@ -29,6 +29,7 @@ func init() {
 }
 
 func main() {
+	flag.Parse()
 	ethManager := &transfer.EthManager{}
 	ethManager.Configure(nil, nodeUrl, genesisPrivateKey, chainID)
 	wallets, err := ethManager.PreCreateWallets(preCreateWallets, 5)
