@@ -74,7 +74,6 @@ func StartByCfgData(data *s3.ConfigData) {
 }
 
 func StartByConfig(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm.GethConfig) {
-	go startPromServer()
 	StartUpChain(yuCfg, poaCfg, evmCfg)
 }
 
@@ -95,6 +94,7 @@ func Start(evmPath, yuPath, poaPath, configPath string) {
 }
 
 func StartUpChain(yuCfg *yuConfig.KernelConf, poaCfg *poa.PoaConfig, evmCfg *evm.GethConfig) {
+	go startPromServer()
 	figure.NewColorFigure("Reddio", "big", "green", false).Print()
 	logrus.Info("--- Start the Reddio Chain ---")
 	var db *gorm.DB
