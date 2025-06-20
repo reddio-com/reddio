@@ -507,6 +507,11 @@ func (s *Solidity) executeContractCall(ctx *context.WriteContext, txReq *TxReque
 	// logrus.Printf("before transfer: account %s balance %d \n", sender.Address(), ethState.GetBalance(sender.Address()))
 
 	code, leftOverGas, err := vmenv.Call(sender, *txReq.Address, txReq.Input, txReq.GasLimit, uint256.MustFromBig(txReq.Value))
+	if IsPureTransfer(sender, txReq, ethState) {
+		extraTransferGas := config.GlobalConfig.ExtraBalanceGas
+		ethState.SubBalance(sender.Address(), uint256.NewInt(extraTransferGas), tracing.BalanceChangeTransfer)
+		leftOverGas -= extraTransferGas
+	}
 	// logrus.Printf("after transfer: account %s balance %d \n", sender.Address(), ethState.GetBalance(sender.Address()))
 	if err != nil {
 		// byt, _ := json.Marshal(txReq)
@@ -514,14 +519,8 @@ func (s *Solidity) executeContractCall(ctx *context.WriteContext, txReq *TxReque
 		_ = emitReceipt(ctx, vmenv, txReq, code, common.Address{}, leftOverGas, err)
 		return 0, err
 	}
-	extraGas := uint64(0)
-	if IsPureTransfer(sender, txReq, ethState) {
-		extraGas += config.GlobalConfig.ExtraBalanceGas
-		ethState.SubBalance(sender.Address(), uint256.NewInt(extraGas), tracing.BalanceChangeTransfer)
-	}
-
 	// logrus.Printf("[Execute Txn] SendTx success. Oringin code = %v, Hex Code = %v, Left Gas = %v", code, hex.EncodeToString(code), leftOverGas)
-	return txReq.GasLimit - leftOverGas + extraGas, emitReceipt(ctx, vmenv, txReq, code, common.Address{}, leftOverGas, err)
+	return txReq.GasLimit - leftOverGas, emitReceipt(ctx, vmenv, txReq, code, common.Address{}, leftOverGas, err)
 }
 
 func IsPureTransfer(sender vm.AccountRef, txReq *TxRequest, ethState *pending_state.PendingStateWrapper) bool {
