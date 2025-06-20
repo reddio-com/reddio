@@ -3,3 +3,4 @@ enableAsyncCommit = false
 maxConcurrency = 4
 isBenchmarkMode = true
 ignoreConflict = false
+extraBalanceGas = 0

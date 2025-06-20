@@ -14,6 +14,7 @@ type Config struct {
 	AsyncCommit     bool            `yaml:"asyncCommit"`
 	IgnoreConflict  bool            `yaml:"ignoreConflict"`
 	RateLimitConfig RateLimitConfig `yaml:"rateLimitConfig"`
+	ExtraBalanceGas uint64          `yaml:"extraBalanceGas"`
 }
 
 type RateLimitConfig struct {

@@ -28,6 +28,7 @@ import (
 	"github.com/yu-org/yu/core/tripod"
 	yu_types "github.com/yu-org/yu/core/types"
 
+	"github.com/reddio-com/reddio/config"
 	yuConfig "github.com/reddio-com/reddio/evm/config"
 	"github.com/reddio-com/reddio/evm/pending_state"
 	"github.com/reddio-com/reddio/metrics"
@@ -513,9 +514,36 @@ func (s *Solidity) executeContractCall(ctx *context.WriteContext, txReq *TxReque
 		_ = emitReceipt(ctx, vmenv, txReq, code, common.Address{}, leftOverGas, err)
 		return 0, err
 	}
+	extraGas := uint64(0)
+	if IsPureTransfer(sender, txReq, ethState) {
+		extraGas += config.GlobalConfig.ExtraBalanceGas
+		ethState.SubBalance(sender.Address(), uint256.NewInt(extraGas), tracing.BalanceChangeTransfer)
+	}
 
 	// logrus.Printf("[Execute Txn] SendTx success. Oringin code = %v, Hex Code = %v, Left Gas = %v", code, hex.EncodeToString(code), leftOverGas)
-	return txReq.GasLimit - leftOverGas, emitReceipt(ctx, vmenv, txReq, code, common.Address{}, leftOverGas, err)
+	return txReq.GasLimit - leftOverGas + extraGas, emitReceipt(ctx, vmenv, txReq, code, common.Address{}, leftOverGas, err)
+}
+
+func IsPureTransfer(sender vm.AccountRef, txReq *TxRequest, ethState *pending_state.PendingStateWrapper) bool {
+	if txReq.Address == nil {
+		return false
+	}
+	if len(txReq.Input) > 0 {
+		return false
+	}
+	if ethState.GetCode(*txReq.Address) != nil {
+		return false
+	}
+	if ethState.GetCodeSize(*txReq.Address) > 0 {
+		return false
+	}
+	if ethState.GetCode(sender.Address()) != nil {
+		return false
+	}
+	if ethState.GetCodeSize(sender.Address()) > 0 {
+		return false
+	}
+	return txReq.Value.Sign() > 0
 }
 
 func makeEvmReceipt(ctx *context.WriteContext, vmEvm *vm.EVM, code []byte, signedTx *yu_types.SignedTxn, block *yu_types.Block, address common.Address, leftOverGas uint64, err error) *types.Receipt {
