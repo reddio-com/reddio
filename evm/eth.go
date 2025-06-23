@@ -512,7 +512,6 @@ func (s *Solidity) executeContractCall(ctx *context.WriteContext, txReq *TxReque
 		ethState.SubBalance(sender.Address(), uint256.NewInt(extraTransferGas), tracing.BalanceChangeTransfer)
 		leftOverGas -= extraTransferGas
 	}
-	logrus.Infof("extraGasFee:%v gasUsed:%v", config.GlobalConfig.ExtraBalanceGas, txReq.GasLimit-leftOverGas)
 	// logrus.Printf("after transfer: account %s balance %d \n", sender.Address(), ethState.GetBalance(sender.Address()))
 	if err != nil {
 		// byt, _ := json.Marshal(txReq)
@@ -543,7 +542,7 @@ func IsPureTransfer(sender vm.AccountRef, txReq *TxRequest, ethState *pending_st
 	if ethState.GetCodeSize(sender.Address()) > 0 {
 		return false
 	}
-	return txReq.Value.Sign() > 0
+	return txReq.Value.Sign() >= 0
 }
 
 func makeEvmReceipt(ctx *context.WriteContext, vmEvm *vm.EVM, code []byte, signedTx *yu_types.SignedTxn, block *yu_types.Block, address common.Address, leftOverGas uint64, err error) *types.Receipt {
