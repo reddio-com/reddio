@@ -542,7 +542,7 @@ func IsPureTransfer(sender vm.AccountRef, txReq *TxRequest, ethState *pending_st
 	if ethState.GetCodeSize(sender.Address()) > 0 {
 		return false
 	}
-	return txReq.Value.Sign() > 0
+	return txReq.Value.Sign() >= 0
 }
 
 func makeEvmReceipt(ctx *context.WriteContext, vmEvm *vm.EVM, code []byte, signedTx *yu_types.SignedTxn, block *yu_types.Block, address common.Address, leftOverGas uint64, err error) *types.Receipt {
