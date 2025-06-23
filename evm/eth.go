@@ -510,7 +510,7 @@ func (s *Solidity) executeContractCall(ctx *context.WriteContext, txReq *TxReque
 	if IsPureTransfer(sender, txReq, ethState) {
 		extraTransferGas := config.GlobalConfig.ExtraBalanceGas
 		ethState.SubBalance(sender.Address(), uint256.NewInt(extraTransferGas), tracing.BalanceChangeTransfer)
-		leftOverGas -= extraTransferGas
+		leftOverGas -= extraTransferGas * txReq.GasPrice.Uint64()
 	}
 	// logrus.Printf("after transfer: account %s balance %d \n", sender.Address(), ethState.GetBalance(sender.Address()))
 	if err != nil {
