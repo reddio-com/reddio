@@ -493,21 +493,12 @@ func (s *Solidity) executeContractCreation(ctx *context.WriteContext, txReq *TxR
 
 	code, address, leftOverGas, err := vmenv.Create(sender, txReq.Input, txReq.GasLimit, uint256.MustFromBig(txReq.Value))
 	if err != nil {
-		extraTransferGas := config.GlobalConfig.ExtraBalanceGas
-		if extraTransferGas > txReq.GasLimit {
-			extraTransferGas = txReq.GasLimit
-		}
-		stateDB.SubBalance(sender.Address(), uint256.NewInt(extraTransferGas*txReq.GasPrice.Uint64()), tracing.BalanceChangeUnspecified)
-		if leftOverGas >= extraTransferGas {
-			leftOverGas -= extraTransferGas
-		} else {
-			leftOverGas = 0
-		}
-		_ = emitReceipt(ctx, vmenv, txReq, code, address, leftOverGas, err)
+		gasUsed, _ := emitReceipt(ctx, vmenv, txReq, code, address, leftOverGas, err)
+		logrus.Infof("gasUsed:%v, leftOver:%v, gasLimit:%v", gasUsed, leftOverGas, txReq.GasLimit)
 		return leftOverGas, err
 	}
-
-	return txReq.GasLimit - leftOverGas, emitReceipt(ctx, vmenv, txReq, code, address, leftOverGas, err)
+	_, err2 := emitReceipt(ctx, vmenv, txReq, code, address, leftOverGas, err)
+	return txReq.GasLimit - leftOverGas, err2
 }
 
 func (s *Solidity) executeContractCall(ctx *context.WriteContext, txReq *TxRequest, ethState *pending_state.PendingStateWrapper, origin, coinBase common.Address, vmenv *vm.EVM, sender vm.AccountRef, rules params.Rules) (uint64, error) {
@@ -533,11 +524,12 @@ func (s *Solidity) executeContractCall(ctx *context.WriteContext, txReq *TxReque
 	if err != nil {
 		// byt, _ := json.Marshal(txReq)
 		// logrus.Printf("[Execute Txn] SendTx Failed. err = %v. Request = %v", err, string(byt))
-		_ = emitReceipt(ctx, vmenv, txReq, code, common.Address{}, leftOverGas, err)
+		_, _ = emitReceipt(ctx, vmenv, txReq, code, common.Address{}, leftOverGas, err)
 		return 0, err
 	}
+	_, err2 := emitReceipt(ctx, vmenv, txReq, code, common.Address{}, leftOverGas, err)
 	// logrus.Printf("[Execute Txn] SendTx success. Oringin code = %v, Hex Code = %v, Left Gas = %v", code, hex.EncodeToString(code), leftOverGas)
-	return txReq.GasLimit - leftOverGas, emitReceipt(ctx, vmenv, txReq, code, common.Address{}, leftOverGas, err)
+	return txReq.GasLimit - leftOverGas, err2
 }
 
 func IsPureTransfer(sender vm.AccountRef, txReq *TxRequest, ethState *pending_state.PendingStateWrapper) bool {
@@ -778,16 +770,16 @@ func (s *Solidity) GetReceipts(ctx *context.ReadContext) {
 	ctx.JsonOk(&ReceiptsResponse{Receipts: want})
 }
 
-func emitReceipt(ctx *context.WriteContext, vmEmv *vm.EVM, txReq *TxRequest, code []byte, contractAddr common.Address, leftOverGas uint64, err error) error {
+func emitReceipt(ctx *context.WriteContext, vmEmv *vm.EVM, txReq *TxRequest, code []byte, contractAddr common.Address, leftOverGas uint64, err error) (uint64, error) {
 	evmReceipt := makeEvmReceipt(ctx, vmEmv, code, ctx.Txn, ctx.Block, contractAddr, leftOverGas, err)
 	var buf bytes.Buffer
 	encodeErr := json.NewEncoder(&buf).Encode(evmReceipt)
 	if encodeErr != nil {
 		logrus.Errorf("Receipt marshal err: %v. Tx: %s", encodeErr, txReq.Hash.String())
-		return encodeErr
+		return 0, encodeErr
 	}
 	ctx.EmitExtra(buf.Bytes())
-	return nil
+	return evmReceipt.GasUsed, nil
 }
 
 // endregion ---- Tripod Api ----
