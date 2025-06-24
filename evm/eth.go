@@ -495,7 +495,6 @@ func (s *Solidity) executeContractCreation(ctx *context.WriteContext, txReq *TxR
 	if err != nil {
 		gasUsed, _ := emitReceipt(ctx, vmenv, txReq, code, address, leftOverGas, err)
 		stateDB.SubBalance(sender.Address(), uint256.NewInt(gasUsed*txReq.GasPrice.Uint64()), tracing.BalanceChangeUnspecified)
-		logrus.Errorf("contract creation error, gasUsed:%v, gasLimit:%v, leftOver:%v, price:%v", gasUsed, txReq.GasLimit, leftOverGas, txReq.GasPrice)
 		return txReq.GasLimit - leftOverGas, err
 	}
 	_, err2 := emitReceipt(ctx, vmenv, txReq, code, address, leftOverGas, err)
@@ -528,8 +527,10 @@ func (s *Solidity) executeContractCall(ctx *context.WriteContext, txReq *TxReque
 		// byt, _ := json.Marshal(txReq)
 		// logrus.Printf("[Execute Txn] SendTx Failed. err = %v. Request = %v", err, string(byt))
 		gasUsed, _ := emitReceipt(ctx, vmenv, txReq, code, common.Address{}, leftOverGas, err)
-		logrus.Errorf("contract call error, gasUsed:%v, gasLimit:%v, leftOver:%v, price:%v, isPureTransferTxn:%v", gasUsed, txReq.GasLimit, leftOverGas, txReq.GasPrice, isPureTransferTxn)
-		return 0, err
+		if !isPureTransferTxn {
+			ethState.SubBalance(sender.Address(), uint256.NewInt(gasUsed*txReq.GasPrice.Uint64()), tracing.BalanceChangeUnspecified)
+		}
+		return gasUsed, err
 	}
 	_, err2 := emitReceipt(ctx, vmenv, txReq, code, common.Address{}, leftOverGas, err)
 	// logrus.Printf("[Execute Txn] SendTx success. Oringin code = %v, Hex Code = %v, Left Gas = %v", code, hex.EncodeToString(code), leftOverGas)
