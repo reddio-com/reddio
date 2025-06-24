@@ -495,7 +495,6 @@ func (s *Solidity) executeContractCreation(ctx *context.WriteContext, txReq *TxR
 	if err != nil {
 		gasUsed, _ := emitReceipt(ctx, vmenv, txReq, code, address, leftOverGas, err)
 		stateDB.SubBalance(sender.Address(), uint256.NewInt(gasUsed*txReq.GasPrice.Uint64()), tracing.BalanceChangeUnspecified)
-		logrus.Infof("gasUsed:%v, leftOver:%v, gasLimit:%v, price:%v", gasUsed, leftOverGas, txReq.GasLimit, txReq.GasPrice)
 		return leftOverGas, err
 	}
 	_, err2 := emitReceipt(ctx, vmenv, txReq, code, address, leftOverGas, err)
