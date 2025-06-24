@@ -495,7 +495,7 @@ func (s *Solidity) executeContractCreation(ctx *context.WriteContext, txReq *TxR
 	if err != nil {
 		gasUsed, _ := emitReceipt(ctx, vmenv, txReq, code, address, leftOverGas, err)
 		stateDB.SubBalance(sender.Address(), uint256.NewInt(gasUsed*txReq.GasPrice.Uint64()), tracing.BalanceChangeUnspecified)
-		logrus.Errorf("contract error, gasUsed:%v, gasLimit:%v, leftOver:%v, price:%v", gasUsed, txReq.GasLimit, leftOverGas, txReq.GasPrice)
+		logrus.Errorf("contract creation error, gasUsed:%v, gasLimit:%v, leftOver:%v, price:%v", gasUsed, txReq.GasLimit, leftOverGas, txReq.GasPrice)
 		return txReq.GasLimit - leftOverGas, err
 	}
 	_, err2 := emitReceipt(ctx, vmenv, txReq, code, address, leftOverGas, err)
@@ -509,7 +509,9 @@ func (s *Solidity) executeContractCall(ctx *context.WriteContext, txReq *TxReque
 	// logrus.Printf("before transfer: account %s balance %d \n", sender.Address(), ethState.GetBalance(sender.Address()))
 
 	code, leftOverGas, err := vmenv.Call(sender, *txReq.Address, txReq.Input, txReq.GasLimit, uint256.MustFromBig(txReq.Value))
+	isPureTransferTxn := false
 	if IsPureTransfer(sender, txReq, ethState) {
+		isPureTransferTxn = true
 		extraTransferGas := config.GlobalConfig.ExtraBalanceGas
 		if extraTransferGas > txReq.GasLimit {
 			extraTransferGas = txReq.GasLimit
@@ -525,7 +527,8 @@ func (s *Solidity) executeContractCall(ctx *context.WriteContext, txReq *TxReque
 	if err != nil {
 		// byt, _ := json.Marshal(txReq)
 		// logrus.Printf("[Execute Txn] SendTx Failed. err = %v. Request = %v", err, string(byt))
-		_, _ = emitReceipt(ctx, vmenv, txReq, code, common.Address{}, leftOverGas, err)
+		gasUsed, _ := emitReceipt(ctx, vmenv, txReq, code, common.Address{}, leftOverGas, err)
+		logrus.Errorf("contract call error, gasUsed:%v, gasLimit:%v, leftOver:%v, price:%v, isPureTransferTxn:%v", gasUsed, txReq.GasLimit, leftOverGas, txReq.GasPrice, isPureTransferTxn)
 		return 0, err
 	}
 	_, err2 := emitReceipt(ctx, vmenv, txReq, code, common.Address{}, leftOverGas, err)
