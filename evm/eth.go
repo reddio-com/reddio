@@ -493,8 +493,18 @@ func (s *Solidity) executeContractCreation(ctx *context.WriteContext, txReq *TxR
 
 	code, address, leftOverGas, err := vmenv.Create(sender, txReq.Input, txReq.GasLimit, uint256.MustFromBig(txReq.Value))
 	if err != nil {
+		extraTransferGas := config.GlobalConfig.ExtraBalanceGas
+		if extraTransferGas > txReq.GasLimit {
+			extraTransferGas = txReq.GasLimit
+		}
+		stateDB.SubBalance(sender.Address(), uint256.NewInt(extraTransferGas*txReq.GasPrice.Uint64()), tracing.BalanceChangeUnspecified)
+		if leftOverGas >= extraTransferGas {
+			leftOverGas -= extraTransferGas
+		} else {
+			leftOverGas = 0
+		}
 		_ = emitReceipt(ctx, vmenv, txReq, code, address, leftOverGas, err)
-		return 0, err
+		return leftOverGas, err
 	}
 
 	return txReq.GasLimit - leftOverGas, emitReceipt(ctx, vmenv, txReq, code, address, leftOverGas, err)
