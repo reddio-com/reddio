@@ -528,7 +528,7 @@ func (s *Solidity) executeContractCall(ctx *context.WriteContext, txReq *TxReque
 		// logrus.Printf("[Execute Txn] SendTx Failed. err = %v. Request = %v", err, string(byt))
 		gasUsed, _ := emitReceipt(ctx, vmenv, txReq, code, common.Address{}, leftOverGas, err)
 		if !isPureTransferTxn {
-			ethState.SubBalance(sender.Address(), uint256.NewInt(gasUsed*txReq.GasPrice.Uint64()), tracing.BalanceChangeUnspecified)
+			ethState.SubBalance(sender.Address(), uint256.NewInt(0), tracing.BalanceChangeUnspecified)
 		}
 		logrus.Errorf("contract call error, gasUsed:%v, gasLimit:%v, leftOver:%v, price:%v, isPureTransferTxn:%v, sender:%v", gasUsed, txReq.GasLimit, leftOverGas, txReq.GasPrice, isPureTransferTxn, sender.Address().String())
 		return gasUsed, err
