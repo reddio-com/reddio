@@ -28,7 +28,6 @@ import (
 	"github.com/yu-org/yu/core/tripod"
 	yu_types "github.com/yu-org/yu/core/types"
 
-	"github.com/reddio-com/reddio/config"
 	yuConfig "github.com/reddio-com/reddio/evm/config"
 	"github.com/reddio-com/reddio/evm/pending_state"
 	"github.com/reddio-com/reddio/metrics"
@@ -493,7 +492,9 @@ func (s *Solidity) executeContractCreation(ctx *context.WriteContext, txReq *TxR
 	code, address, leftOverGas, err := vmenv.Create(sender, txReq.Input, txReq.GasLimit, uint256.MustFromBig(txReq.Value))
 	if err != nil {
 		gasUsed, _ := emitReceipt(ctx, vmenv, txReq, code, address, leftOverGas, err)
-		stateDB.SubBalance(sender.Address(), uint256.NewInt(gasUsed*txReq.GasPrice.Uint64()), tracing.BalanceChangeUnspecified)
+		fee := new(big.Int).Mul(txReq.GasPrice, new(big.Int).SetUint64(gasUsed))
+		gasFeeU256, _ := uint256.FromBig(fee)
+		stateDB.SubBalance(sender.Address(), gasFeeU256, tracing.BalanceChangeUnspecified)
 		logrus.Errorf("contract creation error, gasUsed:%v, gasLimit:%v, leftOver:%v, price:%v, address:%v", gasUsed, txReq.GasLimit, leftOverGas, txReq.GasPrice, sender.Address().String())
 		return txReq.GasLimit - leftOverGas, err
 	}
@@ -507,21 +508,9 @@ func (s *Solidity) executeContractCall(ctx *context.WriteContext, txReq *TxReque
 	senderBalanceBefore := ethState.GetBalance(sender.Address())
 	code, leftOverGas, err := vmenv.Call(sender, *txReq.Address, txReq.Input, txReq.GasLimit, uint256.MustFromBig(txReq.Value))
 	senderBalanceAfterExecute := ethState.GetBalance(sender.Address())
-	isPureTransferTxn := false
-	if IsPureTransfer(sender, txReq, ethState) {
-		isPureTransferTxn = true
-		extraTransferGas := config.GlobalConfig.ExtraBalanceGas
-		if extraTransferGas > txReq.GasLimit {
-			extraTransferGas = txReq.GasLimit
-		}
-		refundFee := new(big.Int).Mul(txReq.GasPrice, new(big.Int).SetUint64(extraTransferGas))
-		refundFeeU256, _ := uint256.FromBig(refundFee)
-		ethState.SubBalance(sender.Address(), refundFeeU256, tracing.BalanceChangeTransfer)
-		if leftOverGas >= extraTransferGas {
-			leftOverGas -= extraTransferGas
-		} else {
-			leftOverGas = 0
-		}
+	isPureTransferTxn := IsPureTransfer(sender, txReq, ethState)
+	if isPureTransferTxn {
+		leftOverGas = txReq.GasLimit
 	}
 	// logrus.Printf("after transfer: account %s balance %d \n", sender.Address(), ethState.GetBalance(sender.Address()))
 	if err != nil {
