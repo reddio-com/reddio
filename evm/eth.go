@@ -534,7 +534,7 @@ func (s *Solidity) executeContractCall(ctx *context.WriteContext, txReq *TxReque
 	}
 	senderBalanceAfterExtra := ethState.GetBalance(sender.Address())
 	logrus.Printf("contract call balance before:%v ,after execute:%v, after extra:%v, isPure:%v, value:%v, sender:%v,",
-		senderBalanceBefore.Uint64(), senderBalanceAfterExecute.Uint64(), senderBalanceAfterExtra.Uint64(), isPureTransferTxn, txReq.Value.Uint64(), sender.Address().String())
+		senderBalanceBefore.String(), senderBalanceAfterExecute.String(), senderBalanceAfterExtra.String(), isPureTransferTxn, txReq.Value.String(), sender.Address().String())
 
 	_, err2 := emitReceipt(ctx, vmenv, txReq, code, common.Address{}, leftOverGas, err)
 	// logrus.Printf("[Execute Txn] SendTx success. Oringin code = %v, Hex Code = %v, Left Gas = %v", code, hex.EncodeToString(code), leftOverGas)
