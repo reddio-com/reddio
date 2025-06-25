@@ -313,11 +313,11 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 		}
 	}()
 
-	var gasUsed uint64
+	//var gasUsed uint64
 	if txReq.Address == nil {
-		gasUsed, err = s.executeContractCreation(ctx, txReq, pd, txReq.Origin, coinbase, vmenv, sender, rules)
+		_, err = s.executeContractCreation(ctx, txReq, pd, txReq.Origin, coinbase, vmenv, sender, rules)
 	} else {
-		gasUsed, err = s.executeContractCall(ctx, txReq, pd, txReq.Origin, coinbase, vmenv, sender, rules)
+		_, err = s.executeContractCall(ctx, txReq, pd, txReq.Origin, coinbase, vmenv, sender, rules)
 	}
 
 	//if !rules.IsLondon {
