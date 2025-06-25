@@ -506,7 +506,7 @@ func (s *Solidity) executeContractCall(ctx *context.WriteContext, txReq *TxReque
 	ethState.SetNonce(txReq.Origin, ethState.GetNonce(txReq.Origin)+1)
 	senderBalanceBefore := ethState.GetBalance(sender.Address())
 	code, leftOverGas, err := vmenv.Call(sender, *txReq.Address, txReq.Input, txReq.GasLimit, uint256.MustFromBig(txReq.Value))
-	senderBalanceAferExecute := ethState.GetBalance(sender.Address())
+	senderBalanceAfterExecute := ethState.GetBalance(sender.Address())
 	isPureTransferTxn := false
 	if IsPureTransfer(sender, txReq, ethState) {
 		isPureTransferTxn = true
@@ -533,8 +533,8 @@ func (s *Solidity) executeContractCall(ctx *context.WriteContext, txReq *TxReque
 		return gasUsed, err
 	}
 	senderBalanceAfterExtra := ethState.GetBalance(sender.Address())
-	logrus.Printf("contract call balance before:%v ,after execute:%v, after extra:%v, isPure:%v, sender:%v",
-		senderBalanceBefore.Uint64(), senderBalanceAferExecute.Uint64(), senderBalanceAfterExtra.Uint64(), isPureTransferTxn, sender.Address().String())
+	logrus.Printf("contract call balance before:%v ,after execute:%v, after extra:%v, isPure:%v, value:%v, sender:%v,",
+		senderBalanceBefore.Uint64(), senderBalanceAfterExecute.Uint64(), senderBalanceAfterExtra.Uint64(), isPureTransferTxn, txReq.Value.Uint64(), sender.Address().String())
 
 	_, err2 := emitReceipt(ctx, vmenv, txReq, code, common.Address{}, leftOverGas, err)
 	// logrus.Printf("[Execute Txn] SendTx success. Oringin code = %v, Hex Code = %v, Left Gas = %v", code, hex.EncodeToString(code), leftOverGas)
