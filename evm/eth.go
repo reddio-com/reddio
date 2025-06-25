@@ -28,6 +28,7 @@ import (
 	"github.com/yu-org/yu/core/tripod"
 	yu_types "github.com/yu-org/yu/core/types"
 
+	"github.com/reddio-com/reddio/config"
 	yuConfig "github.com/reddio-com/reddio/evm/config"
 	"github.com/reddio-com/reddio/evm/pending_state"
 	"github.com/reddio-com/reddio/metrics"
@@ -508,7 +509,7 @@ func (s *Solidity) executeContractCall(ctx *context.WriteContext, txReq *TxReque
 	code, leftOverGas, err := vmenv.Call(sender, *txReq.Address, txReq.Input, txReq.GasLimit, uint256.MustFromBig(txReq.Value))
 	isPureTransferTxn := IsPureTransfer(sender, txReq, ethState)
 	if isPureTransferTxn {
-		leftOverGas = 0
+		leftOverGas = txReq.GasLimit - config.GlobalConfig.ExtraBalanceGas
 	}
 	// logrus.Printf("after transfer: account %s balance %d \n", sender.Address(), ethState.GetBalance(sender.Address()))
 	if err != nil {
