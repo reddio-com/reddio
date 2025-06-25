@@ -493,7 +493,7 @@ func (s *Solidity) executeContractCreation(ctx *context.WriteContext, txReq *TxR
 	code, address, leftOverGas, err := vmenv.Create(sender, txReq.Input, txReq.GasLimit, uint256.MustFromBig(txReq.Value))
 	if err != nil {
 		gasUsed, _ := emitReceipt(ctx, vmenv, txReq, code, address, leftOverGas, err)
-		stateDB.SubBalance(sender.Address(), uint256.NewInt(gasUsed*txReq.GasPrice.Uint64()), tracing.BalanceChangeUnspecified)
+		stateDB.SubBalance(sender.Address(), uint256.NewInt(0), tracing.BalanceChangeUnspecified)
 		logrus.Errorf("contract creation error, gasUsed:%v, gasLimit:%v, leftOver:%v, price:%v, address:%v", gasUsed, txReq.GasLimit, leftOverGas, txReq.GasPrice, sender.Address().String())
 		return txReq.GasLimit - leftOverGas, err
 	}
@@ -504,22 +504,10 @@ func (s *Solidity) executeContractCreation(ctx *context.WriteContext, txReq *TxR
 func (s *Solidity) executeContractCall(ctx *context.WriteContext, txReq *TxRequest, ethState *pending_state.PendingStateWrapper, origin, coinBase common.Address, vmenv *vm.EVM, sender vm.AccountRef, rules params.Rules) (uint64, error) {
 	ethState.Prepare(rules, origin, coinBase, txReq.Address, vm.ActivePrecompiles(rules), nil)
 	ethState.SetNonce(txReq.Origin, ethState.GetNonce(txReq.Origin)+1)
-	senderBalanceBefore := ethState.GetBalance(sender.Address())
 	code, leftOverGas, err := vmenv.Call(sender, *txReq.Address, txReq.Input, txReq.GasLimit, uint256.MustFromBig(txReq.Value))
-	senderBalanceAferExecute := ethState.GetBalance(sender.Address())
-	isPureTransferTxn := false
-	if IsPureTransfer(sender, txReq, ethState) {
-		isPureTransferTxn = true
-		extraTransferGas := config.GlobalConfig.ExtraBalanceGas
-		if extraTransferGas > txReq.GasLimit {
-			extraTransferGas = txReq.GasLimit
-		}
-		ethState.SubBalance(sender.Address(), uint256.NewInt(extraTransferGas*txReq.GasPrice.Uint64()), tracing.BalanceChangeTransfer)
-		if leftOverGas >= extraTransferGas {
-			leftOverGas -= extraTransferGas
-		} else {
-			leftOverGas = 0
-		}
+	isPureTransferTxn := IsPureTransfer(sender, txReq, ethState)
+	if isPureTransferTxn {
+		leftOverGas = txReq.GasLimit - config.GetGlobalConfig().ExtraBalanceGas
 	}
 	// logrus.Printf("after transfer: account %s balance %d \n", sender.Address(), ethState.GetBalance(sender.Address()))
 	if err != nil {
@@ -532,10 +520,6 @@ func (s *Solidity) executeContractCall(ctx *context.WriteContext, txReq *TxReque
 		logrus.Errorf("contract call error, gasUsed:%v, gasLimit:%v, leftOver:%v, price:%v, isPureTransferTxn:%v, sender:%v", gasUsed, txReq.GasLimit, leftOverGas, txReq.GasPrice, isPureTransferTxn, sender.Address().String())
 		return gasUsed, err
 	}
-	senderBalanceAfterExtra := ethState.GetBalance(sender.Address())
-	logrus.Printf("contract call balance before:%v ,after execute:%v, after extra:%v, isPure:%v, sender:%v",
-		senderBalanceBefore.Uint64(), senderBalanceAferExecute.Uint64(), senderBalanceAfterExtra.Uint64(), isPureTransferTxn, sender.Address().String())
-
 	_, err2 := emitReceipt(ctx, vmenv, txReq, code, common.Address{}, leftOverGas, err)
 	// logrus.Printf("[Execute Txn] SendTx success. Oringin code = %v, Hex Code = %v, Left Gas = %v", code, hex.EncodeToString(code), leftOverGas)
 	return txReq.GasLimit - leftOverGas, err2
