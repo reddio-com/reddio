@@ -514,7 +514,9 @@ func (s *Solidity) executeContractCall(ctx *context.WriteContext, txReq *TxReque
 		if extraTransferGas > txReq.GasLimit {
 			extraTransferGas = txReq.GasLimit
 		}
-		ethState.SubBalance(sender.Address(), uint256.NewInt(extraTransferGas*txReq.GasPrice.Uint64()), tracing.BalanceChangeTransfer)
+		refundFee := new(big.Int).Mul(txReq.GasPrice, new(big.Int).SetUint64(extraTransferGas))
+		refundFeeU256, _ := uint256.FromBig(refundFee)
+		ethState.SubBalance(sender.Address(), refundFeeU256, tracing.BalanceChangeTransfer)
 		if leftOverGas >= extraTransferGas {
 			leftOverGas -= extraTransferGas
 		} else {
