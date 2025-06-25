@@ -320,13 +320,13 @@ func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
 		gasUsed, err = s.executeContractCall(ctx, txReq, pd, txReq.Origin, coinbase, vmenv, sender, rules)
 	}
 
-	if !rules.IsLondon {
-		// Before EIP-3529: refunds were capped to gasUsed / 2
-		s.refundGas(vmenv.StateDB, txReq, gasUsed, params.RefundQuotient)
-	} else {
-		// After EIP-3529: refunds are capped to gasUsed / 5
-		s.refundGas(vmenv.StateDB, txReq, gasUsed, params.RefundQuotientEIP3529)
-	}
+	//if !rules.IsLondon {
+	//	// Before EIP-3529: refunds were capped to gasUsed / 2
+	//	s.refundGas(vmenv.StateDB, txReq, gasUsed, params.RefundQuotient)
+	//} else {
+	//	// After EIP-3529: refunds are capped to gasUsed / 5
+	//	s.refundGas(vmenv.StateDB, txReq, gasUsed, params.RefundQuotientEIP3529)
+	//}
 
 	ctx.ExtraInterface = pd
 
