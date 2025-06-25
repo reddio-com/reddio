@@ -508,7 +508,7 @@ func (s *Solidity) executeContractCall(ctx *context.WriteContext, txReq *TxReque
 	code, leftOverGas, err := vmenv.Call(sender, *txReq.Address, txReq.Input, txReq.GasLimit, uint256.MustFromBig(txReq.Value))
 	isPureTransferTxn := IsPureTransfer(sender, txReq, ethState)
 	if isPureTransferTxn {
-		leftOverGas = txReq.GasLimit
+		leftOverGas = 0
 	}
 	// logrus.Printf("after transfer: account %s balance %d \n", sender.Address(), ethState.GetBalance(sender.Address()))
 	if err != nil {
