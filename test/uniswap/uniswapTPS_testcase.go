@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/big"
 	"math/rand"
+	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -28,6 +29,7 @@ const (
 	amountBDesired           = 1e15
 	stepCount                = 50000
 	tokenContractNum         = 2
+	maxErrorThreshold        = 10 // Maximum number of errors before stopping the test
 )
 
 type UniswapV2TPSStatisticsTestCase struct {
@@ -334,14 +336,62 @@ func generateRandomSwapSteps(testData TestData, stepCount int) []SwapStep {
 }
 
 func (cd *UniswapV2TPSStatisticsTestCase) executeSwapSteps(client *ethclient.Client, steps []SwapStep, chainID int64, gasPrice *big.Int, gasLimit uint64) error {
-	for _, step := range steps {
-		if err := cd.rm.Wait(context.Background()); err == nil {
-			if err := executeSwapStep(client, step, chainID, gasPrice, gasLimit); err != nil {
-				logrus.Infof("execute swap step err:%v", err.Error())
+	var errors []error
+	for i, step := range steps {
+		// Check if we've hit the error threshold
+		if len(errors) >= maxErrorThreshold {
+			return fmt.Errorf("stopped after %d errors: %v", len(errors), errors)
+		}
+
+		if err := cd.rm.Wait(context.Background()); err != nil {
+			errors = append(errors, fmt.Errorf("rate limiter error at step %d: %w", i, err))
+			continue
+		}
+		
+		if err := executeSwapStep(client, step, chainID, gasPrice, gasLimit); err != nil {
+			errors = append(errors, fmt.Errorf("swap step %d failed: %w", i, err))
+			logrus.WithFields(logrus.Fields{
+				"step":     i,
+				"tokenIn":  step.TokenIn.Hex(),
+				"tokenOut": step.TokenOut.Hex(),
+				"user":     step.User.Address,
+				"error":    err,
+			}).Error("Failed to execute swap step")
+			
+			// Check if this is a critical error that should stop the test
+			if isCriticalError(err) {
+				return fmt.Errorf("critical error at step %d: %w", i, err)
 			}
 		}
 	}
+
+	if len(errors) > 0 {
+		return fmt.Errorf("multiple swap steps failed (%d errors): %v", len(errors), errors)
+	}
 	return nil
+}
+
+// isCriticalError determines if an error is critical enough to stop the test
+func isCriticalError(err error) bool {
+	if err == nil {
+		return false
+	}
+	
+	// Check for specific critical errors
+	criticalErrors := []string{
+		"insufficient balance",
+		"execution reverted",
+		"gas required exceeds allowance",
+		"nonce too low",
+	}
+	
+	errStr := err.Error()
+	for _, critical := range criticalErrors {
+		if strings.Contains(errStr, critical) {
+			return true
+		}
+	}
+	return false
 }
 
 func executeSwapStep(client *ethclient.Client, step SwapStep, chainID int64, gasPrice *big.Int, gasLimit uint64) error {
