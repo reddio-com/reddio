@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/big"
 	"math/rand"
+	"os"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -33,6 +34,7 @@ const (
 )
 
 type UniswapV2TPSStatisticsTestCase struct {
+	dataPath      string
 	MaxUsers      int
 	NonConflict   bool
 	TestUsers     int
@@ -54,7 +56,7 @@ func (cd *UniswapV2TPSStatisticsTestCase) Name() string {
 	return cd.CaseName
 }
 
-func NewUniswapV2TPSStatisticsTestCase(name string, t, d, maxUser int, rm *rate.Limiter, needLoad, nonConflict bool) *UniswapV2TPSStatisticsTestCase {
+func NewUniswapV2TPSStatisticsTestCase(name string, t, d, maxUser int, rm *rate.Limiter, needLoad, nonConflict bool, dataPath string) *UniswapV2TPSStatisticsTestCase {
 	tc := &UniswapV2TPSStatisticsTestCase{
 		MaxUsers:      maxUser,
 		NonConflict:   nonConflict,
@@ -62,13 +64,15 @@ func NewUniswapV2TPSStatisticsTestCase(name string, t, d, maxUser int, rm *rate.
 		TestUsers:     d,
 		CaseName:      name,
 		rm:            rm,
+		dataPath:      dataPath,
 	}
 	if needLoad {
-		loadedTestData, err := loadTestDataFromFile("test/tmp/prepared_test_data.json")
+		loadedTestData, err := loadTestDataFromFile(dataPath)
 		if err != nil {
 			logrus.Fatalf("Failed to load test data: %v", err)
 			return nil
 		}
+		logrus.Infof("loaded test data, testUsers:%v, testContracts:%v", len(loadedTestData.TestUsers), len(loadedTestData.TestContracts))
 		tc.loadTestData = loadedTestData
 	}
 	return tc
@@ -201,6 +205,7 @@ func (cd *UniswapV2TPSStatisticsTestCase) prepareDeployerContract(deployerUser *
 }
 
 func (cd *UniswapV2TPSStatisticsTestCase) Prepare(ctx context.Context, m *pkg.WalletManager) error {
+	os.Remove(cd.dataPath)
 	deployerUsers, err := m.GenerateRandomWallets(cd.DeployedUsers, accountInitialFunds)
 	if err != nil {
 		return fmt.Errorf("failed to generate deployer user: %v", err.Error())
@@ -223,7 +228,7 @@ func (cd *UniswapV2TPSStatisticsTestCase) Prepare(ctx context.Context, m *pkg.Wa
 		TestContracts: make([]TestContract, 0),
 	}
 	for index, deployerUser := range deployerUsers {
-		logrus.Infof("start to deploy %v contract", index)
+		logrus.Infof("start to deploy %v contract", index+1)
 		router, tokenPairs, err := cd.prepareDeployerContract(deployerUser, testUsers, gasPrice, client)
 		if err != nil {
 			return fmt.Errorf("prepare contract failed, err:%v", err)
@@ -231,7 +236,7 @@ func (cd *UniswapV2TPSStatisticsTestCase) Prepare(ctx context.Context, m *pkg.Wa
 		preparedTestData.TestContracts = append(preparedTestData.TestContracts, TestContract{router, tokenPairs})
 		logrus.Infof("create %v deploy contract done", index+1)
 	}
-	saveTestDataToFile("test/tmp/prepared_test_data.json", preparedTestData)
+	saveTestDataToFile(cd.dataPath, preparedTestData)
 	return err
 }
 
@@ -253,7 +258,6 @@ func (cd *UniswapV2TPSStatisticsTestCase) executeTest(nodeUrl string, chainID in
 		logrus.Infof("Failed to perform swap steps: %v", err)
 		return err
 	}
-
 	return nil
 }
 
