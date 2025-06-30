@@ -25,7 +25,7 @@ const (
 
 type ParallelEVM struct {
 	*tripod.Tripod
-	db          *state.StateDB
+	cpdb        *state.StateDB
 	Solidity    *evm.Solidity `tripod:"solidity"`
 	statManager *BlockTxnStatManager
 	objectInc   map[common2.Address]int
@@ -49,7 +49,7 @@ func (k *ParallelEVM) setupProcessor() {
 
 func (k *ParallelEVM) Execute(block *types.Block) error {
 	k.statManager = &BlockTxnStatManager{TxnCount: len(block.Txns)}
-	k.db = k.Solidity.StateDB()
+	k.cpdb = k.Solidity.StateDBCopy()
 	k.setupProcessor()
 	start := time.Now()
 	defer func() {
@@ -58,6 +58,7 @@ func (k *ParallelEVM) Execute(block *types.Block) error {
 	}()
 	k.processor.Prepare(block)
 	k.processor.Execute(block)
+	k.Solidity.SetStateDB(k.cpdb)
 	receipts := k.processor.Receipts(block)
 	return k.Commit(block, receipts)
 }

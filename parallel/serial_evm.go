@@ -23,7 +23,7 @@ type SerialEvmExecutor struct {
 func NewSerialEvmExecutor(evm *ParallelEVM) *SerialEvmExecutor {
 	return &SerialEvmExecutor{
 		k:  evm,
-		db: evm.db,
+		db: evm.cpdb,
 	}
 }
 

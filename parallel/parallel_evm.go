@@ -35,7 +35,7 @@ func (e *ParallelEvmExecutor) Prepare(block *types.Block) {
 	e.receipts = receipts
 	e.k.updateTxnObjInc(txnCtxList)
 	e.subTxnList = e.splitTxnCtxList(txnCtxList)
-	e.cpdb = e.k.Solidity.StateDBCopy()
+	e.cpdb = e.k.cpdb
 }
 
 func (e *ParallelEvmExecutor) Execute(block *types.Block) {
@@ -130,7 +130,7 @@ func (e *ParallelEvmExecutor) executeTxnCtxListInConcurrency(list []*txnCtx) []*
 			break
 		}
 	}
-	if conflict && !config.GetGlobalConfig().IgnoreConflict {
+	if conflict {
 		e.k.statManager.TxnBatchRedoCount++
 		metrics.BatchTxnCounter.WithLabelValues(batchTxnLabelRedo).Inc()
 		return e.k.executeTxnCtxListInOrder(e.cpdb, list, true)
