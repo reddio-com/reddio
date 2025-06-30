@@ -130,7 +130,7 @@ func (e *ParallelEvmExecutor) executeTxnCtxListInConcurrency(list []*txnCtx) []*
 			break
 		}
 	}
-	if conflict && !config.GetGlobalConfig().IgnoreConflict {
+	if conflict {
 		e.k.statManager.TxnBatchRedoCount++
 		metrics.BatchTxnCounter.WithLabelValues(batchTxnLabelRedo).Inc()
 		return e.k.executeTxnCtxListInOrder(e.cpdb, list, true)
