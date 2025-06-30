@@ -61,22 +61,10 @@ type Solidity struct {
 	coinbaseReward atomic.Uint64
 }
 
-func (s *Solidity) StateDB() *state.StateDB {
-	s.Lock()
-	defer s.Unlock()
-	return s.ethState.StateDB()
-}
-
 func (s *Solidity) StateDBCopy() *state.StateDB {
 	s.Lock()
 	defer s.Unlock()
 	return s.ethState.StateDB().Copy()
-}
-
-func (s *Solidity) GetStateDBState(addr common.Address, hash common.Hash) common.Hash {
-	s.Lock()
-	defer s.Unlock()
-	return s.ethState.StateDB().GetState(addr, hash)
 }
 
 func (s *Solidity) SetStateDB(d *state.StateDB) {
@@ -200,10 +188,8 @@ func NewSolidity(gethConfig *GethConfig) *Solidity {
 
 func (s *Solidity) StartBlock(block *yu_types.Block) {
 	metrics.SolidityCounter.WithLabelValues(startBlockLbl, statusSuccess).Inc()
-	s.Lock()
 	start := time.Now()
 	defer func() {
-		s.Unlock()
 		metrics.SolidityHist.WithLabelValues(startBlockLbl).Observe(float64(time.Since(start).Microseconds()))
 	}()
 	s.cfg.BlockNumber = big.NewInt(int64(block.Height))
@@ -267,10 +253,8 @@ func (s *Solidity) CheckGasfee(req *TxRequest) error {
 // Execute sets up an in-memory, temporary, environment for the execution of
 // the given code. It makes sure that it's restored to its original state afterwards.
 func (s *Solidity) ExecuteTxn(ctx *context.WriteContext) (err error) {
-	s.Lock()
 	start := time.Now()
 	defer func() {
-		s.Unlock()
 		metrics.SolidityHist.WithLabelValues(executeTxnLbl).Observe(float64(time.Since(start).Microseconds()))
 		if err == nil {
 			metrics.SolidityCounter.WithLabelValues(executeTxnLbl, statusSuccess).Inc()

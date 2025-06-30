@@ -35,7 +35,7 @@ func (e *ParallelEvmExecutor) Prepare(block *types.Block) {
 	e.receipts = receipts
 	e.k.updateTxnObjInc(txnCtxList)
 	e.subTxnList = e.splitTxnCtxList(txnCtxList)
-	e.cpdb = e.k.Solidity.StateDBCopy()
+	e.cpdb = e.k.cpdb
 }
 
 func (e *ParallelEvmExecutor) Execute(block *types.Block) {
