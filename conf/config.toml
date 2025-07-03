@@ -1,7 +1,7 @@
 evmProcessorSelector = "serial"
 enableAsyncCommit = false
 maxConcurrency = 4
-isBenchmarkMode = false
+isBenchmarkMode = true
 ignoreConflict = false
 
 [rateLimitConfig]

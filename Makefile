@@ -3,7 +3,7 @@ PROJECT=reddio
 default: build
 
 build:
-	go build -v -o ./bin/$(PROJECT) ./cmd/node/main.go ./cmd/node/testrequest.go
+	go build -v -o ./$(PROJECT) ./cmd/node/main.go ./cmd/node/testrequest.go
 
 ## for local dev
 
@@ -12,9 +12,6 @@ build_transfer_test_no_race:
 
 build_uniswap_test_no_race:
 	go build -v -o ./bin/uniswap_test ./test/cmd/uniswap/main.go
-
-build_uniswap_benchmark_test:
-	go build -v -o ./bin/uniswap_benchmark_test ./test/cmd/uniswap_benchmark/main.go
 
 build_transfer_erc20_test_no_race:
 	go build -v -o ./bin/transfer_erc20_test ./test/cmd/erc20/main.go
@@ -61,6 +58,9 @@ ci_parallel_single_transfer_erc20_test: reset
 
 build_benchmark_test:
 	go build -v -o ./bin/benchmark_test ./test/cmd/benchmark/main.go
+
+build_uniswap_benchmark_test:
+	go build -v -o ./bin/uniswap_benchmark_test ./test/cmd/uniswap_benchmark/main.go
 
 reset:
 	@if [ -d "yu" ]; then \
