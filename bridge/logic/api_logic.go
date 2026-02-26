@@ -36,7 +36,7 @@ func NewHistoryLogic(db *gorm.DB) *HistoryLogic {
 // GetL2UnclaimedWithdrawalsByAddress gets all unclaimed withdrawal txs under given address.
 func (h *HistoryLogic) GetL2UnclaimedWithdrawalsByAddress(ctx context.Context, address string, page, pageSize uint64) ([]*types.TxHistoryInfo, uint64, error) {
 	cacheKey := fmt.Sprintf("unclaimed_withdrawals_%s_%d_%d", address, page, pageSize)
-	logrus.Info("cache miss", "cache key", cacheKey)
+	logrus.WithField("cache_key", cacheKey).Info("cache miss")
 	var total uint64
 	result, err, _ := h.singleFlight.Do(cacheKey, func() (interface{}, error) {
 		var txHistoryInfos []*types.TxHistoryInfo
@@ -67,7 +67,7 @@ func (h *HistoryLogic) GetL2UnclaimedWithdrawalsByAddress(ctx context.Context, a
 // GetL2UnclaimedWithdrawalsByAddress gets all unclaimed withdrawal txs under given address.
 func (h *HistoryLogic) GetTxsByAddress(ctx context.Context, address string, page, pageSize uint64) ([]*types.TxHistoryInfo, uint64, error) {
 	cacheKey := fmt.Sprintf("txs_by_address_%s_%d_%d", address, page, pageSize)
-	logrus.Info("cache miss", "cache key", cacheKey)
+	logrus.WithField("cache_key", cacheKey).Info("cache miss")
 	var total uint64
 	result, err, _ := h.singleFlight.Do(cacheKey, func() (interface{}, error) {
 		var txHistoryInfos []*types.TxHistoryInfo
